@@ -16,6 +16,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { ModeToggle } from "./toggle";
 import { Button } from "./ui/button";
 
+import overleggLogo from "../assets/overlegg-logo.png";
+
 const Navbar = () => {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -28,12 +30,16 @@ const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+    <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background: px-4 md:px-6 z-50 backdrop-blur-xl ">
       <NavigationMenu>
         <NavigationMenuList>
           <NavigationMenuItem>
-            <Link to="/" className="flex items-center gap-2 text-lg font-semibold md:text-base">
-              Overlays
+            <Link
+              to="/"
+              className="flex items-center gap-2 text-lg font-semibold md:text-base font-mono"
+            >
+              <img src={overleggLogo} alt="Overlegg Logo" className="h-8 w-8 dark:invert" />
+              Overlegg
             </Link>
           </NavigationMenuItem>
         </NavigationMenuList>

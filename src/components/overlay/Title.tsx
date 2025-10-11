@@ -2,7 +2,7 @@ import React from "react";
 
 // Define a more specific type for title styles
 interface TitleStyle {
-  fontSize?: string;
+  fontSize?: number;
   fontFamily?: string;
   color?: string;
   startEmoji?: string;
@@ -16,7 +16,7 @@ interface TitleProps {
 
 const Title: React.FC<TitleProps> = ({ text, style }) => {
   const titleStyle = {
-    fontSize: style.fontSize || "2.25rem", // text-4xl
+    fontSize: style.fontSize ? `${style.fontSize}px` : "36px",
     lineHeight: "2.5rem",
     fontWeight: "700", // font-bold
     fontFamily: style.fontFamily,

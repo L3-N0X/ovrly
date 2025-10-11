@@ -53,7 +53,13 @@ const PublicCounterPage = () => {
   }, [overlayId]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
+    <div
+      style={{
+        width: "800px",
+        height: "600px",
+        backgroundColor: style.backgroundColor || "transparent",
+      }}
+    >
       <DisplayCounter title={title} counter={counter} style={style} />
     </div>
   );

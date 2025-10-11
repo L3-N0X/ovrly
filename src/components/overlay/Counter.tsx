@@ -2,12 +2,12 @@ import React from "react";
 
 // Define a more specific type for counter styles
 interface CounterStyle {
-  fontSize?: string;
+  fontSize?: number;
   fontFamily?: string;
   color?: string;
   backgroundColor?: string;
-  radius?: string;
-  padding?: string;
+  radius?: number;
+  padding?: number;
 }
 
 interface CounterProps {
@@ -17,13 +17,13 @@ interface CounterProps {
 
 const Counter: React.FC<CounterProps> = ({ value, style }) => {
   const counterStyle = {
-    fontSize: style.fontSize || "8rem", // text-9xl
+    fontSize: style.fontSize ? `${style.fontSize}px` : "128px",
     fontWeight: "700", // font-bold
     fontFamily: style.fontFamily,
     color: style.color || "#ffffff",
     backgroundColor: style.backgroundColor,
-    borderRadius: style.radius,
-    padding: style.padding,
+    borderRadius: style.radius ? `${style.radius}px` : undefined,
+    padding: style.padding ? `${style.padding}px` : undefined,
   };
 
   return <div style={counterStyle}>{value}</div>;

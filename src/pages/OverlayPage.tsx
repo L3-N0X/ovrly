@@ -253,8 +253,9 @@ const OverlayPage: React.FC = () => {
         {/* Left Side */}
         <div
           ref={previewContainerRef}
-          className="flex flex-col items-center justify-center p-8 border rounded-lg bg-secondary"
+          className="flex flex-col items-center justify-start overflow-hidden border rounded-lg bg-secondary pt-4"
         >
+          <h2 className="text-xl font-semibold mb-2 w-full px-4">Preview</h2>
           <div
             className="aspect-[4/3] w-full max-w-full overflow-hidden"
             style={{
@@ -268,13 +269,14 @@ const OverlayPage: React.FC = () => {
                 width: "800px",
                 height: "600px",
                 transform: `scale(${scale})`,
-                transformOrigin: "top left",
                 backgroundColor: style.backgroundColor || "transparent",
+                border: "4px solid var(--color-border)",
               }}
             >
               <DisplayCounter title={title} counter={count} style={style} />
             </div>
           </div>
+          <div className="p-4 text-sm text-muted-foreground">Preview (actual size: 800x600)</div>
         </div>
 
         {/* Right Side */}
@@ -309,8 +311,6 @@ const OverlayPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <StyleEditor style={style} onStyleChange={handleStyleChange} />
-
           <Card>
             <CardHeader>
               <CardTitle>Overlay Title</CardTitle>
@@ -329,6 +329,8 @@ const OverlayPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          <StyleEditor style={style} onStyleChange={handleStyleChange} />
 
           <Card>
             <CardHeader>

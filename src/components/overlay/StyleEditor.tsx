@@ -33,12 +33,19 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
       }
       current = current[keys[i]];
     }
-    current[keys[keys.length - 1]] = value === "" ? undefined : value;
+    current[keys[keys.length - 1]] = value;
     onStyleChange(newStyle);
   };
 
   const handleSliderChange = (path: string, value: number[]) => {
     handleValueChange(path, value[0]);
+  };
+
+  const handleNumericInputChange = (path: string, value: string) => {
+    if (/^\d*$/.test(value)) {
+      const numValue = value === "" ? 0 : parseInt(value, 10);
+      handleValueChange(path, numValue);
+    }
   };
 
   return (
@@ -70,15 +77,15 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
             <Label>Distance (px)</Label>
             <div className="flex items-center gap-2">
               <Slider
-                value={[parseInt(style.distance || "16")]}
+                value={[parseInt(String(style.distance || 16))]}
                 onValueChange={(value) => handleSliderChange("distance", value)}
                 max={200}
                 step={1}
               />
               <Input
-                type="number"
-                value={parseInt(style.distance || "16")}
-                onChange={(e) => handleValueChange("distance", e.target.value)}
+                type="text"
+                value={style.distance || ""}
+                onChange={(e) => handleNumericInputChange("distance", e.target.value)}
                 className="w-20"
               />
             </div>
@@ -92,15 +99,15 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
               <Label>Font Size (px)</Label>
               <div className="flex items-center gap-2">
                 <Slider
-                  value={[parseInt(style.title?.fontSize || "36")]}
+                  value={[parseInt(String(style.title?.fontSize || 36))]}
                   onValueChange={(value) => handleSliderChange("title.fontSize", value)}
                   max={200}
                   step={1}
                 />
                 <Input
-                  type="number"
-                  value={parseInt(style.title?.fontSize || "36")}
-                  onChange={(e) => handleValueChange("title.fontSize", e.target.value)}
+                  type="text"
+                  value={style.title?.fontSize || ""}
+                  onChange={(e) => handleNumericInputChange("title.fontSize", e.target.value)}
                   className="w-20"
                 />
               </div>
@@ -143,15 +150,15 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
               <Label>Font Size (px)</Label>
               <div className="flex items-center gap-2">
                 <Slider
-                  value={[parseInt(style.counter?.fontSize || "128")]}
+                  value={[parseInt(String(style.counter?.fontSize || 128))]}
                   onValueChange={(value) => handleSliderChange("counter.fontSize", value)}
                   max={400}
                   step={1}
                 />
                 <Input
-                  type="number"
-                  value={parseInt(style.counter?.fontSize || "128")}
-                  onChange={(e) => handleValueChange("counter.fontSize", e.target.value)}
+                  type="text"
+                  value={style.counter?.fontSize || ""}
+                  onChange={(e) => handleNumericInputChange("counter.fontSize", e.target.value)}
                   className="w-20"
                 />
               </div>

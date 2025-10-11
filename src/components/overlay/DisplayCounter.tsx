@@ -5,24 +5,24 @@ import Counter from "./Counter";
 // Define a comprehensive style interface
 export interface OverlayStyle {
   arrangement?: "column" | "row" | "column-reverse" | "row-reverse";
-  distance?: string;
+  distance?: number;
   backgroundColor?: string;
-  padding?: string;
-  radius?: string;
+  padding?: number;
+  radius?: number;
   title?: {
-    fontSize?: string;
+    fontSize?: number;
     fontFamily?: string;
     color?: string;
     startEmoji?: string;
     endEmoji?: string;
   };
   counter?: {
-    fontSize?: string;
+    fontSize?: number;
     fontFamily?: string;
     color?: string;
     backgroundColor?: string;
-    radius?: string;
-    padding?: string;
+    radius?: number;
+    padding?: number;
   };
 }
 
@@ -38,10 +38,12 @@ const DisplayCounter: React.FC<DisplayCounterProps> = ({ title, counter, style =
     flexDirection: style.arrangement || "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: style.distance || "1rem", // Corresponds to mb-4
+    width: "100%",
+    height: "100%",
+    gap: style.distance ? `${style.distance}px` : "16px",
     backgroundColor: style.backgroundColor,
-    padding: style.padding,
-    borderRadius: style.radius,
+    padding: style.padding ? `${style.padding}px` : undefined,
+    borderRadius: style.radius ? `${style.radius}px` : undefined,
   };
 
   const titleStyle = style.title || {};
