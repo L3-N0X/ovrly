@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,53 +11,254 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ColorPicker, useColor } from "react-color-palette";
-import type { OverlayStyle } from "./DisplayCounter";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  AlignHorizontalDistributeCenter,
-  AlignHorizontalDistributeEnd,
-  AlignHorizontalDistributeStart,
-  AlignVerticalDistributeCenter,
-  AlignVerticalDistributeEnd,
-  AlignVerticalDistributeStart,
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignHorizontalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  Baseline,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  type PrismaOverlay,
+  ElementTypeEnum,
+  type ElementType,
+  type PrismaElement,
+  type BaseElementStyle,
+  type CounterStyle,
+  type ElementStyle,
+} from "@/lib/types";
+import { Button } from "@/components/ui/button";
 import { FontPicker } from "../FontPicker";
 
+// Helper to handle nested property changes
+const handleValueChange = (obj: object, path: string, value: unknown) => {
+  const keys = path.split(".");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let current: any = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (current[keys[i]] === undefined) {
+      current[keys[i]] = {};
+    }
+    current = current[keys[i]];
+  }
+  current[keys[keys.length - 1]] = value;
+  return obj;
+};
+
+// ==================================
+//      ELEMENT-SPECIFIC EDITORS
+// ==================================
+
+const TitleStyleEditor: React.FC<{
+  element: PrismaElement;
+  onChange: (newStyle: BaseElementStyle) => void;
+}> = ({ element, onChange }) => {
+  const [color, setColor] = useColor((element.style as BaseElementStyle)?.color || "#ffffff");
+
+  const updateStyle = (path: string, value: string | number) => {
+    const newStyle = JSON.parse(JSON.stringify(element.style || {}));
+    onChange(handleValueChange(newStyle, path, value));
+  };
+
+  const style = element.style as BaseElementStyle;
+
+  return (
+    <div className="space-y-4 p-4 border rounded-lg">
+      <h4 className="font-semibold">Edit: {element.name}</h4>
+      <div className="space-y-2">
+        <Label>Font Size (px)</Label>
+        <Slider
+          value={[style?.fontSize || 36]}
+          onValueChange={(v) => updateStyle("fontSize", v[0])}
+          max={200}
+          min={8}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Font Family</Label>
+          <FontPicker
+            value={style?.fontFamily || ""}
+            onChange={(font) => updateStyle("fontFamily", font)}
+            className="w-full h-10"
+            previewWord={element.title?.text}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Color</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-full h-10 rounded-md border"
+                style={{ backgroundColor: color.hex }}
+              />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <ColorPicker
+                color={color}
+                onChange={(c) => {
+                  setColor(c);
+                  updateStyle("color", c.hex);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CounterStyleEditor: React.FC<{
+  element: PrismaElement;
+  onChange: (newStyle: CounterStyle) => void;
+}> = ({ element, onChange }) => {
+  const [color, setColor] = useColor((element.style as CounterStyle)?.color || "#ffffff");
+  const [bgColor, setBgColor] = useColor(
+    (element.style as CounterStyle)?.backgroundColor || "#333333"
+  );
+
+  const updateStyle = (path: string, value: string | number) => {
+    const newStyle = JSON.parse(JSON.stringify(element.style || {}));
+    onChange(handleValueChange(newStyle, path, value));
+  };
+
+  const style = element.style as CounterStyle;
+
+  return (
+    <div className="space-y-4 p-4 border rounded-lg">
+      <h4 className="font-semibold">Edit: {element.name}</h4>
+      <div className="space-y-2">
+        <Label>Font Size (px)</Label>
+        <Slider
+          value={[style?.fontSize || 128]}
+          onValueChange={(v) => updateStyle("fontSize", v[0])}
+          max={400}
+          min={8}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Font Family</Label>
+          <FontPicker
+            value={style?.fontFamily || ""}
+            onChange={(font) => updateStyle("fontFamily", font)}
+            previewWord="1234567890"
+            className="w-full h-10"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Color</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-full h-10 rounded-md border"
+                style={{ backgroundColor: color.hex }}
+              />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <ColorPicker
+                color={color}
+                onChange={(c) => {
+                  setColor(c);
+                  updateStyle("color", c.hex);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="space-y-2">
+          <Label>Background</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-full h-10 rounded-md border"
+                style={{ backgroundColor: bgColor.hex }}
+              />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <ColorPicker
+                color={bgColor}
+                onChange={(c) => {
+                  setBgColor(c);
+                  updateStyle("backgroundColor", c.hex);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="space-y-2">
+          <Label>Padding (px)</Label>
+          <Slider
+            value={[(element.style as CounterStyle)?.padding || 0]}
+            onValueChange={(v) => updateStyle("padding", v[0])}
+            max={100}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Corner Radius (px)</Label>
+          <Slider
+            value={[(element.style as CounterStyle)?.radius || 0]}
+            onValueChange={(v) => updateStyle("radius", v[0])}
+            max={100}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================================
+//      MAIN STYLE EDITOR
+// ==================================
+
 interface StyleEditorProps {
-  style: OverlayStyle;
-  onStyleChange: (newStyle: OverlayStyle) => void;
-  title: string;
+  overlay: PrismaOverlay;
+  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onAddElement: (type: ElementType, name: string) => void;
+  onDeleteElement: (elementId: string) => void;
 }
 
-const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange, title }) => {
-  const [titleColor, setTitleColor] = useColor(style.title?.color || "#ffffff");
-  const [counterColor, setCounterColor] = useColor(style.counter?.color || "#ffffff");
+const StyleEditor: React.FC<StyleEditorProps> = ({
+  overlay,
+  onOverlayChange,
+  onAddElement,
+  onDeleteElement,
+}) => {
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [newElementName, setNewElementName] = useState("");
+  const [newElementType, setNewElementType] = useState<ElementType>(ElementTypeEnum.COUNTER);
 
-  const handleValueChange = (path: string, value: string | number) => {
-    const keys = path.split(".");
-    const newStyle = JSON.parse(JSON.stringify(style));
-    let current = newStyle;
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (!current[keys[i]]) {
-        current[keys[i]] = {};
-      }
-      current = current[keys[i]];
-    }
-    current[keys[keys.length - 1]] = value;
-    onStyleChange(newStyle);
+  const updateGlobalStyle = (path: string, value: string | number) => {
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    const newGlobalStyle = handleValueChange(newOverlay.globalStyle || {}, path, value);
+    newOverlay.globalStyle = newGlobalStyle;
+    onOverlayChange(newOverlay);
   };
 
-  const handleSliderChange = (path: string, value: number[]) => {
-    handleValueChange(path, value[0]);
-  };
-
-  const handleNumericInputChange = (path: string, value: string) => {
-    if (/^\d*\.?\d*$/.test(value)) {
-      const numValue = value === "" ? 0 : parseInt(value, 10);
-      handleValueChange(path, numValue);
+  const updateElementStyle = (elementId: string, newStyle: ElementStyle) => {
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    const elementIndex = newOverlay.elements.findIndex((el: PrismaElement) => el.id === elementId);
+    if (elementIndex > -1) {
+      newOverlay.elements[elementIndex].style = newStyle;
+      onOverlayChange(newOverlay);
     }
   };
+
+  const handleAddNewElement = () => {
+    if (newElementName.trim()) {
+      onAddElement(newElementType, newElementName.trim());
+      setNewElementName("");
+    }
+  };
+
+  const selectedElement = overlay.elements.find((el) => el.id === selectedElementId);
 
   return (
     <Card>
@@ -66,261 +267,191 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange, title }
         <CardDescription>Customize the look and feel of your overlay.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Arrangement</Label>
-            <Select
-              value={style.arrangement || "column"}
-              onValueChange={(value) => handleValueChange("arrangement", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select arrangement" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="column">Text Above</SelectItem>
-                <SelectItem value="column-reverse">Text Below</SelectItem>
-                <SelectItem value="row">Text Left</SelectItem>
-                <SelectItem value="row-reverse">Text Right</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Global Styles */}
+        <div>
+          <h3 className="text-lg font-medium mb-4">Global Layout</h3>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Arrangement</Label>
+              <Select
+                value={overlay.globalStyle?.flexDirection || "column"}
+                onValueChange={(v) => updateGlobalStyle("flexDirection", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="column">Column</SelectItem>
+                  <SelectItem value="row">Row</SelectItem>
+                  <SelectItem value="column-reverse">Column Reversed</SelectItem>
+                  <SelectItem value="row-reverse">Row Reversed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Gap (px)</Label>
+              <Slider
+                value={[overlay.globalStyle?.gap || 16]}
+                onValueChange={(v) => updateGlobalStyle("gap", v[0])}
+                max={200}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Align Items (Vertical)</Label>
+              <ToggleGroup
+                type="single"
+                value={overlay.globalStyle?.alignItems || "stretch"}
+                onValueChange={(v) => v && updateGlobalStyle("alignItems", v)}
+                className="w-full"
+                variant="outline"
+              >
+                <ToggleGroupItem value="flex-start" className="w-full">
+                  <AlignVerticalJustifyStart className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="center" className="w-full">
+                  <AlignVerticalJustifyCenter className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="flex-end" className="w-full">
+                  <AlignVerticalJustifyEnd className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="baseline" className="w-full">
+                  <Baseline className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <div className="space-y-2">
+              <Label>Justify Content (Horizontal)</Label>
+              <ToggleGroup
+                type="single"
+                value={overlay.globalStyle?.justifyContent || "flex-start"}
+                onValueChange={(v) => v && updateGlobalStyle("justifyContent", v)}
+                className="w-full"
+                variant="outline"
+              >
+                <ToggleGroupItem value="flex-start" className="w-full">
+                  <AlignHorizontalJustifyStart className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="center" className="w-full">
+                  <AlignHorizontalJustifyCenter className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="flex-end" className="w-full">
+                  <AlignHorizontalJustifyEnd className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <div className="space-y-2">
+              <Label>Padding (px)</Label>
+              <Slider
+                value={[overlay.globalStyle?.padding || 0]}
+                onValueChange={(v) => updateGlobalStyle("padding", v[0])}
+                max={200}
+              />
+            </div>
           </div>
         </div>
-        <div className="space-y-2">
-          <Label>Distance (px)</Label>
-          <div className="flex items-center gap-2">
-            <Slider
-              value={[parseInt(String(style.distance || 0))]}
-              onValueChange={(value) => handleSliderChange("distance", value)}
-              max={400}
-              min={0}
-              step={1}
-            />
+
+        <hr />
+
+        <div>
+          <h3 className="text-lg font-medium mb-4">Container Position</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Top (px)</Label>
+              <Slider
+                value={[overlay.globalStyle?.top || 0]}
+                onValueChange={(v) => updateGlobalStyle("top", v[0])}
+                max={600}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Left (px)</Label>
+              <Slider
+                value={[overlay.globalStyle?.left || 0]}
+                onValueChange={(v) => updateGlobalStyle("left", v[0])}
+                max={800}
+              />
+            </div>
+          </div>
+        </div>
+
+        <hr />
+
+        {/* Elements List */}
+        <div>
+          <h3 className="text-lg font-medium mb-4">Elements</h3>
+          <div className="space-y-2">
+            {overlay.elements.map((element) => (
+              <div
+                key={element.id}
+                className={`flex items-center justify-between p-2 rounded-md ${
+                  selectedElementId === element.id ? "bg-muted" : ""
+                }`}
+              >
+                <span>
+                  {element.name}{" "}
+                  <span className="text-xs text-muted-foreground">({element.type})</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setSelectedElementId(selectedElementId === element.id ? null : element.id)
+                    }
+                  >
+                    {selectedElementId === element.id ? "Close" : "Edit"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => onDeleteElement(element.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mt-4">
             <Input
-              type="text"
-              value={style.distance !== undefined ? String(style.distance) : ""}
-              onChange={(e) => handleNumericInputChange("distance", e.target.value)}
-              className="w-20"
+              placeholder="New element name..."
+              value={newElementName}
+              onChange={(e) => setNewElementName(e.target.value)}
             />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Padding X (px)</Label>
-            <div className="flex items-center gap-2">
-              <Slider
-                value={[parseInt(String(style.paddingX || 0))]}
-                onValueChange={(value) => handleSliderChange("paddingX", value)}
-                max={200}
-                min={0}
-                step={1}
-              />
-              <Input
-                type="text"
-                value={style.paddingX !== undefined ? String(style.paddingX) : ""}
-                onChange={(e) => handleNumericInputChange("paddingX", e.target.value)}
-                className="w-20"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Padding Y (px)</Label>
-            <div className="flex items-center gap-2">
-              <Slider
-                value={[parseInt(String(style.paddingY || 0))]}
-                onValueChange={(value) => handleSliderChange("paddingY", value)}
-                max={200}
-                min={0}
-                step={1}
-              />
-              <Input
-                type="text"
-                value={style.paddingY !== undefined ? String(style.paddingY) : ""}
-                onChange={(e) => handleNumericInputChange("paddingY", e.target.value)}
-                className="w-20"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="grid grid-cols-2 gap-4 items-center space-x-4">
-            {/* Vertical Alignment */}
-            <div className="space-y-2">
-              <Label>Align Vertical</Label>
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={style.verticalAlignment || "center"}
-                aria-label="Vertical alignment"
-                onValueChange={(value: string) => {
-                  if (value) handleValueChange("verticalAlignment", value);
-                }}
-              >
-                <ToggleGroupItem value="top" aria-label="Align top">
-                  <AlignVerticalDistributeStart className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="center" aria-label="Align center vertically">
-                  <AlignVerticalDistributeCenter className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="bottom" aria-label="Align bottom">
-                  <AlignVerticalDistributeEnd className="h-4 w-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-
-            {/* Horizontal Alignment */}
-            <div className="space-y-2">
-              <Label>Align Horizontal</Label>
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={style.horizontalAlignment || "center"}
-                aria-label="Horizontal alignment"
-                onValueChange={(value: string) => {
-                  if (value) handleValueChange("horizontalAlignment", value);
-                }}
-              >
-                <ToggleGroupItem value="left" aria-label="Align left">
-                  <AlignHorizontalDistributeStart className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="center" aria-label="Align center horizontally">
-                  <AlignHorizontalDistributeCenter className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="right" aria-label="Align right">
-                  <AlignHorizontalDistributeEnd className="h-4 w-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Inner Vertical Alignment</Label>
-            <Select
-              value={style.verticalAlign || "center"}
-              onValueChange={(value) => handleValueChange("verticalAlign", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select vertical alignment" />
+            <Select value={newElementType} onValueChange={(v: ElementType) => setNewElementType(v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="center">Center</SelectItem>
-                <SelectItem value="baseline">Baseline</SelectItem>
+                <SelectItem value={ElementTypeEnum.COUNTER}>Counter</SelectItem>
+                <SelectItem value={ElementTypeEnum.TITLE}>Title</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={handleAddNewElement}>
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
         </div>
+
         <hr />
-        <div>
-          <h3 className="text-lg font-medium mb-2">Title</h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Font Size (px)</Label>
-              <div className="flex items-center gap-2">
-                <Slider
-                  value={[parseInt(String(style.title?.fontSize || 0))]}
-                  onValueChange={(value) => handleSliderChange("title.fontSize", value)}
-                  max={700}
-                  min={0}
-                  step={1}
-                />
-                <Input
-                  type="text"
-                  value={style.title?.fontSize !== undefined ? String(style.title.fontSize) : ""}
-                  onChange={(e) => handleNumericInputChange("title.fontSize", e.target.value)}
-                  className="w-20"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Font Family</Label>
-                <FontPicker
-                  value={style.title?.fontFamily || ""}
-                  onChange={(font) => handleValueChange("title.fontFamily", font)}
-                  previewWord={title}
-                  className="w-full h-10"
-                ></FontPicker>
-              </div>
-              <div className="space-y-2">
-                <Label>Color</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="w-full h-10 rounded-md border border-input"
-                      style={{ backgroundColor: titleColor.hex }}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <ColorPicker
-                      color={titleColor}
-                      onChange={(color) => {
-                        setTitleColor(color);
-                        handleValueChange("title.color", color.hex);
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
+
+        {/* Selected Element Editor */}
+        {selectedElement && (
+          <div>
+            {selectedElement.type === ElementTypeEnum.TITLE && (
+              <TitleStyleEditor
+                element={selectedElement}
+                onChange={(style) => updateElementStyle(selectedElement.id, style)}
+              />
+            )}
+            {selectedElement.type === ElementTypeEnum.COUNTER && (
+              <CounterStyleEditor
+                element={selectedElement}
+                onChange={(style) => updateElementStyle(selectedElement.id, style)}
+              />
+            )}
           </div>
-        </div>
-        <hr />
-        <div>
-          <h3 className="text-lg font-medium mb-2">Number</h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Font Size (px)</Label>
-              <div className="flex items-center gap-2">
-                <Slider
-                  value={[parseInt(String(style.counter?.fontSize || 0))]}
-                  onValueChange={(value) => handleSliderChange("counter.fontSize", value)}
-                  max={700}
-                  min={0}
-                  step={1}
-                />
-                <Input
-                  type="text"
-                  value={
-                    style.counter?.fontSize !== undefined ? String(style.counter.fontSize) : ""
-                  }
-                  onChange={(e) => handleNumericInputChange("counter.fontSize", e.target.value)}
-                  className="w-20"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Font Family</Label>
-                <FontPicker
-                  value={style.counter?.fontFamily || ""}
-                  onChange={(font) => handleValueChange("counter.fontFamily", font)}
-                  previewWord={"0123456789"}
-                  className="w-full h-10"
-                ></FontPicker>
-              </div>
-              <div className="space-y-2">
-                <Label>Color</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="w-full h-10 rounded-md border border-input"
-                      style={{ backgroundColor: counterColor.hex }}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <ColorPicker
-                      color={counterColor}
-                      onChange={(color) => {
-                        setCounterColor(color);
-                        handleValueChange("counter.color", color.hex);
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

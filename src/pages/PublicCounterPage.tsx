@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import DisplayCounter, { type OverlayStyle } from "../components/overlay/DisplayCounter";
+import OverlayCanvas from "../components/overlay/OverlayCanvas";
+import type { PrismaOverlay } from "@/lib/types";
 
 const PublicCounterPage = () => {
   const { overlayId } = useParams();
-  const [counter, setCounter] = useState(0);
-  const [title, setTitle] = useState("");
-  const [style, setStyle] = useState<OverlayStyle>({});
+  const [overlay, setOverlay] = useState<PrismaOverlay | null>(null);
 
   useEffect(() => {
     if (!overlayId) return;
@@ -16,9 +15,7 @@ const PublicCounterPage = () => {
         const response = await fetch(`http://localhost:3000/api/public/overlays/${overlayId}`);
         if (response.ok) {
           const data = await response.json();
-          setCounter(data.counter);
-          setTitle(data.title);
-          setStyle(data.style || {});
+          setOverlay(data);
         }
       } catch (error) {
         console.error("Failed to fetch initial overlay data:", error);
@@ -30,15 +27,11 @@ const PublicCounterPage = () => {
     const ws = new WebSocket(`ws://localhost:3000/ws?overlayId=${overlayId}`);
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (typeof data.counter === "number") {
-        setCounter(data.counter);
-      }
-      if (typeof data.title === "string") {
-        setTitle(data.title);
-      }
-      if (typeof data.style === "object" && data.style !== null) {
-        setStyle(data.style);
+      try {
+        const data = JSON.parse(event.data);
+        setOverlay(data);
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
       }
     };
 
@@ -52,17 +45,12 @@ const PublicCounterPage = () => {
     };
   }, [overlayId]);
 
-  return (
-    <div
-      style={{
-        width: "800px",
-        height: "600px",
-        backgroundColor: style.backgroundColor || "transparent",
-      }}
-    >
-      <DisplayCounter title={title} counter={counter} style={style} />
-    </div>
-  );
+  if (!overlay) {
+    // Render a blank 800x600 box while loading
+    return <div style={{ width: "800px", height: "600px" }} />;
+  }
+
+  return <OverlayCanvas overlay={overlay} />;
 };
 
 export default PublicCounterPage;

@@ -3,29 +3,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Check, Copy, Minus, Plus } from "lucide-react";
-import DisplayCounter, { type OverlayStyle } from "@/components/overlay/DisplayCounter";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import StyleEditor from "@/components/overlay/StyleEditor";
-
-interface Overlay {
-  id: string;
-  name: string;
-  description: string | null;
-  counter: number;
-  title: string | null;
-  style: OverlayStyle | null;
-}
+import type { ElementType, PrismaElement, PrismaOverlay } from "@/lib/types";
+import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 
 const OverlayPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [overlay, setOverlay] = useState<Overlay | null>(null);
+  const [overlay, setOverlay] = useState<PrismaOverlay | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [count, setCount] = useState(0);
-  const [title, setTitle] = useState("");
-  const [style, setStyle] = useState<OverlayStyle>({});
   const [isCopied, setIsCopied] = useState(false);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +26,7 @@ const OverlayPage: React.FC = () => {
       setScale(width / 800);
     }
   }, []);
+
   const fetchOverlay = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -47,11 +37,8 @@ const OverlayPage: React.FC = () => {
       if (!response.ok) {
         throw new Error("Failed to fetch overlay");
       }
-      const data = await response.json();
+      const data: PrismaOverlay = await response.json();
       setOverlay(data);
-      setCount(data.counter);
-      setTitle(data.title || "");
-      setStyle(data.style || {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
@@ -72,19 +59,18 @@ const OverlayPage: React.FC = () => {
 
     ws.onmessage = (event) => {
       try {
-        const updatedOverlay = JSON.parse(event.data);
-        if (updatedOverlay && typeof updatedOverlay.counter === "number") {
-          setOverlay(updatedOverlay);
-          setCount(updatedOverlay.counter);
-          setTitle(updatedOverlay.title || "");
-          setStyle(updatedOverlay.style || {});
-        }
+        const updatedOverlay: PrismaOverlay = JSON.parse(event.data);
+        setOverlay(updatedOverlay);
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
       }
     };
 
+    // The cleanup function will be called when the component unmounts.
     return () => {
+      // By the time the cleanup function runs, the WebSocket constructor has been called.
+      // We can safely call close() on it. The browser will handle the case where the
+      // connection is not yet open by canceling the connection attempt.
       ws.close();
     };
   }, [id]);
@@ -93,124 +79,179 @@ const OverlayPage: React.FC = () => {
     calculateScale();
     window.addEventListener("resize", calculateScale);
     return () => window.removeEventListener("resize", calculateScale);
-  }, [calculateScale]);
+  }, [calculateScale, overlay]);
 
-  useEffect(() => {
-    // Recalculate scale whenever the style changes to handle potential overflow.
-    const timeoutId = setTimeout(calculateScale, 0);
-    return () => clearTimeout(timeoutId);
-  }, [style, calculateScale]);
+  // Debounced PATCH request function
+  const debouncedUpdate = useCallback((url: string, body: object) => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+    debounceTimeout.current = setTimeout(async () => {
+      try {
+        const response = await fetch(url, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to update");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 500);
+  }, []);
 
-  const handleDeleteOverlay = async () => {
+  // Recursive helper function to compare and find changed elements
+  const findChangedElements = (
+    updatedElements: PrismaElement[],
+    originalElements: PrismaElement[]
+  ): PrismaElement[] => {
+    const changedElements: PrismaElement[] = [];
+
+    // Create a map of original elements by id for quick lookup
+    const originalMap = new Map<string, PrismaElement>();
+    const buildOriginalMap = (elements: PrismaElement[]) => {
+      elements.forEach((el) => {
+        originalMap.set(el.id, el);
+        if (el.children) {
+          buildOriginalMap(el.children);
+        }
+      });
+    };
+    buildOriginalMap(originalElements);
+
+    // Check each updated element against original
+    const checkElements = (elements: PrismaElement[]) => {
+      elements.forEach((el) => {
+        const originalEl = originalMap.get(el.id);
+        if (!originalEl || JSON.stringify(el.style) !== JSON.stringify(originalEl.style)) {
+          changedElements.push(el);
+        }
+        if (el.children) {
+          checkElements(el.children);
+        }
+      });
+    };
+    checkElements(updatedElements);
+
+    return changedElements;
+  };
+
+  const handleOverlayChange = (updatedOverlay: PrismaOverlay) => {
+    if (!overlay) return;
+
+    // Check if globalStyle has changed
+    if (JSON.stringify(updatedOverlay.globalStyle) !== JSON.stringify(overlay.globalStyle)) {
+      debouncedUpdate(`http://localhost:3000/api/overlays/${id}`, {
+        globalStyle: updatedOverlay.globalStyle,
+      });
+    }
+
+    // Recursively find all elements with changed styles
+    const changedElements = findChangedElements(updatedOverlay.elements, overlay.elements);
+
+    // Send update requests for each changed element
+    changedElements.forEach((element) => {
+      debouncedUpdate(`http://localhost:3000/api/elements/${element.id}`, {
+        style: element.style,
+      });
+    });
+
+    setOverlay(updatedOverlay);
+  };
+
+  const handleAddElement = async (type: ElementType, name: string, parentId?: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
+      const response = await fetch(`http://localhost:3000/api/overlays/${id}/elements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, name, parentId }),
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to add element");
+      fetchOverlay(); // Refetch to get the new element
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteElement = async (elementId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/elements/${elementId}`, {
         method: "DELETE",
         credentials: "include",
       });
-      if (!response.ok) {
-        throw new Error("Failed to delete overlay");
+      if (!response.ok) throw new Error("Failed to delete element");
+      fetchOverlay(); // Refetch to update the list
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Recursive helper function to find an element by ID
+  // const findElementById = (elements: PrismaElement[], id: string): PrismaElement | undefined => {
+  //   for (const el of elements) {
+  //     if (el.id === id) return el;
+  //     if (el.children) {
+  //       const found = findElementById(el.children, id);
+  //       if (found) return found;
+  //     }
+  //   }
+  //   return undefined;
+  // };
+
+  // Recursive helper function to update an element by ID
+  const updateElementById = (
+    elements: PrismaElement[],
+    id: string,
+    updateFn: (el: PrismaElement) => void
+  ): boolean => {
+    for (const el of elements) {
+      if (el.id === id) {
+        updateFn(el);
+        return true;
       }
-      navigate("/"); // Navigate back to home page after deletion
+      if (el.children) {
+        if (updateElementById(el.children, id, updateFn)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const handleDataChange = (elementId: string, data: { value: number } | { text: string }) => {
+    if (!overlay) return;
+    const newOverlay = JSON.parse(JSON.stringify(overlay)) as PrismaOverlay;
+
+    // Use the recursive update function to find and update the element
+    const elementUpdated = updateElementById(newOverlay.elements, elementId, (element) => {
+      if ("value" in data && element.type === "COUNTER" && element.counter) {
+        element.counter.value = data.value;
+      }
+      if ("text" in data && element.type === "TITLE" && element.title) {
+        element.title.text = data.text;
+      }
+    });
+
+    if (elementUpdated) {
+      setOverlay(newOverlay);
+      debouncedUpdate(`http://localhost:3000/api/elements/${elementId}`, { data });
+    }
+  };
+
+  const handleDeleteOverlay = async () => {
+    try {
+      await fetch(`http://localhost:3000/api/overlays/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     }
-  };
-
-  const updateCountInDb = useCallback(
-    async (newCount: number) => {
-      try {
-        const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ counter: newCount }),
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to update counter");
-        }
-      } catch (err) {
-        // Optionally handle and display this error to the user
-        console.error(err);
-      }
-    },
-    [id]
-  );
-
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTitle(e.target.value);
-  };
-
-  const updateTitleInDb = async () => {
-    if (overlay && title !== (overlay.title || "")) {
-      try {
-        const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: title }),
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to update title");
-        }
-        const updatedOverlay = await response.json();
-        setOverlay(updatedOverlay);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
-      }
-    }
-  };
-
-  const handleCountChange = (newCount: number) => {
-    setCount(newCount);
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
-    }
-    debounceTimeout.current = setTimeout(() => {
-      updateCountInDb(newCount);
-    }, 500); // 500ms debounce delay
-  };
-
-  const handleIncrease = () => handleCountChange(count + 1);
-  const handleDecrease = () => handleCountChange(count - 1);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value, 10);
-    if (!isNaN(value)) {
-      handleCountChange(value);
-    }
-    if (e.target.value === "") {
-      setCount(0);
-      handleCountChange(0);
-    }
-  };
-
-  const updateStyleInDb = useCallback(
-    async (newStyle: OverlayStyle) => {
-      try {
-        const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ style: newStyle }),
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to update style");
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    },
-    [id]
-  );
-
-  const handleStyleChange = (newStyle: OverlayStyle) => {
-    setStyle(newStyle);
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
-    }
-    debounceTimeout.current = setTimeout(() => {
-      updateStyleInDb(newStyle);
-    }, 500); // 500ms debounce delay
   };
 
   const handleCopy = () => {
@@ -222,19 +263,32 @@ const OverlayPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading overlay...</div>;
-  }
-
-  if (error) {
+  if (isLoading)
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (error)
     return (
       <div className="flex items-center justify-center min-h-screen text-red-500">{error}</div>
     );
-  }
-
-  if (!overlay) {
+  if (!overlay)
     return <div className="flex items-center justify-center min-h-screen">Overlay not found</div>;
-  }
+
+  // Recursive helper function to find the first element of a specific type
+  const findFirstElementByType = (
+    elements: PrismaElement[],
+    type: ElementType
+  ): PrismaElement | undefined => {
+    for (const el of elements) {
+      if (el.type === type) return el;
+      if (el.children) {
+        const found = findFirstElementByType(el.children, type);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+
+  const counterElement = findFirstElementByType(overlay.elements, "COUNTER");
+  const titleElement = findFirstElementByType(overlay.elements, "TITLE");
 
   return (
     <div className="container mx-auto">
@@ -255,106 +309,105 @@ const OverlayPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        {/* Left Side */}
         <div
           ref={previewContainerRef}
           className="flex flex-col items-center border rounded-lg bg-secondary pt-4 sticky top-20"
         >
           <h2 className="text-xl font-semibold mb-2 w-full px-4">Preview</h2>
-          <div
-            className="aspect-[4/3] w-full max-w-full overflow-hidden"
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              borderBottom: "3px solid var(--color-border)",
-              borderTop: "3px solid var(--color-border)",
-            }}
-          >
+          <div className="aspect-[4/3] w-full max-w-full overflow-hidden flex justify-center items-center bg-sidebar">
             <div
               style={{
                 width: "800px",
                 height: "600px",
                 transform: `scale(${scale})`,
-                backgroundColor: style.backgroundColor || "transparent",
+                transformOrigin: "center center",
               }}
             >
-              <DisplayCounter title={title} counter={count} style={style} />
+              <OverlayCanvas overlay={overlay} />
             </div>
           </div>
-          <div className="py-2 text-sm text-muted-foreground mb-4">
-            Live Preview (actual size: 800x600)
-          </div>
-          <div className="flex flex-col items-start space-y-2 px-4 w-full">
-            <h2 className="text-2xl font-semibold mb-2">How to use:</h2>
-            <ol className="text-md mb-4 list-decimal list-outside pl-6 space-y-2">
-              <li>Configure the overlay to your liking using the controls on the right.</li>
-              <li>
-                Copy the link below into your streaming software (e.g., OBS) as a browser source
-                with a resolution of <strong>800x600</strong> (OBS default values).
-              </li>
-              <Button variant="outline" size="lg" onClick={handleCopy}>
-                {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                Copy Link
-              </Button>
-              <li>Adjust the counter using the controls on the right.</li>
-            </ol>
-          </div>
+          <div className="py-2 text-sm text-muted-foreground mb-4">Live Preview (800x600)</div>
         </div>
 
-        {/* Right Side */}
         <div className="space-y-8 pb-96">
+          {/* These controls now target the FIRST element of their type */}
           <Card>
             <CardHeader>
-              <CardTitle>Counter Controls</CardTitle>
-              <CardDescription>Use these controls to adjust the counter.</CardDescription>
+              <CardTitle>Data Controls</CardTitle>
+              <CardDescription>Adjust the content of your elements.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col space-y-6 pt-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium self-center leading-none">Count</p>
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={handleDecrease}
-                    size="icon-lg"
-                    variant="secondary"
-                    className="h-14 w-14"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <Input
-                    value={count}
-                    onChange={handleInputChange}
-                    className="w-36 text-center text-2xl h-14"
-                  />
-                  <Button
-                    onClick={handleIncrease}
-                    size="icon-lg"
-                    variant="secondary"
-                    className="h-14 w-14"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
+              {counterElement && (
+                <div className="space-y-2">
+                  <Label htmlFor="count">Counter: {counterElement.name}</Label>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() =>
+                        handleDataChange(counterElement.id, {
+                          value: (counterElement.counter?.value || 0) - 1,
+                        })
+                      }
+                      size="icon-lg"
+                      variant="secondary"
+                      className="h-14 w-14"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <Input
+                      id="count"
+                      value={counterElement.counter?.value || 0}
+                      onChange={(e) =>
+                        handleDataChange(counterElement.id, {
+                          value: parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      className="w-36 text-center text-2xl h-14"
+                    />
+                    <Button
+                      onClick={() =>
+                        handleDataChange(counterElement.id, {
+                          value: (counterElement.counter?.value || 0) + 1,
+                        })
+                      }
+                      size="icon-lg"
+                      variant="secondary"
+                      className="h-14 w-14"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={handleTitleChange}
-                  onBlur={updateTitleInDb}
-                  placeholder="Enter overlay title"
-                />
-              </div>
+              )}
+              {titleElement && (
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title: {titleElement.name}</Label>
+                  <Input
+                    id="title"
+                    value={titleElement.title?.text || ""}
+                    onChange={(e) => handleDataChange(titleElement.id, { text: e.target.value })}
+                    placeholder="Enter title text"
+                  />
+                </div>
+              )}
+              {!counterElement && !titleElement && (
+                <p className="text-sm text-muted-foreground">
+                  No editable elements in this overlay.
+                </p>
+              )}
             </CardContent>
           </Card>
 
-          <StyleEditor style={style} onStyleChange={handleStyleChange} title={title} />
+          <StyleEditor
+            overlay={overlay}
+            onOverlayChange={handleOverlayChange}
+            onAddElement={handleAddElement}
+            onDeleteElement={handleDeleteElement}
+          />
 
           <Card>
             <CardHeader>
               <CardTitle>Danger Zone</CardTitle>
-              <CardDescription>These actions are irreversible. Please be certain.</CardDescription>
+              <CardDescription>This action is irreversible. Please be certain.</CardDescription>
             </CardHeader>
             <CardContent>
               <Button onClick={handleDeleteOverlay} variant="destructive" className="w-full">

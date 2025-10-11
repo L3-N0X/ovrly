@@ -13,12 +13,13 @@ interface TitleProps {
 }
 
 const Title: React.FC<TitleProps> = ({ text, style }) => {
+  const safeStyle = style || {};
   const titleStyle: React.CSSProperties = {
-    fontSize: style.fontSize ? `${style.fontSize}px` : "36px",
+    fontSize: safeStyle.fontSize ? `${safeStyle.fontSize}px` : "36px",
     lineHeight: 1,
     fontWeight: "700", // font-bold
-    fontFamily: style.fontFamily,
-    color: style.color || "#ffffff",
+    fontFamily: safeStyle.fontFamily,
+    color: safeStyle.color || "#ffffff",
     whiteSpace: "nowrap",
   };
 

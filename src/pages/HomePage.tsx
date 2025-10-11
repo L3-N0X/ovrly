@@ -11,16 +11,37 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
 import { Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+const ElementTypeEnum = {
+  COUNTER: "COUNTER",
+  TITLE: "TITLE",
+} as const;
+
+type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
+
+interface Element {
+  id: string;
+  name: string;
+  type: ElementType;
+}
 
 interface Overlay {
   id: string;
   name: string;
   description: string | null;
   userId: string;
+  elements: Element[];
 }
 
 const HomePage: React.FC = () => {
@@ -32,6 +53,8 @@ const HomePage: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newOverlayName, setNewOverlayName] = useState("");
   const [newOverlayDescription, setNewOverlayDescription] = useState("");
+  const [newElementName, setNewElementName] = useState("");
+  const [newElementType, setNewElementType] = useState<ElementType>(ElementTypeEnum.COUNTER);
 
   const fetchOverlays = async () => {
     setIsLoading(true);
@@ -59,15 +82,20 @@ const HomePage: React.FC = () => {
   }, [user]);
 
   const handleCreateOverlay = async () => {
-    if (!newOverlayName) {
-      setError("Overlay name is required.");
+    if (!newOverlayName || !newElementName) {
+      setError("Overlay name and element name are required.");
       return;
     }
     try {
       const response = await fetch("http://localhost:3000/api/overlays", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newOverlayName, description: newOverlayDescription }),
+        body: JSON.stringify({
+          name: newOverlayName,
+          description: newOverlayDescription,
+          elementName: newElementName,
+          type: newElementType,
+        }),
         credentials: "include",
       });
       if (!response.ok) {
@@ -77,6 +105,8 @@ const HomePage: React.FC = () => {
       setIsDialogOpen(false); // Close the dialog
       setNewOverlayName(""); // Reset form
       setNewOverlayDescription(""); // Reset form
+      setNewElementName(""); // Reset form
+      setNewElementType(ElementTypeEnum.COUNTER); // Reset form
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     }
@@ -111,12 +141,12 @@ const HomePage: React.FC = () => {
                   <DialogHeader>
                     <DialogTitle>Create New Overlay</DialogTitle>
                     <DialogDescription>
-                      Enter a name and an optional description for your new overlay.
+                      Enter details for your new overlay and its first element.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
+                      <Label htmlFor="name">Overlay Name</Label>
                       <Input
                         id="name"
                         value={newOverlayName}
@@ -125,13 +155,37 @@ const HomePage: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="description">Description</Label>
+                      <Label htmlFor="description">Overlay Description</Label>
                       <Input
                         id="description"
                         value={newOverlayDescription}
                         onChange={(e) => setNewOverlayDescription(e.target.value)}
                         placeholder="A short description of what this overlay is for."
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="elementName">First Element Name</Label>
+                      <Input
+                        id="elementName"
+                        value={newElementName}
+                        onChange={(e) => setNewElementName(e.target.value)}
+                        placeholder="e.g., Player 1 Score"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="elementType">First Element Type</Label>
+                      <Select
+                        value={newElementType}
+                        onValueChange={(value: ElementType) => setNewElementType(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an element type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={ElementTypeEnum.COUNTER}>Counter</SelectItem>
+                          <SelectItem value={ElementTypeEnum.TITLE}>Title</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <DialogFooter>

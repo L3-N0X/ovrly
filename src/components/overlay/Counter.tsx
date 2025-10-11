@@ -16,15 +16,16 @@ interface CounterProps {
 }
 
 const Counter: React.FC<CounterProps> = ({ value, style }) => {
+  const safeStyle = style || {};
   const counterStyle: React.CSSProperties = {
-    fontSize: style.fontSize ? `${style.fontSize}px` : "128px",
+    fontSize: safeStyle.fontSize ? `${safeStyle.fontSize}px` : "128px",
     lineHeight: 1,
     fontWeight: "700", // font-bold
-    fontFamily: style.fontFamily,
-    color: style.color || "#ffffff",
-    backgroundColor: style.backgroundColor,
-    borderRadius: style.radius ? `${style.radius}px` : undefined,
-    padding: style.padding ? `${style.padding}px` : undefined,
+    fontFamily: safeStyle.fontFamily,
+    color: safeStyle.color || "#ffffff",
+    backgroundColor: safeStyle.backgroundColor,
+    borderRadius: safeStyle.radius ? `${safeStyle.radius}px` : undefined,
+    padding: safeStyle.padding ? `${safeStyle.padding}px` : undefined,
   };
 
   return <div style={counterStyle}>{value}</div>;

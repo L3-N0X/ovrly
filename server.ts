@@ -30,7 +30,7 @@ const server = Bun.serve({
     if (path.startsWith("/api/auth/")) {
       console.log(`[SERVER LOG] Twitch Client ID: ${process.env.AUTH_TWITCH_ID}`);
       console.log(
-        `[SERVER LOG] Twitch Client Secret: ${
+        `[SERVER LOG] Twitch Client Secret: ${ 
           process.env.AUTH_TWITCH_SECRET ? "********" : "Not Set"
         }`
       );
@@ -54,6 +54,14 @@ const server = Bun.serve({
       const overlayId = overlayIdMatch[1];
       const overlay = await prisma.overlay.findUnique({
         where: { id: overlayId },
+        include: {
+          elements: {
+            include: {
+              title: true,
+              counter: true,
+            },
+          },
+        },
       });
 
       if (!overlay) {
@@ -82,19 +90,19 @@ const server = Bun.serve({
 
       if (req.method === "PATCH") {
         try {
-          const { counter, title, style } = await req.json();
-          const dataToUpdate: { counter?: number; title?: string; style?: object } = {};
+          const body = await req.json();
+          console.log("[SERVER LOG] PATCH /api/overlays/:id body:", body);
+          const { name, description, globalStyle } = body;
+          const dataToUpdate: { name?: string; description?: string; globalStyle?: object } = {};
 
-          if (typeof counter === "number") {
-            dataToUpdate.counter = counter;
+          if (name) {
+            dataToUpdate.name = name;
           }
-
-          if (typeof title === "string") {
-            dataToUpdate.title = title;
+          if (description) {
+            dataToUpdate.description = description;
           }
-
-          if (typeof style === "object" && style !== null) {
-            dataToUpdate.style = style;
+          if (globalStyle) {
+            dataToUpdate.globalStyle = globalStyle;
           }
 
           if (Object.keys(dataToUpdate).length === 0) {
@@ -107,6 +115,14 @@ const server = Bun.serve({
           const updatedOverlay = await prisma.overlay.update({
             where: { id: overlayId },
             data: dataToUpdate,
+            include: {
+              elements: {
+                include: {
+                  title: true,
+                  counter: true,
+                },
+              },
+            },
           });
 
           server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
@@ -114,7 +130,8 @@ const server = Bun.serve({
           return new Response(JSON.stringify(updatedOverlay), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
-        } catch {
+        } catch (e) {
+          console.error("PATCH /api/overlays/:id Error:", e);
           return new Response(JSON.stringify({ error: "Invalid request body" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -139,11 +156,203 @@ const server = Bun.serve({
       });
     }
 
+    const addElementMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/elements$/);
+    if (addElementMatch && req.method === "POST") {
+      const session = await auth.api.getSession({ headers: req.headers });
+      if (!session) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const overlayId = addElementMatch[1];
+      const overlay = await prisma.overlay.findUnique({ where: { id: overlayId } });
+
+      if (!overlay || overlay.userId !== session.user.id) {
+        return new Response(JSON.stringify({ error: "Overlay not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      try {
+        const { name, type } = await req.json();
+        if (!name || !type) {
+          return new Response(JSON.stringify({ error: "Name and type are required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const elementCreateData: any = {
+          name: name,
+          type: type,
+          overlayId: overlayId,
+        };
+
+        if (type === "TITLE") {
+          elementCreateData.title = { create: { text: "New Title" } };
+        } else if (type === "COUNTER") {
+          elementCreateData.counter = { create: { value: 0 } };
+        } else {
+          return new Response(JSON.stringify({ error: "Invalid element type" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const newElement = await prisma.element.create({
+          data: elementCreateData,
+          include: { title: true, counter: true },
+        });
+
+        const updatedOverlay = await prisma.overlay.findUnique({
+          where: { id: overlayId },
+          include: {
+            elements: {
+              include: {
+                title: true,
+                counter: true,
+              },
+            },
+          },
+        });
+        server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
+
+        return new Response(JSON.stringify(newElement), {
+          status: 201,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        console.error(e);
+        return new Response(JSON.stringify({ error: "Invalid request body" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const elementIdMatch = path.match(/^\/api\/elements\/([a-zA-Z0-9_-]+)$/);
+    if (elementIdMatch) {
+      const session = await auth.api.getSession({ headers: req.headers });
+      if (!session) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const elementId = elementIdMatch[1];
+      const element = await prisma.element.findUnique({
+        where: { id: elementId },
+        include: { overlay: true },
+      });
+
+      if (!element) {
+        return new Response(JSON.stringify({ error: "Element not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const isOwner = element.overlay.userId === session.user.id;
+      const editors = await prisma.editor.findMany({ where: { userId: element.overlay.userId } });
+      const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
+
+      if (!isOwner && !isEditor) {
+        return new Response(JSON.stringify({ error: "Element not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (req.method === "PATCH") {
+        try {
+          const { name, style, data } = await req.json();
+          const elementUpdateData: any = {};
+          if (name) elementUpdateData.name = name;
+          if (style) elementUpdateData.style = style;
+
+          if (data) {
+            if (element.type === "TITLE" && typeof data.text === "string") {
+              elementUpdateData.title = { update: { text: data.text } };
+            }
+            if (element.type === "COUNTER" && typeof data.value === "number") {
+              elementUpdateData.counter = { update: { value: data.value } };
+            }
+          }
+
+          const updatedElement = await prisma.element.update({
+            where: { id: elementId },
+            data: elementUpdateData,
+            include: { title: true, counter: true },
+          });
+
+          const updatedOverlay = await prisma.overlay.findUnique({
+            where: { id: element.overlayId },
+            include: {
+              elements: {
+                include: {
+                  title: true,
+                  counter: true,
+                },
+              },
+            },
+          });
+          server.publish(`overlay-${element.overlayId}`, JSON.stringify(updatedOverlay));
+
+          return new Response(JSON.stringify(updatedElement), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error(e);
+          return new Response(JSON.stringify({ error: "Invalid request body" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      if (req.method === "DELETE") {
+        if (!isOwner) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const deletedElement = await prisma.element.delete({ where: { id: elementId } });
+
+        const updatedOverlay = await prisma.overlay.findUnique({
+          where: { id: element.overlayId },
+          include: {
+            elements: {
+              include: {
+                title: true,
+                counter: true,
+              },
+            },
+          },
+        });
+        server.publish(`overlay-${element.overlayId}`, JSON.stringify(updatedOverlay));
+
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+    }
+
     const publicOverlayIdMatch = path.match(/^\/api\/public\/overlays\/([a-zA-Z0-9_-]+)$/);
     if (publicOverlayIdMatch) {
       const overlayId = publicOverlayIdMatch[1];
       const overlay = await prisma.overlay.findUnique({
         where: { id: overlayId },
+        include: {
+          elements: {
+            include: {
+              title: true,
+              counter: true,
+            },
+          },
+        },
       });
 
       if (!overlay) {
@@ -177,6 +386,14 @@ const server = Bun.serve({
       if (req.method === "GET") {
         const userOverlays = await prisma.overlay.findMany({
           where: { userId: session.user.id },
+          include: {
+            elements: {
+              include: {
+                title: true,
+                counter: true,
+              },
+            },
+          },
         });
 
         const editors = await prisma.editor.findMany({
@@ -189,6 +406,14 @@ const server = Bun.serve({
               in: editors.map((v) => v.userId),
             },
           },
+          include: {
+            elements: {
+              include: {
+                title: true,
+                counter: true,
+              },
+            },
+          },
         });
 
         return new Response(JSON.stringify([...userOverlays, ...sharedOverlays]), {
@@ -198,21 +423,59 @@ const server = Bun.serve({
 
       if (req.method === "POST") {
         try {
-          const { name, description } = await req.json();
-          if (!name) {
-            return new Response(JSON.stringify({ error: "Name is required" }), {
+          const { name, description, type, elementName } = await req.json();
+          if (!name || !type || !elementName) {
+            return new Response(
+              JSON.stringify({ error: "name, type, and elementName are required" }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          }
+
+          const elementCreateData: any = {
+            name: elementName,
+            type: type,
+          };
+
+          if (type === "TITLE") {
+            elementCreateData.title = { create: { text: "New Title" } };
+          } else if (type === "COUNTER") {
+            elementCreateData.counter = { create: { value: 0 } };
+          } else {
+            return new Response(JSON.stringify({ error: "Invalid element type" }), {
               status: 400,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
+
           const newOverlay = await prisma.overlay.create({
-            data: { name, description, userId: session.user.id },
+            data: {
+              name,
+              description,
+              userId: session.user.id,
+              globalStyle: {},
+              elements: {
+                create: [elementCreateData],
+              },
+            },
+            include: {
+              elements: {
+                include: {
+                  title: true,
+                  counter: true,
+                },
+              },
+            },
           });
+
           return new Response(JSON.stringify(newOverlay), {
             status: 201,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
-        } catch {
+        } catch (e) {
+          console.error(e);
           return new Response(JSON.stringify({ error: "Invalid request body" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },

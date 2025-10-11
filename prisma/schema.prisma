@@ -34,16 +34,53 @@ model Editor {
 }
 
 model Overlay {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
-  title       String?
   description String?
-  counter     Int      @default(0)
-  style       Json?
+  globalStyle Json?
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  elements    Element[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Element {
+  id        String      @id @default(cuid())
+  overlayId String
+  overlay   Overlay     @relation(fields: [overlayId], references: [id], onDelete: Cascade)
+  type      ElementType
+  name      String
+  style     Json?
+
+  // Relations for specific element types
+  title     Title?
+  counter   Counter?
+
+  // Self-relation for grouping
+  parentId  String?
+  parent    Element?    @relation("ElementChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Element[]   @relation("ElementChildren")
+}
+
+enum ElementType {
+  TITLE
+  COUNTER
+  GROUP
+}
+
+model Title {
+  id        String  @id @default(cuid())
+  text      String
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Counter {
+  id        String  @id @default(cuid())
+  value     Int     @default(0)
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model Account {
