@@ -16,7 +16,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ModeToggle } from "./toggle";
 import { Button } from "./ui/button";
 
-import overleggLogo from "../assets/overlegg-logo.png";
+import ovrlyLogo from "../assets/ovrly-logo.png";
 
 const Navbar = () => {
   const { data: session } = authClient.useSession();
@@ -38,8 +38,8 @@ const Navbar = () => {
               to="/"
               className="flex items-center gap-2 text-lg font-semibold md:text-base font-mono"
             >
-              <img src={overleggLogo} alt="Overlegg Logo" className="h-8 w-8 dark:invert" />
-              Overlegg
+              <img src={ovrlyLogo} alt="Ovrly Logo" className="h-8 w-8 dark:invert" />
+              Ovrly
             </Link>
           </NavigationMenuItem>
         </NavigationMenuList>
