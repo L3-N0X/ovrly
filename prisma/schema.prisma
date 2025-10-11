@@ -39,6 +39,7 @@ model Overlay {
   title       String?
   description String?
   counter     Int      @default(0)
+  style       Json?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())

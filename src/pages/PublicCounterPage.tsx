@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import DisplayCounter from "../components/overlay/DisplayCounter";
+import DisplayCounter, { type OverlayStyle } from "../components/overlay/DisplayCounter";
 
 const PublicCounterPage = () => {
   const { overlayId } = useParams();
   const [counter, setCounter] = useState(0);
   const [title, setTitle] = useState("");
+  const [style, setStyle] = useState<OverlayStyle>({});
 
   useEffect(() => {
     if (!overlayId) return;
@@ -17,6 +18,7 @@ const PublicCounterPage = () => {
           const data = await response.json();
           setCounter(data.counter);
           setTitle(data.title);
+          setStyle(data.style || {});
         }
       } catch (error) {
         console.error("Failed to fetch initial overlay data:", error);
@@ -35,6 +37,9 @@ const PublicCounterPage = () => {
       if (typeof data.title === "string") {
         setTitle(data.title);
       }
+      if (typeof data.style === "object" && data.style !== null) {
+        setStyle(data.style);
+      }
     };
 
     ws.onclose = () => {
@@ -49,7 +54,7 @@ const PublicCounterPage = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">
-      <DisplayCounter title={title} counter={counter} />
+      <DisplayCounter title={title} counter={counter} style={style} />
     </div>
   );
 };

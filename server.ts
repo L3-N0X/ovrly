@@ -82,8 +82,8 @@ const server = Bun.serve({
 
       if (req.method === "PATCH") {
         try {
-          const { counter, title } = await req.json();
-          const dataToUpdate: { counter?: number; title?: string } = {};
+          const { counter, title, style } = await req.json();
+          const dataToUpdate: { counter?: number; title?: string; style?: object } = {};
 
           if (typeof counter === "number") {
             dataToUpdate.counter = counter;
@@ -91,6 +91,10 @@ const server = Bun.serve({
 
           if (typeof title === "string") {
             dataToUpdate.title = title;
+          }
+
+          if (typeof style === "object" && style !== null) {
+            dataToUpdate.style = style;
           }
 
           if (Object.keys(dataToUpdate).length === 0) {

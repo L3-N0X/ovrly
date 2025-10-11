@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Check, Copy, Minus, Plus } from "lucide-react";
-import DisplayCounter from "@/components/overlay/DisplayCounter";
+import DisplayCounter, { type OverlayStyle } from "@/components/overlay/DisplayCounter";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import StyleEditor from "@/components/overlay/StyleEditor";
 
 interface Overlay {
   id: string;
@@ -13,6 +14,7 @@ interface Overlay {
   description: string | null;
   counter: number;
   title: string | null;
+  style: OverlayStyle | null;
 }
 
 const OverlayPage: React.FC = () => {
@@ -23,6 +25,7 @@ const OverlayPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [title, setTitle] = useState("");
+  const [style, setStyle] = useState<OverlayStyle>({});
   const [isCopied, setIsCopied] = useState(false);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -40,6 +43,7 @@ const OverlayPage: React.FC = () => {
       setOverlay(data);
       setCount(data.counter);
       setTitle(data.title || "");
+      setStyle(data.style || {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
@@ -65,6 +69,7 @@ const OverlayPage: React.FC = () => {
           setOverlay(updatedOverlay);
           setCount(updatedOverlay.counter);
           setTitle(updatedOverlay.title || "");
+          setStyle(updatedOverlay.style || {});
         }
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
@@ -159,6 +164,35 @@ const OverlayPage: React.FC = () => {
     }
   };
 
+  const updateStyleInDb = useCallback(
+    async (newStyle: OverlayStyle) => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ style: newStyle }),
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to update style");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [id]
+  );
+
+  const handleStyleChange = (newStyle: OverlayStyle) => {
+    setStyle(newStyle);
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+    debounceTimeout.current = setTimeout(() => {
+      updateStyleInDb(newStyle);
+    }, 500); // 500ms debounce delay
+  };
+
   const handleCopy = () => {
     if (id) {
       const url = `${window.location.origin}/public/${id}`;
@@ -202,8 +236,8 @@ const OverlayPage: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Side */}
-        <div className="flex flex-col items-center justify-center p-8 border rounded-lg">
-          <DisplayCounter title={title} counter={count} />
+        <div className="flex flex-col items-center justify-start p-8 pt-32 border rounded-lg">
+          <DisplayCounter title={title} counter={count} style={style} />
         </div>
 
         {/* Right Side */}
@@ -237,6 +271,8 @@ const OverlayPage: React.FC = () => {
               </Button>
             </CardContent>
           </Card>
+
+          <StyleEditor style={style} onStyleChange={handleStyleChange} />
 
           <Card>
             <CardHeader>
