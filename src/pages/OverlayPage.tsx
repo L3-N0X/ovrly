@@ -31,6 +31,12 @@ const OverlayPage: React.FC = () => {
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
+  const calculateScale = useCallback(() => {
+    if (previewContainerRef.current) {
+      const { width } = previewContainerRef.current.getBoundingClientRect();
+      setScale(width / 800);
+    }
+  }, []);
   const fetchOverlay = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -84,17 +90,16 @@ const OverlayPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    const calculateScale = () => {
-      if (previewContainerRef.current) {
-        const { width } = previewContainerRef.current.getBoundingClientRect();
-        setScale(width / 800);
-      }
-    };
-
     calculateScale();
     window.addEventListener("resize", calculateScale);
     return () => window.removeEventListener("resize", calculateScale);
-  }, []);
+  }, [calculateScale]);
+
+  useEffect(() => {
+    // Recalculate scale whenever the style changes to handle potential overflow.
+    const timeoutId = setTimeout(calculateScale, 0);
+    return () => clearTimeout(timeoutId);
+  }, [style, calculateScale]);
 
   const handleDeleteOverlay = async () => {
     try {
@@ -262,6 +267,8 @@ const OverlayPage: React.FC = () => {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
+              borderBottom: "3px solid var(--color-border)",
+              borderTop: "3px solid var(--color-border)",
             }}
           >
             <div
@@ -270,13 +277,29 @@ const OverlayPage: React.FC = () => {
                 height: "600px",
                 transform: `scale(${scale})`,
                 backgroundColor: style.backgroundColor || "transparent",
-                border: "4px solid var(--color-border)",
               }}
             >
               <DisplayCounter title={title} counter={count} style={style} />
             </div>
           </div>
-          <div className="p-4 text-sm text-muted-foreground">Preview (actual size: 800x600)</div>
+          <div className="py-2 text-sm text-muted-foreground mb-4">
+            Live Preview (actual size: 800x600)
+          </div>
+          <div className="flex flex-col items-start space-y-2 px-4 w-full">
+            <h2 className="text-2xl font-semibold mb-2">How to use:</h2>
+            <ol className="text-md mb-4 list-decimal list-outside pl-6 space-y-2">
+              <li>Configure the overlay to your liking using the controls on the right.</li>
+              <li>
+                Copy the link below into your streaming software (e.g., OBS) as a browser source
+                with a resolution of <strong>800x600</strong> (OBS default values).
+              </li>
+              <Button variant="outline" size="lg" onClick={handleCopy}>
+                {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                Copy Link
+              </Button>
+              <li>Adjust the counter using the controls on the right.</li>
+            </ol>
+          </div>
         </div>
 
         {/* Right Side */}
