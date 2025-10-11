@@ -5,8 +5,6 @@ interface TitleStyle {
   fontSize?: number;
   fontFamily?: string;
   color?: string;
-  startEmoji?: string;
-  endEmoji?: string;
 }
 
 interface TitleProps {
@@ -24,13 +22,7 @@ const Title: React.FC<TitleProps> = ({ text, style }) => {
     whiteSpace: "nowrap",
   };
 
-  return (
-    <h1 style={titleStyle}>
-      {style.startEmoji && <span className="mr-2">{style.startEmoji}</span>}
-      {text}
-      {style.endEmoji && <span className="ml-2">{style.endEmoji}</span>}
-    </h1>
-  );
+  return <h1 style={titleStyle}>{text}</h1>;
 };
 
 export default Title;

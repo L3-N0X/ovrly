@@ -89,18 +89,57 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange, title }
           <Label>Distance (px)</Label>
           <div className="flex items-center gap-2">
             <Slider
-              value={[parseInt(String(style.distance || 16))]}
+              value={[parseInt(String(style.distance || 0))]}
               onValueChange={(value) => handleSliderChange("distance", value)}
               max={400}
-              min={1}
+              min={0}
               step={1}
             />
             <Input
               type="text"
-              value={style.distance || ""}
+              value={style.distance !== undefined ? String(style.distance) : ""}
               onChange={(e) => handleNumericInputChange("distance", e.target.value)}
               className="w-20"
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Padding X (px)</Label>
+            <div className="flex items-center gap-2">
+              <Slider
+                value={[parseInt(String(style.paddingX || 0))]}
+                onValueChange={(value) => handleSliderChange("paddingX", value)}
+                max={200}
+                min={0}
+                step={1}
+              />
+              <Input
+                type="text"
+                value={style.paddingX !== undefined ? String(style.paddingX) : ""}
+                onChange={(e) => handleNumericInputChange("paddingX", e.target.value)}
+                className="w-20"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Padding Y (px)</Label>
+            <div className="flex items-center gap-2">
+              <Slider
+                value={[parseInt(String(style.paddingY || 0))]}
+                onValueChange={(value) => handleSliderChange("paddingY", value)}
+                max={200}
+                min={0}
+                step={1}
+              />
+              <Input
+                type="text"
+                value={style.paddingY !== undefined ? String(style.paddingY) : ""}
+                onChange={(e) => handleNumericInputChange("paddingY", e.target.value)}
+                className="w-20"
+              />
+            </div>
           </div>
         </div>
 
@@ -178,15 +217,15 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange, title }
               <Label>Font Size (px)</Label>
               <div className="flex items-center gap-2">
                 <Slider
-                  value={[parseInt(String(style.title?.fontSize || 36))]}
+                  value={[parseInt(String(style.title?.fontSize || 0))]}
                   onValueChange={(value) => handleSliderChange("title.fontSize", value)}
                   max={700}
-                  min={1}
+                  min={0}
                   step={1}
                 />
                 <Input
                   type="text"
-                  value={style.title?.fontSize || ""}
+                  value={style.title?.fontSize !== undefined ? String(style.title.fontSize) : ""}
                   onChange={(e) => handleNumericInputChange("title.fontSize", e.target.value)}
                   className="w-20"
                 />
@@ -233,15 +272,17 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange, title }
               <Label>Font Size (px)</Label>
               <div className="flex items-center gap-2">
                 <Slider
-                  value={[parseInt(String(style.counter?.fontSize || 128))]}
+                  value={[parseInt(String(style.counter?.fontSize || 0))]}
                   onValueChange={(value) => handleSliderChange("counter.fontSize", value)}
                   max={700}
-                  min={1}
+                  min={0}
                   step={1}
                 />
                 <Input
                   type="text"
-                  value={style.counter?.fontSize || ""}
+                  value={
+                    style.counter?.fontSize !== undefined ? String(style.counter.fontSize) : ""
+                  }
                   onChange={(e) => handleNumericInputChange("counter.fontSize", e.target.value)}
                   className="w-20"
                 />

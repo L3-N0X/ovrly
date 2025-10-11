@@ -9,6 +9,8 @@ export interface OverlayStyle {
   distance?: number;
   backgroundColor?: string;
   padding?: number;
+  paddingX?: number;
+  paddingY?: number;
   radius?: number;
   verticalAlignment?: "top" | "center" | "bottom";
   horizontalAlignment?: "left" | "center" | "right";
@@ -17,9 +19,6 @@ export interface OverlayStyle {
     fontSize?: number;
     fontFamily?: string;
     color?: string;
-    startEmoji?: string;
-    endEmoji?: string;
-    lineHeight?: number;
   };
   counter?: {
     fontSize?: number;
@@ -28,7 +27,6 @@ export interface OverlayStyle {
     backgroundColor?: string;
     radius?: number;
     padding?: number;
-    lineHeight?: number;
   };
 }
 
@@ -64,7 +62,11 @@ const DisplayCounter: React.FC<DisplayCounterProps> = ({ title, counter, style =
         ? "flex-end"
         : "center",
     backgroundColor: style.backgroundColor,
-    padding: style.padding ? `${style.padding}px` : undefined,
+    padding: style.padding
+      ? `${style.padding}px`
+      : style.paddingX !== undefined || style.paddingY !== undefined
+      ? `${style.paddingY || 0}px ${style.paddingX || 0}px`
+      : undefined,
     borderRadius: style.radius ? `${style.radius}px` : undefined,
   };
 
