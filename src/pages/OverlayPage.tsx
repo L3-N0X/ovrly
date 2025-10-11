@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Check, Copy, Minus, Plus } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import StyleEditor from "@/components/overlay/StyleEditor";
+import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { ElementType, PrismaElement, PrismaOverlay, BaseElementStyle } from "@/lib/types";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
@@ -59,12 +59,15 @@ const OverlayPage: React.FC = () => {
     // Check individual elements for font families and weights
     if (overlayData.elements) {
       overlayData.elements.forEach((element) => {
-        // Type guard to check if the style has fontFamily property
-        const elementStyle = element.style as BaseElementStyle;
-        if (elementStyle.fontFamily) {
-          // Check if style has fontWeight (even though it's not in the type)
-          const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
-          fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
+        // Check if the element style exists before accessing its properties
+        if (element.style) {
+          // Type guard to check if the style has fontFamily property
+          const elementStyle = element.style as BaseElementStyle;
+          if (elementStyle.fontFamily) {
+            // Check if style has fontWeight (even though it's not in the type)
+            const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
+            fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
+          }
         }
       });
     }
@@ -192,34 +195,6 @@ const OverlayPage: React.FC = () => {
     });
 
     setOverlay(updatedOverlay);
-  };
-
-  const handleAddElement = async (type: ElementType, name: string, parentId?: string) => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/overlays/${id}/elements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, name, parentId }),
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to add element");
-      fetchOverlay(); // Refetch to get the new element
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDeleteElement = async (elementId: string) => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/elements/${elementId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to delete element");
-      fetchOverlay(); // Refetch to update the list
-    } catch (err) {
-      console.error(err);
-    }
   };
 
   // Recursive helper function to find an element by ID
@@ -431,12 +406,7 @@ const OverlayPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            <StyleEditor
-              overlay={overlay}
-              onOverlayChange={handleOverlayChange}
-              onAddElement={handleAddElement}
-              onDeleteElement={handleDeleteElement}
-            />
+            <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} />
 
             <Card>
               <CardHeader>

@@ -16,12 +16,18 @@ export interface GlobalStyle {
   groupAlignItems?: "flex-start" | "center" | "flex-end";
 
   // For the inner container (element alignment within the group)
-  innerJustifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+  innerJustifyContent?:
+    | "flex-start"
+    | "center"
+    | "flex-end"
+    | "space-between"
+    | "space-around"
+    | "space-evenly";
   innerAlignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
   // Old property names for backward compatibility
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
-  
+
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
   gap?: number;
 
@@ -73,7 +79,7 @@ export interface PrismaElement {
   id: string;
   name: string;
   type: ElementType;
-  style: ElementStyle;
+  style: ElementStyle | null;
   title?: { id: string; text: string } | null;
   counter?: { id: string; value: number } | null;
   parentId?: string | null;

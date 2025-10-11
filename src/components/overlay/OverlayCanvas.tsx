@@ -33,15 +33,15 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
   const innerStyle: React.CSSProperties = {
     display: "flex",
     // position: "absolute",
-    top: globalStyle?.top || 0,
-    left: globalStyle?.left || 0,
+    top: typeof globalStyle?.top === "number" ? globalStyle.top : 0,
+    left: typeof globalStyle?.left === "number" ? globalStyle.left : 0,
     flexDirection: globalStyle?.flexDirection || "column",
-    gap: `${globalStyle?.gap || 16}px`,
+    gap: typeof globalStyle?.gap === "number" ? `${globalStyle.gap}px` : "16px",
     justifyContent: innerJustifyContent, // Horizontal alignment of elements within group
     alignItems: innerAlignItems, // Vertical alignment of elements within group (when row) or horizontal alignment (when column)
     backgroundColor: globalStyle?.backgroundColor,
-    padding: globalStyle?.padding ? `${globalStyle.padding}px` : undefined,
-    borderRadius: globalStyle?.radius ? `${globalStyle.radius}px` : undefined,
+    padding: typeof globalStyle?.padding === "number" ? `${globalStyle.padding}px` : undefined,
+    borderRadius: typeof globalStyle?.radius === "number" ? `${globalStyle.radius}px` : undefined,
   };
 
   return (

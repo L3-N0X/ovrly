@@ -15,7 +15,7 @@ interface TitleProps {
 const Title: React.FC<TitleProps> = ({ text, style }) => {
   const safeStyle = style || {};
   const titleStyle: React.CSSProperties = {
-    fontSize: safeStyle.fontSize ? `${safeStyle.fontSize}px` : "36px",
+    fontSize: typeof safeStyle.fontSize === "number" ? `${safeStyle.fontSize}px` : "36px",
     lineHeight: 1,
     fontWeight: "700", // font-bold
     fontFamily: safeStyle.fontFamily,

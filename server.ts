@@ -30,7 +30,7 @@ const server = Bun.serve({
     if (path.startsWith("/api/auth/")) {
       console.log(`[SERVER LOG] Twitch Client ID: ${process.env.AUTH_TWITCH_ID}`);
       console.log(
-        `[SERVER LOG] Twitch Client Secret: ${ 
+        `[SERVER LOG] Twitch Client Secret: ${
           process.env.AUTH_TWITCH_SECRET ? "********" : "Not Set"
         }`
       );
@@ -189,6 +189,7 @@ const server = Bun.serve({
           name: name,
           type: type,
           overlayId: overlayId,
+          style: {}, // Initialize with empty style object instead of null
         };
 
         if (type === "TITLE") {
@@ -437,6 +438,7 @@ const server = Bun.serve({
           const elementCreateData: any = {
             name: elementName,
             type: type,
+            style: {}, // Initialize with empty style object instead of null
           };
 
           if (type === "TITLE") {

@@ -56,12 +56,15 @@ const PublicCounterPage = () => {
     // Check individual elements for font families and weights
     if (overlay.elements) {
       overlay.elements.forEach((element) => {
-        // Type guard to check if the style has fontFamily property
-        const elementStyle = element.style as BaseElementStyle;
-        if (elementStyle.fontFamily) {
-          // Check if style has fontWeight (even though it's not in the type)
-          const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
-          fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
+        // Check if the element style exists before accessing its properties
+        if (element.style) {
+          // Type guard to check if the style has fontFamily property
+          const elementStyle = element.style as BaseElementStyle;
+          if (elementStyle.fontFamily) {
+            // Check if style has fontWeight (even though it's not in the type)
+            const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
+            fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
+          }
         }
       });
     }
