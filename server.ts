@@ -56,7 +56,18 @@ const server = Bun.serve({
         where: { id: overlayId },
       });
 
-      if (!overlay || overlay.userId !== session.user.id) {
+      if (!overlay) {
+        return new Response(JSON.stringify({ error: "Overlay not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const isOwner = overlay.userId === session.user.id;
+      const editors = await prisma.editor.findMany({ where: { userId: overlay.userId } });
+      const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
+
+      if (!isOwner && !isEditor) {
         return new Response(JSON.stringify({ error: "Overlay not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -108,6 +119,12 @@ const server = Bun.serve({
       }
 
       if (req.method === "DELETE") {
+        if (!isOwner) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         await prisma.overlay.delete({ where: { id: overlayId } });
         return new Response(null, { status: 204, headers: corsHeaders });
       }
@@ -128,8 +145,23 @@ const server = Bun.serve({
       }
 
       if (req.method === "GET") {
-        const overlays = await prisma.overlay.findMany({ where: { userId: session.user.id } });
-        return new Response(JSON.stringify(overlays), {
+        const userOverlays = await prisma.overlay.findMany({
+          where: { userId: session.user.id },
+        });
+
+        const editors = await prisma.editor.findMany({
+          where: { editorTwitchName: session.user.name },
+        });
+
+        const sharedOverlays = await prisma.overlay.findMany({
+          where: {
+            userId: {
+              in: editors.map((v) => v.userId),
+            },
+          },
+        });
+
+        return new Response(JSON.stringify([...userOverlays, ...sharedOverlays]), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -150,6 +182,75 @@ const server = Bun.serve({
             status: 201,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid request body" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (path === "/api/editors") {
+      const session = await auth.api.getSession({ headers: req.headers });
+      if (!session) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (req.method === "GET") {
+        const editors = await prisma.editor.findMany({ where: { userId: session.user.id } });
+        return new Response(JSON.stringify(editors), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (req.method === "POST") {
+        try {
+          const { twitchName } = await req.json();
+          if (!twitchName) {
+            return new Response(JSON.stringify({ error: "Twitch name is required" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const newEditor = await prisma.editor.create({
+            data: { userId: session.user.id, editorTwitchName: twitchName },
+          });
+          return new Response(JSON.stringify(newEditor), {
+            status: 201,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid request body" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      if (req.method === "DELETE") {
+        try {
+          const { twitchName } = await req.json();
+          if (!twitchName) {
+            return new Response(JSON.stringify({ error: "Twitch name is required" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          await prisma.editor.delete({
+            where: {
+              userId_editorTwitchName: { userId: session.user.id, editorTwitchName: twitchName },
+            },
+          });
+          return new Response(null, { status: 204, headers: corsHeaders });
         } catch {
           return new Response(JSON.stringify({ error: "Invalid request body" }), {
             status: 400,

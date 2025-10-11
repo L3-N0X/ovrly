@@ -20,6 +20,7 @@ interface Overlay {
   id: string;
   name: string;
   description: string | null;
+  userId: string;
 }
 
 const HomePage: React.FC = () => {
@@ -147,22 +148,45 @@ const HomePage: React.FC = () => {
             ) : error ? (
               <p className="text-red-500">{error}</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {overlays.map((overlay) => (
-                  <Card
-                    key={overlay.id}
-                    onClick={() => navigate(`/overlay/${overlay.id}`)}
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                  >
-                    <CardHeader>
-                      <CardTitle>{overlay.name}</CardTitle>
-                      {overlay.description && (
-                        <CardDescription>{overlay.description}</CardDescription>
-                      )}
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {overlays
+                    .filter((overlay) => overlay.userId === user.user.id)
+                    .map((overlay) => (
+                      <Card
+                        key={overlay.id}
+                        onClick={() => navigate(`/overlay/${overlay.id}`)}
+                        className="cursor-pointer hover:shadow-lg transition-shadow"
+                      >
+                        <CardHeader>
+                          <CardTitle>{overlay.name}</CardTitle>
+                          {overlay.description && (
+                            <CardDescription>{overlay.description}</CardDescription>
+                          )}
+                        </CardHeader>
+                      </Card>
+                    ))}
+                </div>
+                <h2 className="text-xl font-semibold mt-8">Shared With You</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
+                  {overlays
+                    .filter((overlay) => overlay.userId !== user.user.id)
+                    .map((overlay) => (
+                      <Card
+                        key={overlay.id}
+                        onClick={() => navigate(`/overlay/${overlay.id}`)}
+                        className="cursor-pointer hover:shadow-lg transition-shadow"
+                      >
+                        <CardHeader>
+                          <CardTitle>{overlay.name}</CardTitle>
+                          {overlay.description && (
+                            <CardDescription>{overlay.description}</CardDescription>
+                          )}
+                        </CardHeader>
+                      </Card>
+                    ))}
+                </div>
+              </>
             )}
           </div>
         ) : (

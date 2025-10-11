@@ -19,18 +19,18 @@ model User {
   Session          Session[]
   Account          Account[]
   Overlay          Overlay[]
-  Viewers          Viewer[]
+  Editors          Editor[]
 }
 
-model Viewer {
+model Editor {
   id               String   @id @default(cuid())
   userId           String // The user who is sharing their overlays
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  viewerTwitchName String // The Twitch username of the user who is granted access
+  editorTwitchName String // The Twitch username of the user who is granted access
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  @@unique([userId, viewerTwitchName])
+  @@unique([userId, editorTwitchName])
 }
 
 model Overlay {
