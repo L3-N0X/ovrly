@@ -1,4 +1,5 @@
 import React from "react";
+import FontLoader from "@/components/FontLoader";
 import Title from "./Title";
 import Counter from "./Counter";
 
@@ -79,6 +80,8 @@ const DisplayCounter: React.FC<DisplayCounterProps> = ({ title, counter, style =
 
   return (
     <div style={outerStyle}>
+      <FontLoader fontFamily={titleStyle.fontFamily} />
+      <FontLoader fontFamily={counterStyle.fontFamily} />
       <div style={innerStyle}>
         <Title text={title} style={titleStyle} />
         <Counter value={counter} style={counterStyle} />
