@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { OverlayStyle } from "./DisplayCounter";
+import { Slider } from "@/components/ui/slider";
 import { ColorPicker, useColor } from "react-color-palette";
-import "react-color-palette/css";
+import type { OverlayStyle } from "./DisplayCounter";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface StyleEditorProps {
   style: OverlayStyle;
@@ -19,7 +20,10 @@ interface StyleEditorProps {
 }
 
 const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
-  const handleValueChange = (path: string, value: string) => {
+  const [titleColor, setTitleColor] = useColor(style.title?.color || "#ffffff");
+  const [counterColor, setCounterColor] = useColor(style.counter?.color || "#ffffff");
+
+  const handleValueChange = (path: string, value: string | number) => {
     const keys = path.split(".");
     const newStyle = JSON.parse(JSON.stringify(style));
     let current = newStyle;
@@ -31,6 +35,10 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
     }
     current[keys[keys.length - 1]] = value === "" ? undefined : value;
     onStyleChange(newStyle);
+  };
+
+  const handleSliderChange = (path: string, value: number[]) => {
+    handleValueChange(path, value[0]);
   };
 
   return (
@@ -59,12 +67,21 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Distance</Label>
-            <Input
-              value={style.distance || ""}
-              onChange={(e) => handleValueChange("distance", e.target.value)}
-              placeholder="e.g., 1rem, 16px"
-            />
+            <Label>Distance (px)</Label>
+            <div className="flex items-center gap-2">
+              <Slider
+                value={[parseInt(style.distance || "16")]}
+                onValueChange={(value) => handleSliderChange("distance", value)}
+                max={200}
+                step={1}
+              />
+              <Input
+                type="number"
+                value={parseInt(style.distance || "16")}
+                onChange={(e) => handleValueChange("distance", e.target.value)}
+                className="w-20"
+              />
+            </div>
           </div>
         </div>
 
@@ -72,12 +89,21 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
           <h3 className="text-lg font-medium mb-2">Title</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Font Size</Label>
-              <Input
-                value={style.title?.fontSize || ""}
-                onChange={(e) => handleValueChange("title.fontSize", e.target.value)}
-                placeholder="e.g., 2.25rem"
-              />
+              <Label>Font Size (px)</Label>
+              <div className="flex items-center gap-2">
+                <Slider
+                  value={[parseInt(style.title?.fontSize || "36")]}
+                  onValueChange={(value) => handleSliderChange("title.fontSize", value)}
+                  max={200}
+                  step={1}
+                />
+                <Input
+                  type="number"
+                  value={parseInt(style.title?.fontSize || "36")}
+                  onChange={(e) => handleValueChange("title.fontSize", e.target.value)}
+                  className="w-20"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Font Family</Label>
@@ -89,12 +115,23 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
             </div>
             <div className="space-y-2">
               <Label>Color</Label>
-              <Input
-                type="color"
-                value={style.title?.color || "#000000"}
-                onChange={(e) => handleValueChange("title.color", e.target.value)}
-                className="p-1"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-full h-10 rounded-md border border-input"
+                    style={{ backgroundColor: titleColor.hex }}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <ColorPicker
+                    color={titleColor}
+                    onChange={(color) => {
+                      setTitleColor(color);
+                      handleValueChange("title.color", color.hex);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -103,12 +140,21 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
           <h3 className="text-lg font-medium mb-2">Number</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Font Size</Label>
-              <Input
-                value={style.counter?.fontSize || ""}
-                onChange={(e) => handleValueChange("counter.fontSize", e.target.value)}
-                placeholder="e.g., 8rem"
-              />
+              <Label>Font Size (px)</Label>
+              <div className="flex items-center gap-2">
+                <Slider
+                  value={[parseInt(style.counter?.fontSize || "128")]}
+                  onValueChange={(value) => handleSliderChange("counter.fontSize", value)}
+                  max={400}
+                  step={1}
+                />
+                <Input
+                  type="number"
+                  value={parseInt(style.counter?.fontSize || "128")}
+                  onChange={(e) => handleValueChange("counter.fontSize", e.target.value)}
+                  className="w-20"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Font Family</Label>
@@ -120,12 +166,23 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ style, onStyleChange }) => {
             </div>
             <div className="space-y-2">
               <Label>Color</Label>
-              <Input
-                type="color"
-                value={style.counter?.color || "#000000"}
-                onChange={(e) => handleValueChange("counter.color", e.target.value)}
-                className="p-1"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-full h-10 rounded-md border border-input"
+                    style={{ backgroundColor: counterColor.hex }}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <ColorPicker
+                    color={counterColor}
+                    onChange={(color) => {
+                      setCounterColor(color);
+                      handleValueChange("counter.color", color.hex);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

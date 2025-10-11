@@ -20,7 +20,7 @@ const Counter: React.FC<CounterProps> = ({ value, style }) => {
     fontSize: style.fontSize || "8rem", // text-9xl
     fontWeight: "700", // font-bold
     fontFamily: style.fontFamily,
-    color: style.color,
+    color: style.color || "#ffffff",
     backgroundColor: style.backgroundColor,
     borderRadius: style.radius,
     padding: style.padding,

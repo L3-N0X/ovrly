@@ -28,6 +28,8 @@ const OverlayPage: React.FC = () => {
   const [style, setStyle] = useState<OverlayStyle>({});
   const [isCopied, setIsCopied] = useState(false);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
 
   const fetchOverlay = useCallback(async () => {
     setIsLoading(true);
@@ -80,6 +82,19 @@ const OverlayPage: React.FC = () => {
       ws.close();
     };
   }, [id]);
+
+  useEffect(() => {
+    const calculateScale = () => {
+      if (previewContainerRef.current) {
+        const { width } = previewContainerRef.current.getBoundingClientRect();
+        setScale(width / 800);
+      }
+    };
+
+    calculateScale();
+    window.addEventListener("resize", calculateScale);
+    return () => window.removeEventListener("resize", calculateScale);
+  }, []);
 
   const handleDeleteOverlay = async () => {
     try {
@@ -236,8 +251,30 @@ const OverlayPage: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Side */}
-        <div className="flex flex-col items-center justify-start p-8 pt-32 border rounded-lg">
-          <DisplayCounter title={title} counter={count} style={style} />
+        <div
+          ref={previewContainerRef}
+          className="flex flex-col items-center justify-center p-8 border rounded-lg bg-secondary"
+        >
+          <div
+            className="aspect-[4/3] w-full max-w-full overflow-hidden"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "800px",
+                height: "600px",
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+                backgroundColor: style.backgroundColor || "transparent",
+              }}
+            >
+              <DisplayCounter title={title} counter={count} style={style} />
+            </div>
+          </div>
         </div>
 
         {/* Right Side */}

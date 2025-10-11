@@ -20,7 +20,7 @@ const Title: React.FC<TitleProps> = ({ text, style }) => {
     lineHeight: "2.5rem",
     fontWeight: "700", // font-bold
     fontFamily: style.fontFamily,
-    color: style.color,
+    color: style.color || "#ffffff",
   };
 
   return (
