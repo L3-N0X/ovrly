@@ -49,20 +49,19 @@ export async function fetchGoogleFonts(): Promise<GoogleFont[]> {
   }
 }
 
-export function getFontUrl(font: GoogleFont, variant = "regular"): string {
-  const fontFamily = font.family.replace(/\s+/g, "+");
-  const fontVariant = variant === "regular" ? "400" : variant;
-  return `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@${fontVariant}&display=swap`;
-}
-
 export async function loadFont(fontFamily: string, variant = "regular"): Promise<void> {
   if (loadedFonts.has(fontFamily)) {
     return;
   }
 
+  // For Google Fonts, we need to format the URL properly
+  const formattedFontFamily = fontFamily.replace(/\s+/g, "+");
+  const fontVariant = variant === "regular" ? "400" : variant;
+  const href = `https://fonts.googleapis.com/css2?family=${formattedFontFamily}:wght@${fontVariant}&display=swap`;
+
   return new Promise((resolve, reject) => {
     const link = document.createElement("link");
-    link.href = getFontUrl({ family: fontFamily } as GoogleFont, variant);
+    link.href = href;
     link.rel = "stylesheet";
 
     link.onload = () => {

@@ -9,7 +9,7 @@ interface FontLoaderProps {
 const FontLoader: React.FC<FontLoaderProps> = ({ fontFamily, fontWeight }) => {
   useEffect(() => {
     if (fontFamily) {
-      loadFont(fontFamily, fontWeight).catch((error) => {
+      loadFont(fontFamily, fontWeight || "400").catch((error) => {
         console.error(`Failed to load font: ${fontFamily}`, error);
       });
     }

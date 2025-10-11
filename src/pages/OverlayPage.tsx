@@ -6,7 +6,8 @@ import { ArrowLeft, Check, Copy, Minus, Plus } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import StyleEditor from "@/components/overlay/StyleEditor";
-import type { ElementType, PrismaElement, PrismaOverlay } from "@/lib/types";
+import FontLoader from "@/components/FontLoader";
+import type { ElementType, PrismaElement, PrismaOverlay, BaseElementStyle } from "@/lib/types";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 
 const OverlayPage: React.FC = () => {
@@ -39,12 +40,41 @@ const OverlayPage: React.FC = () => {
       }
       const data: PrismaOverlay = await response.json();
       setOverlay(data);
+      // Load fonts when overlay data is initially fetched
+      loadOverlayFonts(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
       setIsLoading(false);
     }
   }, [id]);
+
+  // Function to extract and load fonts from overlay data
+  const loadOverlayFonts = (overlayData: PrismaOverlay) => {
+    if (!overlayData) return null;
+
+    // Extract unique font families and weights from overlay elements
+    const fonts = new Set<string>();
+
+    // Check individual elements for font families and weights
+    if (overlayData.elements) {
+      overlayData.elements.forEach((element) => {
+        // Type guard to check if the style has fontFamily property
+        const elementStyle = element.style as BaseElementStyle;
+        if (elementStyle.fontFamily) {
+          // Check if style has fontWeight (even though it's not in the type)
+          const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
+          fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
+        }
+      });
+    }
+
+    // Render FontLoader for each unique font family and weight
+    return Array.from(fonts).map((fontString, index) => {
+      const [fontFamily, fontWeight] = fontString.split(":");
+      return <FontLoader key={index} fontFamily={fontFamily} fontWeight={fontWeight} />;
+    });
+  };
 
   useEffect(() => {
     if (id) {
@@ -61,6 +91,8 @@ const OverlayPage: React.FC = () => {
       try {
         const updatedOverlay: PrismaOverlay = JSON.parse(event.data);
         setOverlay(updatedOverlay);
+        // Load fonts when overlay data changes via WebSocket
+        loadOverlayFonts(updatedOverlay);
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
       }
@@ -291,133 +323,136 @@ const OverlayPage: React.FC = () => {
   const titleElement = findFirstElementByType(overlay.elements, "TITLE");
 
   return (
-    <div className="container mx-auto">
-      <div className="flex items-center mb-8">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-4">
-          <ArrowLeft className="h-6 w-6" />
-        </Button>
-        <div className="flex-grow">
-          <h1 className="text-2xl font-bold">{overlay.name}</h1>
-          {overlay.description && (
-            <p className="text-sm text-muted-foreground">{overlay.description}</p>
-          )}
-        </div>
-        <Button variant="outline" size="lg" onClick={handleCopy}>
-          {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          Copy Link
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        <div
-          ref={previewContainerRef}
-          className="flex flex-col items-center border rounded-lg bg-secondary pt-4 sticky top-20"
-        >
-          <h2 className="text-xl font-semibold mb-2 w-full px-4">Preview</h2>
-          <div className="aspect-[4/3] w-full max-w-full overflow-hidden flex justify-center items-center bg-sidebar">
-            <div
-              style={{
-                width: "800px",
-                height: "600px",
-                transform: `scale(${scale})`,
-                transformOrigin: "center center",
-              }}
-            >
-              <OverlayCanvas overlay={overlay} />
-            </div>
+    <>
+      {loadOverlayFonts(overlay)}
+      <div className="container mx-auto">
+        <div className="flex items-center mb-8">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-4">
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
+          <div className="flex-grow">
+            <h1 className="text-2xl font-bold">{overlay.name}</h1>
+            {overlay.description && (
+              <p className="text-sm text-muted-foreground">{overlay.description}</p>
+            )}
           </div>
-          <div className="py-2 text-sm text-muted-foreground mb-4">Live Preview (800x600)</div>
+          <Button variant="outline" size="lg" onClick={handleCopy}>
+            {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            Copy Link
+          </Button>
         </div>
 
-        <div className="space-y-8 pb-96">
-          {/* These controls now target the FIRST element of their type */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Controls</CardTitle>
-              <CardDescription>Adjust the content of your elements.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col space-y-6 pt-4">
-              {counterElement && (
-                <div className="space-y-2">
-                  <Label htmlFor="count">Counter: {counterElement.name}</Label>
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={() =>
-                        handleDataChange(counterElement.id, {
-                          value: (counterElement.counter?.value || 0) - 1,
-                        })
-                      }
-                      size="icon-lg"
-                      variant="secondary"
-                      className="h-14 w-14"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <Input
-                      id="count"
-                      value={counterElement.counter?.value || 0}
-                      onChange={(e) =>
-                        handleDataChange(counterElement.id, {
-                          value: parseInt(e.target.value, 10) || 0,
-                        })
-                      }
-                      className="w-36 text-center text-2xl h-14"
-                    />
-                    <Button
-                      onClick={() =>
-                        handleDataChange(counterElement.id, {
-                          value: (counterElement.counter?.value || 0) + 1,
-                        })
-                      }
-                      size="icon-lg"
-                      variant="secondary"
-                      className="h-14 w-14"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <div
+            ref={previewContainerRef}
+            className="flex flex-col items-center border rounded-lg bg-secondary pt-4 sticky top-20"
+          >
+            <h2 className="text-xl font-semibold mb-2 w-full px-4">Preview</h2>
+            <div className="aspect-[4/3] w-full max-w-full overflow-hidden flex justify-center items-center bg-sidebar">
+              <div
+                style={{
+                  width: "800px",
+                  height: "600px",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "center center",
+                }}
+              >
+                <OverlayCanvas overlay={overlay} />
+              </div>
+            </div>
+            <div className="py-2 text-sm text-muted-foreground mb-4">Live Preview (800x600)</div>
+          </div>
+
+          <div className="space-y-8 pb-96">
+            {/* These controls now target the FIRST element of their type */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Data Controls</CardTitle>
+                <CardDescription>Adjust the content of your elements.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col space-y-6 pt-4">
+                {counterElement && (
+                  <div className="space-y-2">
+                    <Label htmlFor="count">Counter: {counterElement.name}</Label>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() =>
+                          handleDataChange(counterElement.id, {
+                            value: (counterElement.counter?.value || 0) - 1,
+                          })
+                        }
+                        size="icon-lg"
+                        variant="secondary"
+                        className="h-14 w-14"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <Input
+                        id="count"
+                        value={counterElement.counter?.value || 0}
+                        onChange={(e) =>
+                          handleDataChange(counterElement.id, {
+                            value: parseInt(e.target.value, 10) || 0,
+                          })
+                        }
+                        className="w-36 text-center text-2xl h-14"
+                      />
+                      <Button
+                        onClick={() =>
+                          handleDataChange(counterElement.id, {
+                            value: (counterElement.counter?.value || 0) + 1,
+                          })
+                        }
+                        size="icon-lg"
+                        variant="secondary"
+                        className="h-14 w-14"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-              {titleElement && (
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title: {titleElement.name}</Label>
-                  <Input
-                    id="title"
-                    value={titleElement.title?.text || ""}
-                    onChange={(e) => handleDataChange(titleElement.id, { text: e.target.value })}
-                    placeholder="Enter title text"
-                  />
-                </div>
-              )}
-              {!counterElement && !titleElement && (
-                <p className="text-sm text-muted-foreground">
-                  No editable elements in this overlay.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                )}
+                {titleElement && (
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title: {titleElement.name}</Label>
+                    <Input
+                      id="title"
+                      value={titleElement.title?.text || ""}
+                      onChange={(e) => handleDataChange(titleElement.id, { text: e.target.value })}
+                      placeholder="Enter title text"
+                    />
+                  </div>
+                )}
+                {!counterElement && !titleElement && (
+                  <p className="text-sm text-muted-foreground">
+                    No editable elements in this overlay.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-          <StyleEditor
-            overlay={overlay}
-            onOverlayChange={handleOverlayChange}
-            onAddElement={handleAddElement}
-            onDeleteElement={handleDeleteElement}
-          />
+            <StyleEditor
+              overlay={overlay}
+              onOverlayChange={handleOverlayChange}
+              onAddElement={handleAddElement}
+              onDeleteElement={handleDeleteElement}
+            />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Danger Zone</CardTitle>
-              <CardDescription>This action is irreversible. Please be certain.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={handleDeleteOverlay} variant="destructive" className="w-full">
-                Delete Overlay
-              </Button>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Danger Zone</CardTitle>
+                <CardDescription>This action is irreversible. Please be certain.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={handleDeleteOverlay} variant="destructive" className="w-full">
+                  Delete Overlay
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

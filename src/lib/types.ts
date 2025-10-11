@@ -8,15 +8,22 @@ export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum]
 
 // Global styles for the overlay container
 export interface GlobalStyle {
-  // For the outer container (group alignment)
+  // For the outer container (overall alignment in 800x600 space)
+  outerJustifyContent?: "flex-start" | "center" | "flex-end";
+  outerAlignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  // Old property names for backward compatibility
   groupJustifyContent?: "flex-start" | "center" | "flex-end";
   groupAlignItems?: "flex-start" | "center" | "flex-end";
 
-  // For the inner container (element alignment)
-  flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
-  gap?: number;
+  // For the inner container (element alignment within the group)
+  innerJustifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+  innerAlignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  // Old property names for backward compatibility
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  
+  flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
+  gap?: number;
 
   top: number;
   left: number;

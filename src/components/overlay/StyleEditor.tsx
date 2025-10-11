@@ -237,7 +237,28 @@ const StyleEditor: React.FC<StyleEditorProps> = ({
 
   const updateGlobalStyle = (path: string, value: string | number) => {
     const newOverlay = JSON.parse(JSON.stringify(overlay));
-    const newGlobalStyle = handleValueChange(newOverlay.globalStyle || {}, path, value);
+    const newGlobalStyle = { ...(newOverlay.globalStyle || {}) };
+
+    // Map the old property names to new ones for the update
+    let newPropertyPath = path;
+    switch (path) {
+      case "groupJustifyContent":
+        newPropertyPath = "outerJustifyContent";
+        break;
+      case "groupAlignItems":
+        newPropertyPath = "outerAlignItems";
+        break;
+      case "justifyContent":
+        newPropertyPath = "innerJustifyContent";
+        break;
+      case "alignItems":
+        newPropertyPath = "innerAlignItems";
+        break;
+    }
+
+    // Set only the new property
+    handleValueChange(newGlobalStyle, newPropertyPath, value);
+
     newOverlay.globalStyle = newGlobalStyle;
     onOverlayChange(newOverlay);
   };
@@ -297,11 +318,11 @@ const StyleEditor: React.FC<StyleEditorProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>Align Items (Vertical)</Label>
+              <Label>Outer Container Alignment - Vertical</Label>
               <ToggleGroup
                 type="single"
-                value={overlay.globalStyle?.alignItems || "stretch"}
-                onValueChange={(v) => v && updateGlobalStyle("alignItems", v)}
+                value={overlay.globalStyle?.outerAlignItems || "center"}
+                onValueChange={(v) => v && updateGlobalStyle("outerAlignItems", v)}
                 className="w-full"
                 variant="outline"
               >
@@ -314,17 +335,14 @@ const StyleEditor: React.FC<StyleEditorProps> = ({
                 <ToggleGroupItem value="flex-end" className="w-full">
                   <AlignVerticalJustifyEnd className="h-4 w-4" />
                 </ToggleGroupItem>
-                <ToggleGroupItem value="baseline" className="w-full">
-                  <Baseline className="h-4 w-4" />
-                </ToggleGroupItem>
               </ToggleGroup>
             </div>
             <div className="space-y-2">
-              <Label>Justify Content (Horizontal)</Label>
+              <Label>Outer Container Alignment - Horizontal</Label>
               <ToggleGroup
                 type="single"
-                value={overlay.globalStyle?.justifyContent || "flex-start"}
-                onValueChange={(v) => v && updateGlobalStyle("justifyContent", v)}
+                value={overlay.globalStyle?.outerJustifyContent || "center"}
+                onValueChange={(v) => v && updateGlobalStyle("outerJustifyContent", v)}
                 className="w-full"
                 variant="outline"
               >
@@ -347,30 +365,53 @@ const StyleEditor: React.FC<StyleEditorProps> = ({
                 max={200}
               />
             </div>
-          </div>
-        </div>
 
-        <hr />
-
-        <div>
-          <h3 className="text-lg font-medium mb-4">Container Position</h3>
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Top (px)</Label>
-              <Slider
-                value={[overlay.globalStyle?.top || 0]}
-                onValueChange={(v) => updateGlobalStyle("top", v[0])}
-                max={600}
-              />
+              <Label>
+                Inner Group Alignment - Vertical (Elements in Row) / Horizontal (Elements in Column)
+              </Label>
+              <ToggleGroup
+                type="single"
+                value={overlay.globalStyle?.innerAlignItems || "baseline"}
+                onValueChange={(v) => v && updateGlobalStyle("innerAlignItems", v)}
+                className="w-full"
+                variant="outline"
+              >
+                <ToggleGroupItem value="flex-start" className="w-full">
+                  <AlignVerticalJustifyStart className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="center" className="w-full">
+                  <AlignVerticalJustifyCenter className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="flex-end" className="w-full">
+                  <AlignVerticalJustifyEnd className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="baseline" className="w-full">
+                  <Baseline className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
-            <div className="space-y-2">
-              <Label>Left (px)</Label>
-              <Slider
-                value={[overlay.globalStyle?.left || 0]}
-                onValueChange={(v) => updateGlobalStyle("left", v[0])}
-                max={800}
-              />
-            </div>
+            {/* Not needed and not working, do not use
+             <div className="space-y-2">
+              <Label>Inner Group Alignment - Horizontal (Elements in Row) / Vertical (Elements in Column)</Label>
+              <ToggleGroup
+                type="single"
+                value={overlay.globalStyle?.innerJustifyContent || "flex-start"}
+                onValueChange={(v) => v && updateGlobalStyle("innerJustifyContent", v)}
+                className="w-full"
+                variant="outline"
+              >
+                <ToggleGroupItem value="flex-start" className="w-full">
+                  <AlignHorizontalJustifyStart className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="center" className="w-full">
+                  <AlignHorizontalJustifyCenter className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="flex-end" className="w-full">
+                  <AlignHorizontalJustifyEnd className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div> */}
           </div>
         </div>
 
