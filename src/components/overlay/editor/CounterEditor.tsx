@@ -6,6 +6,7 @@ import React from "react";
 import { ColorPicker, useColor } from "react-color-palette";
 import { FontPicker } from "../../FontPicker";
 import { handleValueChange } from "./helper";
+import { Input } from "@/components/ui/input";
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: CounterStyle) => void;
@@ -27,12 +28,29 @@ export const CounterStyleEditor: React.FC<{
       <h4 className="font-semibold">Edit: {element.name}</h4>
       <div className="space-y-2">
         <Label>Font Size</Label>
-        <Slider
-          value={[typeof style?.fontSize === "number" ? style.fontSize : 128]}
-          onValueChange={(v) => updateStyle("fontSize", v[0])}
-          max={400}
-          min={0}
-        />
+        <div className="flex gap-4">
+          <Slider
+            value={[typeof style?.fontSize === "number" ? style.fontSize : 128]}
+            onValueChange={(v) => updateStyle("fontSize", v[0])}
+            max={400}
+            min={0}
+          />
+
+          <Input
+            value={typeof style?.fontSize === "number" ? style.fontSize : 128}
+            onChange={(e) => {
+              if (e.target.value === "") {
+                updateStyle("fontSize", 0);
+                return;
+              }
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) {
+                updateStyle("fontSize", val);
+              }
+            }}
+            className="h-10 w-20"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -86,30 +104,62 @@ export const CounterStyleEditor: React.FC<{
         </div>
         <div className="space-y-2">
           <Label>Padding</Label>
-          <Slider
-            value={[
-              (() => {
-                const padding = (element.style as CounterStyle)?.padding;
-                return padding !== undefined && padding !== null ? padding : 0;
-              })(),
-            ]}
-            onValueChange={(v) => updateStyle("padding", v[0])}
-            max={300}
-            min={0}
-          />
+          <div className="flex gap-4">
+            <Slider
+              value={[
+                (() => {
+                  const padding = (element.style as CounterStyle)?.padding;
+                  return padding !== undefined && padding !== null ? padding : 0;
+                })(),
+              ]}
+              onValueChange={(v) => updateStyle("padding", v[0])}
+              max={300}
+              min={0}
+            />
+            <Input
+              value={typeof style?.padding === "number" ? style.padding : 0}
+              onChange={(e) => {
+                if (e.target.value === "") {
+                  updateStyle("padding", 0);
+                  return;
+                }
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                  updateStyle("padding", val);
+                }
+              }}
+              className="h-10 w-20"
+            />
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Corner Radius</Label>
-          <Slider
-            value={[
-              (() => {
-                const radius = (element.style as CounterStyle)?.radius;
-                return radius !== undefined && radius !== null ? radius : 0;
-              })(),
-            ]}
-            onValueChange={(v) => updateStyle("radius", v[0])}
-            max={100}
-          />
+          <div className="flex gap-4">
+            <Slider
+              value={[
+                (() => {
+                  const radius = (element.style as CounterStyle)?.radius;
+                  return radius !== undefined && radius !== null ? radius : 0;
+                })(),
+              ]}
+              onValueChange={(v) => updateStyle("radius", v[0])}
+              max={100}
+            />
+            <Input
+              value={typeof style?.radius === "number" ? style.radius : 0}
+              onChange={(e) => {
+                if (e.target.value === "") {
+                  updateStyle("radius", 0);
+                  return;
+                }
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                  updateStyle("radius", val);
+                }
+              }}
+              className="h-10 w-20"
+            />
+          </div>
         </div>
       </div>
     </div>
