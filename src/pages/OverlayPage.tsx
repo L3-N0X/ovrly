@@ -51,6 +51,29 @@ const OverlayPage: React.FC = () => {
     }
   }, [id, fetchOverlay]);
 
+  useEffect(() => {
+    if (!id) return;
+
+    const ws = new WebSocket(`ws://localhost:3000/ws?overlayId=${id}`);
+
+    ws.onmessage = (event) => {
+      try {
+        const updatedOverlay = JSON.parse(event.data);
+        if (updatedOverlay && typeof updatedOverlay.counter === "number") {
+          setOverlay(updatedOverlay);
+          setCount(updatedOverlay.counter);
+          setTitle(updatedOverlay.title || "");
+        }
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [id]);
+
   const handleDeleteOverlay = async () => {
     try {
       const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
@@ -170,9 +193,7 @@ const OverlayPage: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Counter Controls</CardTitle>
-              <CardDescription>
-                Use these controls to adjust the counter.
-              </CardDescription>
+              <CardDescription>Use these controls to adjust the counter.</CardDescription>
             </CardHeader>
             <CardContent className="flex items-center justify-center space-x-2 pt-4">
               <Button onClick={handleDecrease} size="lg">
@@ -193,9 +214,7 @@ const OverlayPage: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Overlay Title</CardTitle>
-              <CardDescription>
-                Change the title that is displayed on the overlay.
-              </CardDescription>
+              <CardDescription>Change the title that is displayed on the overlay.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -214,9 +233,7 @@ const OverlayPage: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Danger Zone</CardTitle>
-              <CardDescription>
-                These actions are irreversible. Please be certain.
-              </CardDescription>
+              <CardDescription>These actions are irreversible. Please be certain.</CardDescription>
             </CardHeader>
             <CardContent>
               <Button onClick={handleDeleteOverlay} variant="destructive" className="w-full">

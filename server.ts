@@ -3,6 +3,10 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+interface WebSocketData {
+  overlayId: string;
+}
+
 const server = Bun.serve({
   port: 3000,
   async fetch(req, server) {
@@ -79,19 +83,18 @@ const server = Bun.serve({
           }
 
           if (Object.keys(dataToUpdate).length === 0) {
-            return new Response(
-              JSON.stringify({ error: "No valid fields to update" }),
-              {
-                status: 400,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
+            return new Response(JSON.stringify({ error: "No valid fields to update" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
 
           const updatedOverlay = await prisma.overlay.update({
             where: { id: overlayId },
             data: dataToUpdate,
           });
+
+          server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
 
           return new Response(JSON.stringify(updatedOverlay), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -161,19 +164,36 @@ const server = Bun.serve({
       });
     }
 
-    if (server.upgrade(req)) {
-      return;
+    if (path === "/ws") {
+      const url = new URL(req.url);
+      const overlayId = url.searchParams.get("overlayId");
+      if (overlayId) {
+        const upgraded = server.upgrade(req, {
+          data: { overlayId },
+        });
+        if (upgraded) {
+          console.log(`[SERVER LOG] WebSocket connection upgraded for overlay ${overlayId}`);
+          return;
+        }
+      }
+      return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
     console.log(`[SERVER LOG] No route matched. Responding with "Hello world!".`);
     return new Response("Hello world!");
   },
   websocket: {
-    message(ws, message) {
-      server.publish("counter", message);
-    },
     open(ws) {
-      ws.subscribe("counter");
+      const { overlayId } = ws.data as WebSocketData;
+      ws.subscribe(`overlay-${overlayId}`);
+      console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
+    },
+    message() {
+      // Not used in this implementation, but good to have for future features
+    },
+    close(ws) {
+      const { overlayId } = ws.data as WebSocketData;
+      console.log(`[SERVER LOG] WebSocket connection closed for overlay ${overlayId}`);
     },
   },
 });
