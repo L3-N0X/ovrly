@@ -6,6 +6,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoggedInRoute from "./components/auth/LoggedInRoute";
 import MainLayout from "./components/MainLayout";
+import PublicCounterPage from "./pages/PublicCounterPage";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
               <Route index element={<OverlayPage />} />
             </Route>
           </Route>
+          <Route path="/public/:overlayId" element={<PublicCounterPage />} />
         </Routes>
       </Router>
     </ThemeProvider>

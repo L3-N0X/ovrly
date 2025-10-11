@@ -1,11 +1,4 @@
 import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuList,
-} from "@/components/ui/navigation-menu";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "./ui/button";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,7 +6,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuList,
+} from "@/components/ui/navigation-menu";
 import { authClient } from "@/lib/auth-client";
+import { Link, useNavigate } from "react-router-dom";
+import { ModeToggle } from "./toggle";
+import { Button } from "./ui/button";
 
 const Navbar = () => {
   const { data: session } = authClient.useSession();
@@ -39,6 +40,7 @@ const Navbar = () => {
       </NavigationMenu>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <div className="ml-auto flex-1 sm:flex-initial"></div>
+        <ModeToggle></ModeToggle>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">

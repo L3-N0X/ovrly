@@ -1,5 +1,5 @@
-import { auth, prisma } from "./auth";
 import dotenv from "dotenv";
+import { auth, prisma } from "./auth";
 
 dotenv.config();
 
@@ -127,6 +127,32 @@ const server = Bun.serve({
         }
         await prisma.overlay.delete({ where: { id: overlayId } });
         return new Response(null, { status: 204, headers: corsHeaders });
+      }
+
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const publicOverlayIdMatch = path.match(/^\/api\/public\/overlays\/([a-zA-Z0-9_-]+)$/);
+    if (publicOverlayIdMatch) {
+      const overlayId = publicOverlayIdMatch[1];
+      const overlay = await prisma.overlay.findUnique({
+        where: { id: overlayId },
+      });
+
+      if (!overlay) {
+        return new Response(JSON.stringify({ error: "Overlay not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (req.method === "GET") {
+        return new Response(JSON.stringify(overlay), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       return new Response(JSON.stringify({ error: "Method not allowed" }), {

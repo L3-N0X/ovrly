@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, Copy, Minus, Plus } from "lucide-react";
+import DisplayCounter from "@/components/overlay/DisplayCounter";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -22,6 +23,7 @@ const OverlayPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [title, setTitle] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchOverlay = useCallback(async () => {
@@ -151,6 +153,19 @@ const OverlayPage: React.FC = () => {
     if (!isNaN(value)) {
       handleCountChange(value);
     }
+    if (e.target.value === "") {
+      setCount(0);
+      handleCountChange(0);
+    }
+  };
+
+  const handleCopy = () => {
+    if (id) {
+      const url = `${window.location.origin}/public/${id}`;
+      navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
   };
 
   if (isLoading) {
@@ -173,19 +188,22 @@ const OverlayPage: React.FC = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-4">
           <ArrowLeft className="h-6 w-6" />
         </Button>
-        <div>
+        <div className="flex-grow">
           <h1 className="text-2xl font-bold">{overlay.name}</h1>
           {overlay.description && (
             <p className="text-sm text-muted-foreground">{overlay.description}</p>
           )}
         </div>
+        <Button variant="outline" size="lg" onClick={handleCopy}>
+          {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          Copy Link
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Side */}
         <div className="flex flex-col items-center justify-center p-8 border rounded-lg">
-          <h2 className="text-4xl font-bold mb-4">{title}</h2>
-          <p className="text-9xl font-bold">{count}</p>
+          <DisplayCounter title={title} counter={count} />
         </div>
 
         {/* Right Side */}
@@ -196,17 +214,26 @@ const OverlayPage: React.FC = () => {
               <CardDescription>Use these controls to adjust the counter.</CardDescription>
             </CardHeader>
             <CardContent className="flex items-center justify-center space-x-2 pt-4">
-              <Button onClick={handleDecrease} size="lg">
-                -
+              <Button
+                onClick={handleDecrease}
+                size="icon-lg"
+                variant="secondary"
+                className="h-14 w-14"
+              >
+                <Minus className="w-4 h-4" />
               </Button>
               <Input
-                type="number"
                 value={count}
                 onChange={handleInputChange}
-                className="w-24 text-center text-2xl h-14"
+                className="w-36 text-center text-2xl h-14"
               />
-              <Button onClick={handleIncrease} size="lg">
-                +
+              <Button
+                onClick={handleIncrease}
+                size="icon-lg"
+                variant="secondary"
+                className="h-14 w-14"
+              >
+                <Plus className="w-4 h-4" />
               </Button>
             </CardContent>
           </Card>
