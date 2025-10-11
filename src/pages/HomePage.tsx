@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth-client";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { authClient } from "@/lib/auth-client";
+import { Plus } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface Overlay {
   id: string;
@@ -22,11 +23,7 @@ interface Overlay {
 }
 
 const HomePage: React.FC = () => {
-  const {
-    data: user,
-    isPending: isSessionPending,
-    refetch: refetchSession,
-  } = authClient.useSession();
+  const { data: user, isPending: isSessionPending } = authClient.useSession();
   const navigate = useNavigate();
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,11 +85,6 @@ const HomePage: React.FC = () => {
     await authClient.signIn.social({ provider: "twitch" });
   };
 
-  const handleSignOut = async () => {
-    await authClient.signOut();
-    refetchSession();
-  };
-
   if (isSessionPending) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -104,13 +96,15 @@ const HomePage: React.FC = () => {
           <div>
             <div className="flex justify-between items-center mb-8">
               <h1 className="text-2xl font-bold">Welcome, {user.user.name}!</h1>
-              <Button onClick={handleSignOut}>Sign Out</Button>
             </div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Your Overlays</h2>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button>Create New Overlay</Button>
+                  <Button>
+                    <Plus className="h-4 w-4" />
+                    Create New Overlay
+                  </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -166,9 +160,6 @@ const HomePage: React.FC = () => {
                         <CardDescription>{overlay.description}</CardDescription>
                       )}
                     </CardHeader>
-                    <CardContent>
-                      <Button variant="outline">Control Overlay</Button>
-                    </CardContent>
                   </Card>
                 ))}
               </div>

@@ -67,17 +67,32 @@ const server = Bun.serve({
 
       if (req.method === "PATCH") {
         try {
-          const { counter } = await req.json();
-          if (typeof counter !== "number") {
-            return new Response(JSON.stringify({ error: "Invalid 'counter' value" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+          const { counter, title } = await req.json();
+          const dataToUpdate: { counter?: number; title?: string } = {};
+
+          if (typeof counter === "number") {
+            dataToUpdate.counter = counter;
           }
+
+          if (typeof title === "string") {
+            dataToUpdate.title = title;
+          }
+
+          if (Object.keys(dataToUpdate).length === 0) {
+            return new Response(
+              JSON.stringify({ error: "No valid fields to update" }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          }
+
           const updatedOverlay = await prisma.overlay.update({
             where: { id: overlayId },
-            data: { counter },
+            data: dataToUpdate,
           });
+
           return new Response(JSON.stringify(updatedOverlay), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });

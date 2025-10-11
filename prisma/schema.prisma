@@ -24,6 +24,7 @@ model User {
 model Overlay {
   id          String   @id @default(cuid())
   name        String
+  title       String?
   description String?
   counter     Int      @default(0)
   userId      String

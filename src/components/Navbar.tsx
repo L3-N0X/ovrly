@@ -13,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CircleUser } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 const Navbar = () => {
@@ -43,7 +42,13 @@ const Navbar = () => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">
-              <CircleUser className="h-5 w-5" />
+              <img
+                alt="User Avatar"
+                src={user?.image || "/default-avatar.png"}
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
               <span className="sr-only">Toggle user menu</span>
             </Button>
           </DropdownMenuTrigger>
