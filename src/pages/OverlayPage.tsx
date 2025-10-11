@@ -237,7 +237,7 @@ const OverlayPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto">
       <div className="flex items-center mb-8">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-4">
           <ArrowLeft className="h-6 w-6" />
@@ -254,11 +254,11 @@ const OverlayPage: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
         {/* Left Side */}
         <div
           ref={previewContainerRef}
-          className="flex flex-col items-center justify-start overflow-hidden border rounded-lg bg-secondary pt-4"
+          className="flex flex-col items-center border rounded-lg bg-secondary pt-4 sticky top-20"
         >
           <h2 className="text-xl font-semibold mb-2 w-full px-4">Preview</h2>
           <div
@@ -303,43 +303,39 @@ const OverlayPage: React.FC = () => {
         </div>
 
         {/* Right Side */}
-        <div className="space-y-8">
+        <div className="space-y-8 pb-96">
           <Card>
             <CardHeader>
               <CardTitle>Counter Controls</CardTitle>
               <CardDescription>Use these controls to adjust the counter.</CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center justify-center space-x-2 pt-4">
-              <Button
-                onClick={handleDecrease}
-                size="icon-lg"
-                variant="secondary"
-                className="h-14 w-14"
-              >
-                <Minus className="w-4 h-4" />
-              </Button>
-              <Input
-                value={count}
-                onChange={handleInputChange}
-                className="w-36 text-center text-2xl h-14"
-              />
-              <Button
-                onClick={handleIncrease}
-                size="icon-lg"
-                variant="secondary"
-                className="h-14 w-14"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Overlay Title</CardTitle>
-              <CardDescription>Change the title that is displayed on the overlay.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col space-y-6 pt-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium self-center leading-none">Count</p>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={handleDecrease}
+                    size="icon-lg"
+                    variant="secondary"
+                    className="h-14 w-14"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <Input
+                    value={count}
+                    onChange={handleInputChange}
+                    className="w-36 text-center text-2xl h-14"
+                  />
+                  <Button
+                    onClick={handleIncrease}
+                    size="icon-lg"
+                    variant="secondary"
+                    className="h-14 w-14"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input
@@ -353,7 +349,7 @@ const OverlayPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <StyleEditor style={style} onStyleChange={handleStyleChange} />
+          <StyleEditor style={style} onStyleChange={handleStyleChange} title={title} />
 
           <Card>
             <CardHeader>

@@ -9,12 +9,16 @@ export interface OverlayStyle {
   backgroundColor?: string;
   padding?: number;
   radius?: number;
+  verticalAlignment?: "top" | "center" | "bottom";
+  horizontalAlignment?: "left" | "center" | "right";
+  verticalAlign?: "center" | "baseline";
   title?: {
     fontSize?: number;
     fontFamily?: string;
     color?: string;
     startEmoji?: string;
     endEmoji?: string;
+    lineHeight?: number;
   };
   counter?: {
     fontSize?: number;
@@ -23,6 +27,7 @@ export interface OverlayStyle {
     backgroundColor?: string;
     radius?: number;
     padding?: number;
+    lineHeight?: number;
   };
 }
 
@@ -33,26 +38,51 @@ interface DisplayCounterProps {
 }
 
 const DisplayCounter: React.FC<DisplayCounterProps> = ({ title, counter, style = {} }) => {
-  const containerStyle: React.CSSProperties = {
+  const {
+    verticalAlignment = "center",
+    horizontalAlignment = "center",
+    verticalAlign = "center",
+    arrangement = "column",
+    distance = 16,
+  } = style;
+
+  const outerStyle: React.CSSProperties = {
     display: "flex",
-    flexDirection: style.arrangement || "column",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    height: "100%",
-    gap: style.distance ? `${style.distance}px` : "16px",
+    width: "800px",
+    height: "600px",
+    justifyContent:
+      horizontalAlignment === "left"
+        ? "flex-start"
+        : horizontalAlignment === "right"
+        ? "flex-end"
+        : "center",
+    alignItems:
+      verticalAlignment === "top"
+        ? "flex-start"
+        : verticalAlignment === "bottom"
+        ? "flex-end"
+        : "center",
     backgroundColor: style.backgroundColor,
     padding: style.padding ? `${style.padding}px` : undefined,
     borderRadius: style.radius ? `${style.radius}px` : undefined,
   };
 
-  const titleStyle = style.title || {};
-  const counterStyle = style.counter || {};
+  const innerStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: arrangement,
+    alignItems: verticalAlign,
+    gap: `${distance}px`,
+  };
+
+  const titleStyle = { ...style.title };
+  const counterStyle = { ...style.counter };
 
   return (
-    <div style={containerStyle}>
-      <Title text={title} style={titleStyle} />
-      <Counter value={counter} style={counterStyle} />
+    <div style={outerStyle}>
+      <div style={innerStyle}>
+        <Title text={title} style={titleStyle} />
+        <Counter value={counter} style={counterStyle} />
+      </div>
     </div>
   );
 };
