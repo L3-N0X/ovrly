@@ -8,9 +8,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   envPrefix: "VITE_",
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      {
+        find: "@",
+        replacement: path.resolve(__dirname, "./src"),
+      },
+    ],
   },
   server: {
     proxy: {
