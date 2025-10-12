@@ -424,58 +424,141 @@ const server = Bun.serve({
 
       if (req.method === "POST") {
         try {
-          const { name, description, type, elementName } = await req.json();
-          if (!name || !type || !elementName) {
+          const { name, description, type, elementName, presetId } = await req.json();
+
+          // If presetId is provided, create overlay based on preset
+          if (presetId) {
+            // Load the preset
+            const presetsPath = `${process.cwd()}/public/presets/overlay-presets.json`;
+            const presetsContent = await Bun.file(presetsPath).text();
+            const presets = JSON.parse(presetsContent);
+
+            const selectedPreset = presets.presets.find((p: { id: string }) => p.id === presetId);
+            if (!selectedPreset) {
+              return new Response(JSON.stringify({ error: "Invalid preset ID" }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            // Create the overlay with elements from the preset
+            const newOverlay = await prisma.overlay.create({
+              data: {
+                name,
+                description,
+                userId: session.user.id,
+                globalStyle: selectedPreset.globalStyle || {},
+                elements: {
+                  create: selectedPreset.elements.map(
+                    (element: {
+                      name: string;
+                      type: "TITLE" | "COUNTER" | "GROUP";
+                      style?: object;
+                      title?: { text: string };
+                      counter?: { value: number };
+                    }) => {
+                      const elementCreateData: {
+                        name: string;
+                        type: "TITLE" | "COUNTER" | "GROUP";
+                        style: object;
+                        title?: { create: { text: string } };
+                        counter?: { create: { value: number } };
+                      } = {
+                        name: element.name,
+                        type: element.type,
+                        style: element.style || {},
+                      };
+
+                      if (element.type === "TITLE") {
+                        elementCreateData.title = {
+                          create: { text: element.title?.text || "New Title" },
+                        };
+                      } else if (element.type === "COUNTER") {
+                        elementCreateData.counter = {
+                          create: { value: element.counter?.value || 0 },
+                        };
+                      }
+
+                      return elementCreateData;
+                    }
+                  ),
+                },
+              },
+              include: {
+                elements: {
+                  include: {
+                    title: true,
+                    counter: true,
+                  },
+                },
+              },
+            });
+
+            return new Response(JSON.stringify(newOverlay), {
+              status: 201,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          // Otherwise, use the legacy method with a single element
+          else if (name && type && elementName) {
+            const elementCreateData: {
+              name: string;
+              type: "TITLE" | "COUNTER" | "GROUP";
+              style: object;
+              title?: { create: { text: string } };
+              counter?: { create: { value: number } };
+            } = {
+              name: elementName,
+              type: type as "TITLE" | "COUNTER" | "GROUP",
+              style: {}, // Initialize with empty style object instead of null
+            };
+
+            if (type === "TITLE") {
+              elementCreateData.title = { create: { text: "New Title" } };
+            } else if (type === "COUNTER") {
+              elementCreateData.counter = { create: { value: 0 } };
+            } else {
+              return new Response(JSON.stringify({ error: "Invalid element type" }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            const newOverlay = await prisma.overlay.create({
+              data: {
+                name,
+                description,
+                userId: session.user.id,
+                globalStyle: {},
+                elements: {
+                  create: [elementCreateData],
+                },
+              },
+              include: {
+                elements: {
+                  include: {
+                    title: true,
+                    counter: true,
+                  },
+                },
+              },
+            });
+
+            return new Response(JSON.stringify(newOverlay), {
+              status: 201,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          } else {
             return new Response(
-              JSON.stringify({ error: "name, type, and elementName are required" }),
+              JSON.stringify({
+                error: "Either presetId or name, type, and elementName are required",
+              }),
               {
                 status: 400,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
               }
             );
           }
-
-          const elementCreateData: any = {
-            name: elementName,
-            type: type,
-            style: {}, // Initialize with empty style object instead of null
-          };
-
-          if (type === "TITLE") {
-            elementCreateData.title = { create: { text: "New Title" } };
-          } else if (type === "COUNTER") {
-            elementCreateData.counter = { create: { value: 0 } };
-          } else {
-            return new Response(JSON.stringify({ error: "Invalid element type" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          const newOverlay = await prisma.overlay.create({
-            data: {
-              name,
-              description,
-              userId: session.user.id,
-              globalStyle: {},
-              elements: {
-                create: [elementCreateData],
-              },
-            },
-            include: {
-              elements: {
-                include: {
-                  title: true,
-                  counter: true,
-                },
-              },
-            },
-          });
-
-          return new Response(JSON.stringify(newOverlay), {
-            status: 201,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
         } catch (e) {
           console.error(e);
           return new Response(JSON.stringify({ error: "Invalid request body" }), {
@@ -549,6 +632,32 @@ const server = Bun.serve({
         } catch {
           return new Response(JSON.stringify({ error: "Invalid request body" }), {
             status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (path === "/api/presets/overlays") {
+      if (req.method === "GET") {
+        try {
+          // Read the presets file
+          const presetsPath = `${process.cwd()}/public/presets/overlay-presets.json`;
+          const presetsContent = await Bun.file(presetsPath).text();
+          const presets = JSON.parse(presetsContent);
+
+          return new Response(JSON.stringify(presets), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (error) {
+          console.error("Error reading presets:", error);
+          return new Response(JSON.stringify({ error: "Failed to load presets" }), {
+            status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }

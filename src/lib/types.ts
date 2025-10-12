@@ -10,7 +10,7 @@ export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum]
 export interface GlobalStyle {
   // For the outer container (overall alignment in 800x600 space)
   outerJustifyContent?: "flex-start" | "center" | "flex-end";
-  outerAlignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  outerAlignItems?: "flex-start" | "center" | "flex-end" | "baseline";
   // Old property names for backward compatibility
   groupJustifyContent?: "flex-start" | "center" | "flex-end";
   groupAlignItems?: "flex-start" | "center" | "flex-end";
@@ -23,10 +23,10 @@ export interface GlobalStyle {
     | "space-between"
     | "space-around"
     | "space-evenly";
-  innerAlignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  innerAlignItems?: "flex-start" | "center" | "flex-end" | "baseline";
   // Old property names for backward compatibility
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  alignItems?: "flex-start" | "center" | "flex-end" | "baseline";
 
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
   gap?: number;
@@ -65,7 +65,7 @@ export interface GroupStyle {
     | "space-between"
     | "space-around"
     | "space-evenly";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  alignItems?: "flex-start" | "center" | "flex-end" | "baseline";
   backgroundColor?: string;
   padding?: number;
   radius?: number;

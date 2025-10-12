@@ -16,7 +16,7 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
 
   const innerJustifyContent =
     globalStyle?.innerJustifyContent || globalStyle?.justifyContent || "flex-start";
-  const innerAlignItems = globalStyle?.innerAlignItems || globalStyle?.alignItems || "stretch";
+  const innerAlignItems = globalStyle?.innerAlignItems || globalStyle?.alignItems || "center";
 
   // Outer container handles overall alignment within the 800x600 space
   const outerStyle: React.CSSProperties = {

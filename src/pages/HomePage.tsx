@@ -11,29 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
 import { Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ElementTypeEnum = {
-  COUNTER: "COUNTER",
-  TITLE: "TITLE",
-} as const;
-
-type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
-
 interface Element {
   id: string;
   name: string;
-  type: ElementType;
+  type: string;
+ style?: Record<string, unknown>;
 }
 
 interface Overlay {
@@ -41,6 +28,14 @@ interface Overlay {
   name: string;
   description: string | null;
   userId: string;
+  elements: Element[];
+}
+
+interface OverlayPreset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
   elements: Element[];
 }
 
@@ -53,8 +48,10 @@ const HomePage: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newOverlayName, setNewOverlayName] = useState("");
   const [newOverlayDescription, setNewOverlayDescription] = useState("");
-  const [newElementName, setNewElementName] = useState("");
-  const [newElementType, setNewElementType] = useState<ElementType>(ElementTypeEnum.COUNTER);
+  const [selectedPreset, setSelectedPreset] = useState<OverlayPreset | null>(null);
+  const [presets, setPresets] = useState<OverlayPreset[]>([]);
+  // State for preset selection is handled differently now
+  const [isCreating, setIsCreating] = useState(false);
 
   const fetchOverlays = async () => {
     setIsLoading(true);
@@ -75,17 +72,38 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const fetchPresets = async () => {
+    try {
+      const response = await fetch("/presets/overlay-presets.json");
+      if (!response.ok) {
+        throw new Error("Failed to fetch presets");
+      }
+      const data = await response.json();
+      setPresets(data.presets);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred while loading presets"
+      );
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchOverlays();
     }
   }, [user]);
 
+  useEffect(() => {
+    fetchPresets();
+  }, []);
+
   const handleCreateOverlay = async () => {
-    if (!newOverlayName || !newElementName) {
-      setError("Overlay name and element name are required.");
+    if (!newOverlayName || !selectedPreset) {
+      setError("Overlay name and preset selection are required.");
       return;
     }
+
+    setIsCreating(true);
     try {
       const response = await fetch("http://localhost:3000/api/overlays", {
         method: "POST",
@@ -93,8 +111,7 @@ const HomePage: React.FC = () => {
         body: JSON.stringify({
           name: newOverlayName,
           description: newOverlayDescription,
-          elementName: newElementName,
-          type: newElementType,
+          presetId: selectedPreset.id,
         }),
         credentials: "include",
       });
@@ -105,11 +122,23 @@ const HomePage: React.FC = () => {
       setIsDialogOpen(false); // Close the dialog
       setNewOverlayName(""); // Reset form
       setNewOverlayDescription(""); // Reset form
-      setNewElementName(""); // Reset form
-      setNewElementType(ElementTypeEnum.COUNTER); // Reset form
+      setSelectedPreset(null); // Reset form
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
+    } finally {
+      setIsCreating(false);
     }
+  };
+
+  const handlePresetSelect = (preset: OverlayPreset) => {
+    setSelectedPreset(preset);
+  };
+
+  const handleCreateNewOverlay = () => {
+    setSelectedPreset(null);
+    setNewOverlayName("");
+    setNewOverlayDescription("");
+    setIsDialogOpen(true);
   };
 
   const handleTwitchSignIn = async () => {
@@ -132,7 +161,7 @@ const HomePage: React.FC = () => {
               <h2 className="text-xl font-semibold">Your Overlays</h2>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button onClick={handleCreateNewOverlay}>
                     <Plus className="h-4 w-4" />
                     Create New Overlay
                   </Button>
@@ -141,58 +170,84 @@ const HomePage: React.FC = () => {
                   <DialogHeader>
                     <DialogTitle>Create New Overlay</DialogTitle>
                     <DialogDescription>
-                      Enter details for your new overlay and its first element.
+                      {selectedPreset
+                        ? `Selected template: ${selectedPreset.name}`
+                        : "Choose a template for your new overlay"}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Overlay Name</Label>
-                      <Input
-                        id="name"
-                        value={newOverlayName}
-                        onChange={(e) => setNewOverlayName(e.target.value)}
-                        placeholder="My Awesome Overlay"
-                      />
+
+                  {!selectedPreset ? (
+                    <div className="space-y-4 py-4">
+                      <h3 className="font-semibold">Select a Template</h3>
+                      <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto">
+                        {presets.map((preset) => (
+                          <div
+                            key={preset.id}
+                            className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => handlePresetSelect(preset)}
+                          >
+                            <div className="text-2xl mr-3">{preset.icon}</div>
+                            <div>
+                              <div className="font-medium">{preset.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {preset.description}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Overlay Description</Label>
-                      <Input
-                        id="description"
-                        value={newOverlayDescription}
-                        onChange={(e) => setNewOverlayDescription(e.target.value)}
-                        placeholder="A short description of what this overlay is for."
-                      />
+                  ) : (
+                    <div className="space-y-4 py-4">
+                      <div className="flex items-center p-3 border rounded-lg bg-accent mb-4">
+                        <div className="text-2xl mr-3">{selectedPreset.icon}</div>
+                        <div>
+                          <div className="font-medium">{selectedPreset.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {selectedPreset.description}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Overlay Name *</Label>
+                        <Input
+                          id="name"
+                          value={newOverlayName}
+                          onChange={(e) => setNewOverlayName(e.target.value)}
+                          placeholder="My Awesome Overlay"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Overlay Description</Label>
+                        <Input
+                          id="description"
+                          value={newOverlayDescription}
+                          onChange={(e) => setNewOverlayDescription(e.target.value)}
+                          placeholder="A short description of what this overlay is for."
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="elementName">First Element Name</Label>
-                      <Input
-                        id="elementName"
-                        value={newElementName}
-                        onChange={(e) => setNewElementName(e.target.value)}
-                        placeholder="e.g., Player 1 Score"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="elementType">First Element Type</Label>
-                      <Select
-                        value={newElementType}
-                        onValueChange={(value: ElementType) => setNewElementType(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an element type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={ElementTypeEnum.COUNTER}>Counter</SelectItem>
-                          <SelectItem value={ElementTypeEnum.TITLE}>Title</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  )}
+
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (!selectedPreset) {
+                          setIsDialogOpen(false);
+                        } else {
+                          setSelectedPreset(null);
+                        }
+                      }}
+                    >
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateOverlay}>Create</Button>
+                    {selectedPreset && (
+                      <Button onClick={handleCreateOverlay} disabled={isCreating}>
+                        {isCreating ? "Creating..." : "Create"}
+                      </Button>
+                    )}
                   </DialogFooter>
                 </DialogContent>
               </Dialog>

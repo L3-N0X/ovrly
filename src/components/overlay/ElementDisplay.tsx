@@ -37,7 +37,7 @@ const GroupElement: React.FC<{ group: PrismaElement }> = ({ group }) => {
       typeof ((style || {}) as GroupStyle)?.gap === "number" ? ((style || {}) as GroupStyle).gap : 0
     }px`,
     justifyContent: ((style || {}) as GroupStyle)?.justifyContent || "flex-start",
-    alignItems: ((style || {}) as GroupStyle)?.alignItems || "stretch",
+    alignItems: ((style || {}) as GroupStyle)?.alignItems || "center",
     backgroundColor: ((style || {}) as GroupStyle)?.backgroundColor,
     padding:
       typeof ((style || {}) as GroupStyle)?.padding === "number"

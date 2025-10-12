@@ -1,0 +1,229 @@
+{
+  "presets": [
+    {
+      "id": "simple-counter",
+      "name": "Simple Counter",
+      "description": "A basic counter overlay",
+      "icon": "🔢",
+      "globalStyle": {
+        "outerJustifyContent": "center",
+        "outerAlignItems": "center",
+        "innerJustifyContent": "center",
+        "innerAlignItems": "center",
+        "flexDirection": "column",
+        "gap": 10,
+        "top": 0,
+        "left": 0,
+        "backgroundColor": "#000000",
+        "padding": 20,
+        "radius": 10
+      },
+      "elements": [
+        {
+          "name": "Counter",
+          "type": "COUNTER",
+          "style": {
+            "fontSize": 48,
+            "color": "#ffffff",
+            "fontFamily": "Arial",
+            "backgroundColor": "#000000",
+            "padding": 10,
+            "radius": 5
+          },
+          "counter": {
+            "value": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "simple-title",
+      "name": "Simple Title",
+      "description": "A basic title overlay",
+      "icon": "📝",
+      "globalStyle": {
+        "outerJustifyContent": "center",
+        "outerAlignItems": "center",
+        "innerJustifyContent": "center",
+        "innerAlignItems": "center",
+        "flexDirection": "column",
+        "gap": 10,
+        "top": 0,
+        "left": 0,
+        "backgroundColor": "#000000",
+        "padding": 20,
+        "radius": 10
+      },
+      "elements": [
+        {
+          "name": "Title",
+          "type": "TITLE",
+          "style": {
+            "fontSize": 36,
+            "color": "#ffffff",
+            "fontFamily": "Arial",
+            "backgroundColor": "#0000",
+            "padding": 10,
+            "radius": 5
+          },
+          "title": {
+            "text": "New Title"
+          }
+        }
+      ]
+    },
+    {
+      "id": "title-counter",
+      "name": "Title + Counter",
+      "description": "A title with a counter",
+      "icon": "🔤🔢",
+      "globalStyle": {
+        "outerJustifyContent": "center",
+        "outerAlignItems": "center",
+        "innerJustifyContent": "center",
+        "innerAlignItems": "center",
+        "flexDirection": "column",
+        "gap": 20,
+        "top": 0,
+        "left": 0,
+        "backgroundColor": "#000000",
+        "padding": 30,
+        "radius": 15
+      },
+      "elements": [
+        {
+          "name": "Title",
+          "type": "TITLE",
+          "style": {
+            "fontSize": 36,
+            "color": "#ffffff",
+            "fontFamily": "Arial",
+            "backgroundColor": "#0000",
+            "padding": 10,
+            "radius": 5
+          },
+          "title": {
+            "text": "Score"
+          }
+        },
+        {
+          "name": "Counter",
+          "type": "COUNTER",
+          "style": {
+            "fontSize": 48,
+            "color": "#ffffff",
+            "fontFamily": "Arial",
+            "backgroundColor": "#000000",
+            "padding": 10,
+            "radius": 5
+          },
+          "counter": {
+            "value": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "counter-title",
+      "name": "Counter + Title",
+      "description": "A counter with a title",
+      "icon": "🔢🔤",
+      "globalStyle": {
+        "outerJustifyContent": "center",
+        "outerAlignItems": "center",
+        "innerJustifyContent": "center",
+        "innerAlignItems": "center",
+        "flexDirection": "column",
+        "gap": 20,
+        "top": 0,
+        "left": 0,
+        "backgroundColor": "#000000",
+        "padding": 30,
+        "radius": 15
+      },
+      "elements": [
+        {
+          "name": "Counter",
+          "type": "COUNTER",
+          "style": {
+            "fontSize": 48,
+            "color": "#ffffff",
+            "fontFamily": "Arial",
+            "backgroundColor": "#000000",
+            "padding": 10,
+            "radius": 5
+          },
+          "counter": {
+            "value": 100
+          }
+        },
+        {
+          "name": "Title",
+          "type": "TITLE",
+          "style": {
+            "fontSize": 36,
+            "color": "#ffffff",
+            "fontFamily": "Arial",
+            "backgroundColor": "#000000",
+            "padding": 10,
+            "radius": 5
+          },
+          "title": {
+            "text": "Lives"
+          }
+        }
+      ]
+    },
+    {
+      "id": "advanced-counter",
+      "name": "Advanced Counter",
+      "description": "Counter starting at 100 with custom styling",
+      "icon": "🔢++",
+      "globalStyle": {
+        "outerJustifyContent": "flex-start",
+        "outerAlignItems": "flex-start",
+        "innerJustifyContent": "space-between",
+        "innerAlignItems": "center",
+        "flexDirection": "row",
+        "gap": 15,
+        "top": 10,
+        "left": 10,
+        "backgroundColor": "#22222",
+        "padding": 15,
+        "radius": 8
+      },
+      "elements": [
+        {
+          "name": "Label",
+          "type": "TITLE",
+          "style": {
+            "fontSize": 24,
+            "color": "#cccccc",
+            "fontFamily": "Arial",
+            "backgroundColor": "transparent",
+            "padding": 5,
+            "radius": 0
+          },
+          "title": {
+            "text": "Score:"
+          }
+        },
+        {
+          "name": "Counter",
+          "type": "COUNTER",
+          "style": {
+            "fontSize": 32,
+            "color": "#00ff00",
+            "fontFamily": "Courier New",
+            "backgroundColor": "transparent",
+            "padding": 5,
+            "radius": 0
+          },
+          "counter": {
+            "value": 100
+          }
+        }
+      ]
+    }
+  ]
+}
