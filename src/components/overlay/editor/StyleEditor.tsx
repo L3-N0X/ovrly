@@ -32,6 +32,7 @@ import { Chip } from "@/components/ui/Chip";
 import { handleValueChange } from "./helper";
 import { TitleStyleEditor } from "./TitleEditor";
 import { CounterStyleEditor } from "./CounterEditor";
+import { ContainerStyleEditor } from "./ContainerEditor";
 
 interface StyleEditorProps {
   overlay: PrismaOverlay;
@@ -289,6 +290,12 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange }) =
                       )}
                       {element.type === ElementTypeEnum.COUNTER && (
                         <CounterStyleEditor
+                          element={element}
+                          onChange={(style) => updateElementStyle(element.id, style)}
+                        />
+                      )}
+                      {element.type === ElementTypeEnum.CONTAINER && (
+                        <ContainerStyleEditor
                           element={element}
                           onChange={(style) => updateElementStyle(element.id, style)}
                         />

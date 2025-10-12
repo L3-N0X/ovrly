@@ -32,9 +32,6 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
   // Inner container handles alignment of elements within the group
   const innerStyle: React.CSSProperties = {
     display: "flex",
-    // position: "absolute",
-    top: typeof globalStyle?.top === "number" ? globalStyle.top : 0,
-    left: typeof globalStyle?.left === "number" ? globalStyle.left : 0,
     flexDirection: globalStyle?.flexDirection || "column",
     gap: typeof globalStyle?.gap === "number" ? `${globalStyle.gap}px` : "16px",
     justifyContent: innerJustifyContent, // Horizontal alignment of elements within group

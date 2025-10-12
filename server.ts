@@ -452,14 +452,14 @@ const server = Bun.serve({
                   create: selectedPreset.elements.map(
                     (element: {
                       name: string;
-                      type: "TITLE" | "COUNTER" | "GROUP";
+                      type: "TITLE" | "COUNTER" | "CONTAINER";
                       style?: object;
                       title?: { text: string };
                       counter?: { value: number };
                     }) => {
                       const elementCreateData: {
                         name: string;
-                        type: "TITLE" | "COUNTER" | "GROUP";
+                        type: "TITLE" | "COUNTER" | "CONTAINER";
                         style: object;
                         title?: { create: { text: string } };
                         counter?: { create: { value: number } };
@@ -503,13 +503,13 @@ const server = Bun.serve({
           else if (name && type && elementName) {
             const elementCreateData: {
               name: string;
-              type: "TITLE" | "COUNTER" | "GROUP";
+              type: "TITLE" | "COUNTER" | "CONTAINER";
               style: object;
               title?: { create: { text: string } };
               counter?: { create: { value: number } };
             } = {
               name: elementName,
-              type: type as "TITLE" | "COUNTER" | "GROUP",
+              type: type as "TITLE" | "COUNTER" | "CONTAINER",
               style: {}, // Initialize with empty style object instead of null
             };
 

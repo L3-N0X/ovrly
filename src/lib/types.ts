@@ -1,7 +1,7 @@
 export const ElementTypeEnum = {
   COUNTER: "COUNTER",
   TITLE: "TITLE",
-  GROUP: "GROUP",
+  CONTAINER: "CONTAINER",
 } as const;
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
