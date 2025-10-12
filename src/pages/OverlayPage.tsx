@@ -306,7 +306,16 @@ const OverlayPage: React.FC = () => {
             <ArrowLeft className="h-6 w-6" />
           </Button>
           <div className="flex-grow">
-            <h1 className="text-2xl font-bold">{overlay.name}</h1>
+            <div className="flex items-center space-x-3">
+              {overlay.icon && (
+                <img
+                  src={`/presets/icons/${overlay.icon}`}
+                  alt={`${overlay.name} icon`}
+                  className="h-6 w-6"
+                />
+              )}
+              <h1 className="text-2xl font-bold">{overlay.name}</h1>
+            </div>
             {overlay.description && (
               <p className="text-sm text-muted-foreground">{overlay.description}</p>
             )}

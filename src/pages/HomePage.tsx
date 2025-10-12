@@ -20,7 +20,7 @@ interface Element {
   id: string;
   name: string;
   type: string;
- style?: Record<string, unknown>;
+  style?: Record<string, unknown>;
 }
 
 interface Overlay {
@@ -186,7 +186,15 @@ const HomePage: React.FC = () => {
                             className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
                             onClick={() => handlePresetSelect(preset)}
                           >
-                            <div className="text-2xl mr-3">{preset.icon}</div>
+                            {preset.icon ? (
+                              <img
+                                src={`/presets/icons/${preset.icon}`}
+                                alt={`${preset.name} icon`}
+                                className="h-6 w-6 mr-3"
+                              />
+                            ) : (
+                              <div className="text-2xl mr-3">{preset.icon}</div>
+                            )}
                             <div>
                               <div className="font-medium">{preset.name}</div>
                               <div className="text-sm text-muted-foreground">
@@ -200,7 +208,15 @@ const HomePage: React.FC = () => {
                   ) : (
                     <div className="space-y-4 py-4">
                       <div className="flex items-center p-3 border rounded-lg bg-accent mb-4">
-                        <div className="text-2xl mr-3">{selectedPreset.icon}</div>
+                        {selectedPreset.icon ? (
+                          <img
+                            src={`/presets/icons/${selectedPreset.icon}`}
+                            alt={`${selectedPreset.name} icon`}
+                            className="h-6 w-6 mr-3"
+                          />
+                        ) : (
+                          <div className="text-2xl mr-3">{selectedPreset.icon}</div>
+                        )}
                         <div>
                           <div className="font-medium">{selectedPreset.name}</div>
                           <div className="text-sm text-muted-foreground">

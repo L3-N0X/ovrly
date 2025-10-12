@@ -91,6 +91,11 @@ export interface PrismaOverlay {
   id: string;
   name: string;
   description?: string | null;
+  /**
+   * Optional icon filename for the overlay (e.g. "simple-counter.svg").
+   * Stored as a filename relative to the public/presets/icons/ directory.
+   */
+  icon?: string | null;
   globalStyle: GlobalStyle | null;
   elements: PrismaElement[];
   userId: string;

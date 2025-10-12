@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-labelledby="title">
+    <title>Title + Counter Icon</title>
+    <rect x="2" y="3" width="20" height="18" rx="3" fill="#0b1220"/>
+    <text x="8" y="14" font-size="8" fill="#ffffff" font-family="Arial">T</text>
+    <text x="16" y="14" font-size="10" fill="#ffffff" font-family="Arial" text-anchor="middle">#</text>
+</svg>

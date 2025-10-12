@@ -4,7 +4,7 @@
       "id": "simple-counter",
       "name": "Simple Counter",
       "description": "A basic counter overlay",
-      "icon": "🔢",
+      "icon": "simple-counter.svg",
       "globalStyle": {
         "outerJustifyContent": "center",
         "outerAlignItems": "center",
@@ -40,7 +40,7 @@
       "id": "simple-title",
       "name": "Simple Title",
       "description": "A basic title overlay",
-      "icon": "📝",
+      "icon": "simple-title.svg",
       "globalStyle": {
         "outerJustifyContent": "center",
         "outerAlignItems": "center",
@@ -76,7 +76,7 @@
       "id": "title-counter",
       "name": "Title + Counter",
       "description": "A title with a counter",
-      "icon": "🔤🔢",
+      "icon": "title-counter.svg",
       "globalStyle": {
         "outerJustifyContent": "center",
         "outerAlignItems": "center",
@@ -127,7 +127,7 @@
       "id": "counter-title",
       "name": "Counter + Title",
       "description": "A counter with a title",
-      "icon": "🔢🔤",
+      "icon": "counter-title.svg",
       "globalStyle": {
         "outerJustifyContent": "center",
         "outerAlignItems": "center",
@@ -178,7 +178,7 @@
       "id": "advanced-counter",
       "name": "Advanced Counter",
       "description": "Counter starting at 100 with custom styling",
-      "icon": "🔢++",
+      "icon": "advanced-counter.svg",
       "globalStyle": {
         "outerJustifyContent": "flex-start",
         "outerAlignItems": "flex-start",
