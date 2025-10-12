@@ -11,9 +11,7 @@ export interface GlobalStyle {
   // For the outer container (overall alignment in 800x600 space)
   outerJustifyContent?: "flex-start" | "center" | "flex-end";
   outerAlignItems?: "flex-start" | "center" | "flex-end" | "baseline";
-  // Old property names for backward compatibility
-  groupJustifyContent?: "flex-start" | "center" | "flex-end";
-  groupAlignItems?: "flex-start" | "center" | "flex-end";
+
 
   // For the inner container (element alignment within the group)
   innerJustifyContent?:
@@ -54,10 +52,12 @@ export interface CounterStyle extends BaseElementStyle {
   radius?: number;
 }
 
-// Specific style for a Group element
-export interface GroupStyle {
-  flexDirection?: "row" | "column";
+// Specific style for a Container element
+export interface ContainerStyle extends BaseElementStyle {
+  paddingX?: number;
+  paddingY?: number;
   gap?: number;
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
   justifyContent?:
     | "flex-start"
     | "center"
@@ -65,14 +65,11 @@ export interface GroupStyle {
     | "space-between"
     | "space-around"
     | "space-evenly";
-  alignItems?: "flex-start" | "center" | "flex-end" | "baseline";
-  backgroundColor?: string;
-  padding?: number;
-  radius?: number;
+  flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
 }
 
 // A union of all possible element style types
-export type ElementStyle = BaseElementStyle | CounterStyle | GroupStyle;
+export type ElementStyle = BaseElementStyle | CounterStyle | ContainerStyle;
 
 // The generic Element object from the backend
 export interface PrismaElement {

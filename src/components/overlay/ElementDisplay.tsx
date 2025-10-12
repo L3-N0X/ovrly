@@ -1,8 +1,8 @@
 import React from "react";
-import type { BaseElementStyle, CounterStyle, PrismaElement } from "@/lib/types";
+import type { BaseElementStyle, CounterStyle, PrismaElement, ContainerStyle } from "@/lib/types";
 import Title from "./Title";
 import Counter from "./Counter";
-import Container, { type ContainerStyle } from "./Container";
+import Container from "./Container";
 
 interface ElementDisplayProps {
   element: PrismaElement;

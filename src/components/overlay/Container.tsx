@@ -1,19 +1,5 @@
 import React from "react";
-
-export interface ContainerStyle {
-  paddingX?: number;
-  paddingY?: number;
-  gap?: number;
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
-  justifyContent?:
-    | "flex-start"
-    | "center"
-    | "flex-end"
-    | "space-between"
-    | "space-around"
-    | "space-evenly";
-  flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
-}
+import { type ContainerStyle } from "@/lib/types";
 
 interface ContainerProps {
   children: React.ReactNode;
@@ -34,11 +20,7 @@ const Container: React.FC<ContainerProps> = ({ children, style }) => {
     paddingBottom: typeof safeStyle.paddingY === "number" ? `${safeStyle.paddingY}px` : undefined,
   };
 
-  return (
-    <div style={containerStyle}>
-      {children}
-    </div>
-  );
+  return <div style={containerStyle}>{children}</div>;
 };
 
 export default Container;

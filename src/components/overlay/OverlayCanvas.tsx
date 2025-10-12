@@ -10,9 +10,8 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
   const { globalStyle, elements } = overlay;
 
   // For backward compatibility, we check for new property names first, then fallback to old ones
-  const outerJustifyContent =
-    globalStyle?.outerJustifyContent || globalStyle?.groupJustifyContent || "center";
-  const outerAlignItems = globalStyle?.outerAlignItems || globalStyle?.groupAlignItems || "center";
+  const outerJustifyContent = globalStyle?.outerJustifyContent || "center";
+  const outerAlignItems = globalStyle?.outerAlignItems || "center";
 
   const innerJustifyContent =
     globalStyle?.innerJustifyContent || globalStyle?.justifyContent || "flex-start";

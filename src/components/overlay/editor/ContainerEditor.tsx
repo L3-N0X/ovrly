@@ -18,7 +18,7 @@ import {
   StretchHorizontal,
 } from "lucide-react";
 import React from "react";
-import { type ContainerStyle } from "../Container";
+import { type ContainerStyle } from "@/lib/types";
 import { handleValueChange } from "./helper";
 
 export const ContainerStyleEditor: React.FC<{
