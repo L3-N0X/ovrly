@@ -128,10 +128,10 @@
   }
   to {
     opacity: 1;
-    max-height: 1000px; /* Large enough value to accommodate content */
+    max-height: 2147483647px;
   }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.6s ease-out forwards;
 }

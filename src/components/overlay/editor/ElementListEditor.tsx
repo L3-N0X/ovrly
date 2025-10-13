@@ -6,7 +6,7 @@ import {
   type PrismaOverlay,
 } from "@/lib/types";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ContainerEditor } from "./ContainerEditor";
 import { CounterStyleEditor } from "./CounterEditor";
@@ -161,8 +161,10 @@ export const ElementListItem = ({
         />
       )}
       <div
-        className={`flex p-3 gap-3 rounded-md items-center ${!dragging && "hover:cursor-pointer hover:bg-accent"
-          } ${expanded ? "bg-muted" : ""}`}>
+        className={`flex p-3 gap-3 rounded-md items-center ${
+          !dragging && "hover:cursor-pointer hover:bg-accent"
+        } ${expanded ? "bg-muted" : ""}`}
+      >
         <div ref={dragHandleRef} className="cursor-grab">
           <GripVertical />
         </div>
@@ -332,4 +334,3 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     </div>
   );
 };
-
