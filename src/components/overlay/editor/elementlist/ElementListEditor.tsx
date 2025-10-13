@@ -64,6 +64,10 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             allowedEdges: ["top", "bottom"],
           });
         },
+        canDrop: (args) => {
+          // Always allow dropping on the root list if it's not the same element
+          return args.source.data.id !== "root";
+        },
         onDragEnter: onChange,
         onDrag: onChange, // Important for continuous updates
         onDragLeave: () => setClosestEdge(null),
@@ -148,8 +152,17 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             // Moving from inside container to outside as a sibling
             targetParentId = null;
           } else {
-            // Moving to inside this container
-            targetParentId = targetData.id as string;
+            // Check if the drop is specifically on the container (vs next to it)
+            // If closestEdge is null, it means the drop was directly on the container element
+            // which usually means we want to put it inside
+            const closestEdge = target.data.closestEdge as Edge | null;
+            if (closestEdge === null) {
+              // No specific edge indicated - treat as drop into container
+              targetParentId = targetData.id as string;
+            } else {
+              // Specific edge indicated (top/bottom) - treat as drop next to container
+              targetParentId = null;
+            }
           }
         } else if (targetData.type === "ROOT") {
           targetParentId = null;
@@ -199,15 +212,24 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             // Dropped on a container (but not moving inside it)
             const closestEdge = target.data.closestEdge as Edge | null;
             if (closestEdge === "bottom") {
-              finishIndex = targetList.length;
-            } else {
-              // 'top' or null - insert at the position of the container element
+              // Insert after the container
               const containerIndex = targetList.findIndex((e) => e.id === targetData.id);
               if (containerIndex !== -1) {
-                finishIndex = closestEdge === "top" ? containerIndex : containerIndex + 1;
+                finishIndex = containerIndex + 1;
+              } else {
+                finishIndex = targetList.length;
+              }
+            } else if (closestEdge === "top") {
+              // Insert before the container
+              const containerIndex = targetList.findIndex((e) => e.id === targetData.id);
+              if (containerIndex !== -1) {
+                finishIndex = containerIndex;
               } else {
                 finishIndex = 0;
               }
+            } else {
+              // No edge specified - default to end of list
+              finishIndex = targetList.length;
             }
           }
 
@@ -249,7 +271,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         <h3 className="text-lg font-medium">Elements</h3>
         <AddElementModal overlay={overlay} onOverlayChange={onOverlayChange} />
       </div>
-      <div ref={listRef} className="space-y-2 relative">
+      <div ref={listRef} className="space-y-2 relative p-3">
         {rootElements.map((element) => (
           <ElementListItem
             key={element.id}
@@ -265,11 +287,11 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
               position: "absolute",
               top: closestEdge === "top" ? -2 : undefined,
               bottom: closestEdge === "bottom" ? -2 : undefined,
-              left: "8px",
-              right: "8px",
+              left: 0,
+              right: 0,
               height: "2px",
               backgroundColor: "white",
-              boxShadow: "0 0 0 1px white",
+              boxShadow: "0 0 1px white",
               zIndex: 50,
               pointerEvents: "none",
             }}
