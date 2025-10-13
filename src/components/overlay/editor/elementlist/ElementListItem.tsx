@@ -7,12 +7,14 @@ import {
 } from "@/lib/types";
 import {
   attachClosestEdge,
+  extractClosestEdge,
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import {
   draggable,
   dropTargetForElements,
+  type ElementDropTargetEventBasePayload,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
@@ -44,11 +46,60 @@ export const ElementListItem = ({
     const handle = dragHandleRef.current;
     if (!el || !handle) return;
 
+    function onChange(args: ElementDropTargetEventBasePayload) {
+      const source = args.source;
+      const self = args.self;
+
+      // Check if this is the source element being dragged over itself
+      const isSource = source.element === handle;
+      if (isSource) {
+        setClosestEdge(null);
+        return;
+      }
+
+      // Extract the closest edge from the data
+      const closestEdge = extractClosestEdge(self.data);
+
+      // Get the source index to handle adjacent elements specially
+      const sourceData = source.data;
+      const sourceIndex = (sourceData.index as number) || (element.position as number) || 0; // You may need to pass index in your data
+
+      // Calculate if this item is directly before or after the source
+      // You'll need to determine the index of this element in the list
+      const currentElementIndex = overlay.elements
+        .filter((e: PrismaElement) => e.parentId === element.parentId)
+        .sort((a: PrismaElement, b: PrismaElement) => (a.position ?? 0) - (b.position ?? 0))
+        .findIndex((e: PrismaElement) => e.id === element.id);
+
+      const isItemBeforeSource = currentElementIndex === sourceIndex - 1;
+      const isItemAfterSource = currentElementIndex === sourceIndex + 1;
+
+      // Hide indicator if dragging over adjacent items in the right direction
+      const isDropIndicatorHidden =
+        (isItemBeforeSource && closestEdge === "bottom") ||
+        (isItemAfterSource && closestEdge === "top");
+
+      if (isDropIndicatorHidden) {
+        setClosestEdge(null);
+        return;
+      }
+
+      setClosestEdge(closestEdge);
+    }
+
     return combine(
       draggable({
         element: el,
         dragHandle: handle,
-        getInitialData: () => ({ id: element.id, parentId: element.parentId, type: element.type }),
+        getInitialData: () => ({
+          id: element.id,
+          parentId: element.parentId,
+          type: element.type,
+          index: overlay.elements
+            .filter((e: PrismaElement) => e.parentId === element.parentId)
+            .sort((a: PrismaElement, b: PrismaElement) => (a.position ?? 0) - (b.position ?? 0))
+            .findIndex((e: PrismaElement) => e.id === element.id),
+        }),
         onGenerateDragPreview: ({ nativeSetDragImage, source, location }) => {
           setCustomNativeDragPreview({
             nativeSetDragImage,
@@ -72,14 +123,23 @@ export const ElementListItem = ({
       dropTargetForElements({
         element: el,
         getData: ({ input, element: targetElement }) => {
-          const data = { id: element.id, parentId: element.parentId, type: element.type };
+          const data = {
+            id: element.id,
+            parentId: element.parentId,
+            type: element.type,
+            index: overlay.elements
+              .filter((e: PrismaElement) => e.parentId === element.parentId)
+              .sort((a: PrismaElement, b: PrismaElement) => (a.position ?? 0) - (b.position ?? 0))
+              .findIndex((e: PrismaElement) => e.id === element.id),
+          };
           return attachClosestEdge(data, {
             input,
             element: targetElement,
             allowedEdges: ["top", "bottom"],
           });
         },
-        onDragEnter: (args) => setClosestEdge(args.self.data.closestEdge as Edge),
+        onDragEnter: onChange,
+        onDrag: onChange, // This is crucial - it updates during the drag
         onDragLeave: () => setClosestEdge(null),
         onDrop: () => setClosestEdge(null),
       })
@@ -115,8 +175,8 @@ export const ElementListItem = ({
             left: 0,
             right: 0,
             height: "2px",
-            backgroundColor: "#388bff",
-            boxShadow: "0 0 0 1px #388bff",
+            backgroundColor: "white", // Changed to white as requested
+            boxShadow: "0 0 0 1px white",
             zIndex: 50,
             pointerEvents: "none",
           }}

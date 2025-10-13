@@ -1,6 +1,7 @@
 import { ElementTypeEnum, type PrismaOverlay } from "@/lib/types";
 import {
   attachClosestEdge,
+  extractClosestEdge,
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
@@ -8,6 +9,7 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import {
   dropTargetForElements,
   monitorForElements,
+  type ElementDropTargetEventBasePayload,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
 import React, { useEffect, useRef, useState } from "react";
@@ -37,6 +39,20 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     const el = listRef.current;
     if (!el) return;
 
+    function onChange(args: ElementDropTargetEventBasePayload) {
+      const source = args.source;
+
+      // Check if source is from the same list
+      if (source.data.parentId === null) {
+        // For root elements
+        setClosestEdge(null);
+        return;
+      }
+
+      const closestEdge = extractClosestEdge(args.self.data);
+      setClosestEdge(closestEdge);
+    }
+
     return combine(
       dropTargetForElements({
         element: el,
@@ -48,12 +64,13 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             allowedEdges: ["top", "bottom"],
           });
         },
-        onDragEnter: (args) => setClosestEdge(args.self.data.closestEdge as Edge),
+        onDragEnter: onChange,
+        onDrag: onChange, // Important for continuous updates
         onDragLeave: () => setClosestEdge(null),
         onDrop: () => setClosestEdge(null),
       })
     );
-  }, []);
+  }, [overlay]); // Add overlay to dependency array
 
   useEffect(() => {
     return monitorForElements({
@@ -193,8 +210,8 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
               left: "8px",
               right: "8px",
               height: "2px",
-              backgroundColor: "#388bff",
-              boxShadow: "0 0 0 1px #388bff",
+              backgroundColor: "white",
+              boxShadow: "0 0 0 1px white",
               zIndex: 50,
               pointerEvents: "none",
             }}
