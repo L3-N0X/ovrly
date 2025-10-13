@@ -30,10 +30,12 @@ export const ElementListItem = ({
   element,
   onOverlayChange,
   overlay,
+  className = "",
 }: {
   element: PrismaElement;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   overlay: PrismaOverlay;
+  className?: string;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const ref = useRef(null);
@@ -165,7 +167,11 @@ export const ElementListItem = ({
   };
 
   return (
-    <div ref={ref} style={{ opacity: dragging ? 0.4 : 1, position: "relative" }}>
+    <div
+      ref={ref}
+      style={{ opacity: dragging ? 0.4 : 1, position: "relative" }}
+      className={className}
+    >
       {closestEdge && (
         <div
           style={{
@@ -204,7 +210,7 @@ export const ElementListItem = ({
         )}
       </div>
       {expanded && (
-        <div className="animate-fadeIn overflow-hidden">
+        <div className="animate-fadeIn overflow-hidden mt-2">
           {element.type === ElementTypeEnum.TITLE && (
             <TitleStyleEditor
               element={element}

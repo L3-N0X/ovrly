@@ -76,7 +76,51 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     return monitorForElements({
       onDrop({ source, location }) {
         const target = location.current.dropTargets[0];
-        if (!target) {
+
+        // If no target is found or the target is the root, it means the element was dropped outside any specific drop target
+        // This could mean it's being moved to the root level
+        if (!target || (target.data.type === "ROOT" && target.data.id === "root")) {
+          const sourceData = source.data;
+          const newElements = [...overlay.elements];
+          const sourceElement = newElements.find((e) => e.id === sourceData.id);
+          if (!sourceElement) return;
+
+          // If the element was inside a container, move it to root level
+          if (sourceElement.parentId !== null) {
+            sourceElement.parentId = null;
+
+            // Update positions in the source list (old parent)
+            const sourceList = newElements
+              .filter((e) => e.parentId === sourceData.parentId)
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
+            if (startIndex !== -1) {
+              sourceList.splice(startIndex, 1);
+              sourceList.forEach((item, index) => {
+                const el = newElements.find((e) => e.id === item.id);
+                if (el) el.position = index;
+              });
+            }
+
+            // Update positions in the target list (root level)
+            const rootElements = newElements
+              .filter((e) => e.parentId === null)
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+            // Add the moved element to the end of the root list
+            sourceElement.position = rootElements.length;
+
+            onOverlayChange({ ...overlay, elements: newElements });
+
+            fetch(`/api/elements/reorder`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({ elements: newElements, overlayId: overlay.id }),
+            });
+          }
           return;
         }
 
@@ -98,7 +142,15 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
         let targetParentId: string | null;
         if (targetData.type === ElementTypeEnum.CONTAINER) {
-          targetParentId = targetData.id as string;
+          // Check if we're moving from inside this container to outside (as a sibling)
+          // If the source element is from inside this container, we should move it to be a sibling
+          if (targetData.id === sourceElement.parentId) {
+            // Moving from inside container to outside as a sibling
+            targetParentId = null;
+          } else {
+            // Moving to inside this container
+            targetParentId = targetData.id as string;
+          }
         } else if (targetData.type === "ROOT") {
           targetParentId = null;
         } else {
@@ -144,13 +196,18 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
               axis: "vertical",
             });
           } else {
-            // Dropped on a container
+            // Dropped on a container (but not moving inside it)
             const closestEdge = target.data.closestEdge as Edge | null;
             if (closestEdge === "bottom") {
               finishIndex = targetList.length;
             } else {
-              // 'top' or null
-              finishIndex = 0;
+              // 'top' or null - insert at the position of the container element
+              const containerIndex = targetList.findIndex((e) => e.id === targetData.id);
+              if (containerIndex !== -1) {
+                finishIndex = closestEdge === "top" ? containerIndex : containerIndex + 1;
+              } else {
+                finishIndex = 0;
+              }
             }
           }
 
@@ -199,6 +256,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             element={element}
             onOverlayChange={onOverlayChange}
             overlay={overlay}
+            className={element.type === ElementTypeEnum.CONTAINER ? "mb-3" : "mb-1"}
           />
         ))}
         {closestEdge && (

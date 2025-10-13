@@ -58,8 +58,24 @@ export const ContainerEditor: React.FC<{
     return combine(
       dropTargetForElements({
         element: el,
+        canDrop: (args) => {
+          // Only allow dropping if the source element is not the container itself
+          // and if the source element is coming from outside the container (to add to container)
+          // or if both source and target are from the same parent (for reordering within container)
+          const containerId = element.id;
+
+          // If source is the container itself, don't allow
+          if (args.source.data.id === containerId) return false;
+
+          // If source comes from outside the container, allow to add to container
+          if (args.source.data.parentId !== containerId) return true;
+
+          // If source comes from inside the container, we'll allow it for reordering
+          // but the actual logic for moving out should be handled by the main list
+          return true;
+        },
         getData: ({ input, element: targetElement }) => {
-          const data = { id: element.id, type: element.type };
+          const data = { id: element.id, type: element.type, containerId: element.id };
           return attachClosestEdge(data, {
             input,
             element: targetElement,
@@ -67,18 +83,35 @@ export const ContainerEditor: React.FC<{
           });
         },
         onDragEnter: (args) => {
-          if (args.source.data.id === element.id) return;
+          // Only set closest edge if the source is not from the same container
+          // This prevents the container from intercepting drops meant for the parent list
+          const containerId = element.id;
+
+          if (args.source.data.id === containerId) return;
+
+          // If the source is from inside this container, we might want to allow
+          // the parent list to handle the drop instead
+          setClosestEdge(args.self.data.closestEdge as Edge);
+        },
+        onDrag: (args) => {
+          const containerId = element.id;
+
+          if (args.source.data.id === containerId) return;
+
           setClosestEdge(args.self.data.closestEdge as Edge);
         },
         onDragLeave: () => setClosestEdge(null),
-        onDrop: () => setClosestEdge(null),
+        onDrop: () => {
+          // After drop, check if the element should stay in container or move out
+          // This is handled by the main drop monitor, so we just clean up state
+          setClosestEdge(null);
+        },
       })
     );
   }, [element.id, element.type]);
-
   return (
     <div className="space-y-4 p-2 border rounded-lg mt-2">
-      <div ref={ref} className="p-0 bg-muted/50 rounded-lg space-y-2 min-h-[50px] relative">
+      <div ref={ref} className="p-2 bg-muted/50 rounded-lg space-y-2 min-h-[50px] relative">
         {children.map((child) => (
           <ElementListItem
             key={child.id}
