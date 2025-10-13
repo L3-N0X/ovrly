@@ -20,13 +20,13 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { type ContainerStyle } from "@/lib/types";
 import { handleValueChange } from "./helper";
-import { ElementListItem } from "./ElementListEditor";
 import {
   attachClosestEdge,
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
+import { ElementListItem } from "./elementlist/ElementListItem";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
@@ -46,6 +46,10 @@ export const ContainerEditor: React.FC<{
 
   const ref = useRef(null);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
+
+  useEffect(() => {
+    console.log("ElementListItem closestEdge changed:", closestEdge);
+  }, [closestEdge]);
 
   useEffect(() => {
     const el = ref.current;
@@ -87,12 +91,15 @@ export const ContainerEditor: React.FC<{
           <div
             style={{
               position: "absolute",
-              [closestEdge]: -2,
+              top: closestEdge === "top" ? -2 : undefined,
+              bottom: closestEdge === "bottom" ? -2 : undefined,
               left: 0,
               right: 0,
               height: "2px",
               backgroundColor: "#388bff",
               boxShadow: "0 0 0 1px #388bff",
+              zIndex: 50,
+              pointerEvents: "none",
             }}
           />
         )}

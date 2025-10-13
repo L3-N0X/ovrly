@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { type PrismaOverlay } from "@/lib/types";
 import React from "react";
 import { GlobalStyleEditor } from "./GlobalStyleEditor";
-import { ElementListEditor } from "./ElementListEditor";
+import { ElementListEditor } from "./elementlist/ElementListEditor";
 
 interface StyleEditorProps {
   overlay: PrismaOverlay;
