@@ -6,15 +6,16 @@ import {
   type PrismaOverlay,
 } from "@/lib/types";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { ContainerStyleEditor } from "./ContainerEditor";
+import { ContainerEditor } from "./ContainerEditor";
 import { CounterStyleEditor } from "./CounterEditor";
 import { TitleStyleEditor } from "./TitleEditor";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import {
   draggable,
   dropTargetForElements,
+  monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
@@ -24,6 +25,7 @@ import {
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
+import { AddElementModal } from "./AddElementModal";
 
 interface ElementListEditorProps {
   overlay: PrismaOverlay;
@@ -73,7 +75,7 @@ const DragPreview = ({ element }: { element: PrismaElement }) => {
   );
 };
 
-const ElementListItem = ({
+export const ElementListItem = ({
   element,
   onOverlayChange,
   overlay,
@@ -97,7 +99,7 @@ const ElementListItem = ({
       draggable({
         element: el,
         dragHandle: handle,
-        getInitialData: () => ({ id: element.id }),
+        getInitialData: () => ({ id: element.id, parentId: element.parentId, type: element.type }),
         onGenerateDragPreview: ({ nativeSetDragImage, source, location }) => {
           setCustomNativeDragPreview({
             nativeSetDragImage,
@@ -121,7 +123,7 @@ const ElementListItem = ({
       dropTargetForElements({
         element: el,
         getData: ({ input, element: targetElement }) => {
-          const data = { id: element.id };
+          const data = { id: element.id, parentId: element.parentId, type: element.type };
           return attachClosestEdge(data, {
             input,
             element: targetElement,
@@ -130,32 +132,10 @@ const ElementListItem = ({
         },
         onDragEnter: (args) => setClosestEdge(args.self.data.closestEdge as Edge),
         onDragLeave: () => setClosestEdge(null),
-        onDrop: ({ source, self }) => {
-          if (source.data.id === self.data.id) return;
-
-          const startIndex = overlay.elements.findIndex((e) => e.id === source.data.id);
-          const indexOfTarget = overlay.elements.findIndex((e) => e.id === self.data.id);
-
-          if (startIndex < 0 || indexOfTarget < 0) return;
-
-          const finishIndex = getReorderDestinationIndex({
-            startIndex,
-            indexOfTarget,
-            closestEdgeOfTarget: self.data.closestEdge as Edge | null,
-            axis: "vertical",
-          });
-
-          const reorderedElements = reorder({
-            list: overlay.elements,
-            startIndex,
-            finishIndex,
-          });
-
-          onOverlayChange({ ...overlay, elements: reorderedElements });
-        },
+        onDrop: () => setClosestEdge(null),
       })
     );
-  }, [element, onOverlayChange, overlay]);
+  }, [element, onOverlayChange, overlay, expanded]);
 
   const updateElementStyle = (elementId: string, newStyle: ElementStyle) => {
     const newOverlay = JSON.parse(JSON.stringify(overlay));
@@ -181,10 +161,8 @@ const ElementListItem = ({
         />
       )}
       <div
-        className={`flex p-3 gap-3 rounded-md items-center ${
-          !dragging && "hover:cursor-pointer hover:bg-accent"
-        } ${expanded ? "bg-muted" : ""}`}
-      >
+        className={`flex p-3 gap-3 rounded-md items-center ${!dragging && "hover:cursor-pointer hover:bg-accent"
+          } ${expanded ? "bg-muted" : ""}`}>
         <div ref={dragHandleRef} className="cursor-grab">
           <GripVertical />
         </div>
@@ -216,8 +194,10 @@ const ElementListItem = ({
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (
-            <ContainerStyleEditor
+            <ContainerEditor
               element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
             />
           )}
@@ -231,11 +211,116 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   overlay,
   onOverlayChange,
 }) => {
+  const rootElements = overlay.elements
+    .filter((element) => !element.parentId)
+    .sort((a, b) => a.position - b.position);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    return combine(
+      dropTargetForElements({
+        element: el,
+        getData: () => ({ id: "root", parentId: null, type: "ROOT" }),
+      })
+    );
+  }, []);
+
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) {
+          return;
+        }
+
+        const sourceData = source.data;
+        const targetData = target.data;
+
+        if (sourceData.id === targetData.id) return;
+
+        const sourceParentId = sourceData.parentId as string | null;
+        let targetParentId = targetData.parentId as string | null;
+
+        if (targetData.type === ElementTypeEnum.CONTAINER) {
+          targetParentId = targetData.id as string;
+        }
+
+        const newElements = [...overlay.elements];
+
+        const sourceElement = newElements.find((e) => e.id === sourceData.id);
+        if (!sourceElement) return;
+
+        const sourceList = newElements
+          .filter((e) => e.parentId === sourceParentId)
+          .sort((a, b) => a.position - b.position);
+        const targetList = newElements
+          .filter((e) => e.parentId === targetParentId)
+          .sort((a, b) => a.position - b.position);
+
+        const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
+
+        if (sourceParentId === targetParentId) {
+          // Reordering within the same list
+          const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
+          if (startIndex < 0 || indexOfTarget < 0) return;
+
+          const finishIndex = getReorderDestinationIndex({
+            startIndex,
+            indexOfTarget,
+            closestEdgeOfTarget: target.data.closestEdge as Edge | null,
+            axis: "vertical",
+          });
+
+          const reorderedList = reorder({ list: sourceList, startIndex, finishIndex });
+
+          reorderedList.forEach((item, index) => {
+            const element = newElements.find((e) => e.id === item.id);
+            if (element) element.position = index;
+          });
+        } else {
+          // Moving from one list to another
+          sourceElement.parentId = targetParentId;
+
+          const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
+
+          const finishIndex = getReorderDestinationIndex({
+            startIndex: -1, // Treat as a new item
+            indexOfTarget: targetData.type === "ROOT" ? targetList.length : indexOfTarget,
+            closestEdgeOfTarget: target.data.closestEdge as Edge | null,
+            axis: "vertical",
+          });
+
+          const newTargetList = [...targetList];
+          newTargetList.splice(finishIndex, 0, sourceElement);
+
+          newTargetList.forEach((item, index) => {
+            const element = newElements.find((e) => e.id === item.id);
+            if (element) element.position = index;
+          });
+
+          sourceList.splice(startIndex, 1);
+          sourceList.forEach((item, index) => {
+            const element = newElements.find((e) => e.id === item.id);
+            if (element) element.position = index;
+          });
+        }
+
+        onOverlayChange({ ...overlay, elements: newElements });
+      },
+    });
+  }, [overlay, onOverlayChange]);
+
   return (
-    <div>
-      <h3 className="text-lg font-medium mb-4">Elements</h3>
+    <div ref={ref}>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-medium">Elements</h3>
+        <AddElementModal overlay={overlay} onOverlayChange={onOverlayChange} />
+      </div>
       <div className="space-y-2">
-        {overlay.elements.map((element) => (
+        {rootElements.map((element) => (
           <ElementListItem
             key={element.id}
             element={element}
@@ -247,3 +332,4 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     </div>
   );
 };
+

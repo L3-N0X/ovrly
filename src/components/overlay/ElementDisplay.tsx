@@ -6,10 +6,13 @@ import Container from "./Container";
 
 interface ElementDisplayProps {
   element: PrismaElement;
+  elements: PrismaElement[];
 }
 
-const ElementDisplay: React.FC<ElementDisplayProps> = ({ element }) => {
-  const { type, style, title, counter, children } = element;
+const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
+  const { type, style, title, counter } = element;
+
+  const children = elements.filter((e) => e.parentId === element.id);
 
   const renderElement = () => {
     switch (type) {
@@ -22,8 +25,8 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element }) => {
       case "CONTAINER":
         return (
           <Container style={(style || {}) as ContainerStyle}>
-            {children?.map((element) => (
-              <ElementDisplay key={element.id} element={element} />
+            {children.map((child) => (
+              <ElementDisplay key={child.id} element={child} elements={elements} />
             ))}
           </Container>
         );

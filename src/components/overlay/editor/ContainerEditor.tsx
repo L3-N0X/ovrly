@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type PrismaElement } from "@/lib/types";
+import { ElementTypeEnum, type PrismaElement, type PrismaOverlay } from "@/lib/types";
 import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
@@ -17,23 +17,85 @@ import {
   Baseline,
   StretchHorizontal,
 } from "lucide-react";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { type ContainerStyle } from "@/lib/types";
 import { handleValueChange } from "./helper";
+import { ElementListItem } from "./ElementListEditor";
+import {
+  attachClosestEdge,
+  type Edge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 
-export const ContainerStyleEditor: React.FC<{
+export const ContainerEditor: React.FC<{
   element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: (newOverlay: PrismaOverlay) => void;
   onChange: (newStyle: ContainerStyle) => void;
-}> = ({ element, onChange }) => {
+}> = ({ element, onChange, overlay, onOverlayChange }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
   };
 
   const style = (element.style || {}) as ContainerStyle;
+  const children = overlay.elements
+    .filter((e) => e.parentId === element.id)
+    .sort((a, b) => a.position - b.position);
+
+  const ref = useRef(null);
+  const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    return combine(
+      dropTargetForElements({
+        element: el,
+        getData: ({ input, element: targetElement }) => {
+          const data = { id: element.id, type: element.type };
+          return attachClosestEdge(data, {
+            input,
+            element: targetElement,
+            allowedEdges: ["top", "bottom"],
+          });
+        },
+        onDragEnter: (args) => {
+          if (args.source.data.id === element.id) return;
+          setClosestEdge(args.self.data.closestEdge as Edge);
+        },
+        onDragLeave: () => setClosestEdge(null),
+        onDrop: () => setClosestEdge(null),
+      })
+    );
+  }, [element.id, element.type]);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg mt-2">
+      <div ref={ref} className="p-4 bg-muted/50 rounded-lg space-y-2 min-h-[50px] relative">
+        {children.map((child) => (
+          <ElementListItem
+            key={child.id}
+            element={child}
+            overlay={overlay}
+            onOverlayChange={onOverlayChange}
+          />
+        ))}
+        {closestEdge && (
+          <div
+            style={{
+              position: "absolute",
+              [closestEdge]: -2,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: "blue",
+            }}
+          />
+        )}
+      </div>
       <h4 className="font-semibold">Edit: {element.name}</h4>
       <div className="space-y-2">
         <Label>Direction</Label>
@@ -175,3 +237,4 @@ export const ContainerStyleEditor: React.FC<{
     </div>
   );
 };
+

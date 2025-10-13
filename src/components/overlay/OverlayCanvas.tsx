@@ -40,11 +40,13 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
     borderRadius: typeof globalStyle?.radius === "number" ? `${globalStyle.radius}px` : undefined,
   };
 
+  const rootElements = elements.filter((element) => !element.parentId);
+
   return (
     <div style={outerStyle}>
       <div style={innerStyle}>
-        {elements.map((element) => (
-          <ElementDisplay key={element.id} element={element} />
+        {rootElements.map((element) => (
+          <ElementDisplay key={element.id} element={element} elements={elements} />
         ))}
       </div>
     </div>
