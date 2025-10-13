@@ -52,6 +52,7 @@ model Element {
   type      ElementType
   name      String
   style     Json?
+  position  Int?
 
   // Relations for specific element types
   title     Title?

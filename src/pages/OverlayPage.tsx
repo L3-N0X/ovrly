@@ -32,7 +32,7 @@ const OverlayPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:3000/api/overlays/${id}`, {
+      const response = await fetch(`/api/overlays/${id}`, {
         credentials: "include",
       });
       if (!response.ok) {
@@ -179,7 +179,7 @@ const OverlayPage: React.FC = () => {
 
     // Check if globalStyle has changed
     if (JSON.stringify(updatedOverlay.globalStyle) !== JSON.stringify(overlay.globalStyle)) {
-      debouncedUpdate(`http://localhost:3000/api/overlays/${id}`, {
+      debouncedUpdate(`/api/overlays/${id}`, {
         globalStyle: updatedOverlay.globalStyle,
       });
     }
@@ -189,7 +189,7 @@ const OverlayPage: React.FC = () => {
 
     // Send update requests for each changed element
     changedElements.forEach((element) => {
-      debouncedUpdate(`http://localhost:3000/api/elements/${element.id}`, {
+      debouncedUpdate(`/api/elements/${element.id}`, {
         style: element.style,
       });
     });
@@ -245,13 +245,13 @@ const OverlayPage: React.FC = () => {
 
     if (elementUpdated) {
       setOverlay(newOverlay);
-      debouncedUpdate(`http://localhost:3000/api/elements/${elementId}`, { data });
+      debouncedUpdate(`/api/elements/${elementId}`, { data });
     }
   };
 
   const handleDeleteOverlay = async () => {
     try {
-      await fetch(`http://localhost:3000/api/overlays/${id}`, {
+      await fetch(`/api/overlays/${id}`, {
         method: "DELETE",
         credentials: "include",
       });

@@ -40,7 +40,9 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
     borderRadius: typeof globalStyle?.radius === "number" ? `${globalStyle.radius}px` : undefined,
   };
 
-  const rootElements = elements.filter((element) => !element.parentId);
+  const rootElements = elements
+    .filter((element) => !element.parentId)
+    .sort((a, b) => a.position - b.position);
 
   return (
     <div style={outerStyle}>

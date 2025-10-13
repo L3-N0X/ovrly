@@ -76,6 +76,7 @@ export interface PrismaElement {
   id: string;
   name: string;
   type: ElementType;
+  position?: number | null;
   style: ElementStyle | null;
   title?: { id: string; text: string } | null;
   counter?: { id: string; value: number } | null;

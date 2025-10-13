@@ -12,7 +12,9 @@ interface ElementDisplayProps {
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
   const { type, style, title, counter } = element;
 
-  const children = elements.filter((e) => e.parentId === element.id);
+  const children = elements
+    .filter((e) => e.parentId === element.id)
+    .sort((a, b) => a.position - b.position);
 
   const renderElement = () => {
     switch (type) {

@@ -137,12 +137,21 @@ export const ElementListItem = ({
     );
   }, [element, onOverlayChange, overlay, expanded]);
 
-  const updateElementStyle = (elementId: string, newStyle: ElementStyle) => {
+  const updateElementStyle = async (elementId: string, newStyle: ElementStyle) => {
     const newOverlay = JSON.parse(JSON.stringify(overlay));
     const elementIndex = newOverlay.elements.findIndex((el: PrismaElement) => el.id === elementId);
     if (elementIndex > -1) {
       newOverlay.elements[elementIndex].style = newStyle;
       onOverlayChange(newOverlay);
+
+      await fetch(`/api/elements/${elementId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ style: newStyle }),
+      });
     }
   };
 
@@ -217,6 +226,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     .filter((element) => !element.parentId)
     .sort((a, b) => a.position - b.position);
   const ref = useRef(null);
+  const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -225,7 +235,17 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     return combine(
       dropTargetForElements({
         element: el,
-        getData: () => ({ id: "root", parentId: null, type: "ROOT" }),
+        getData: ({ input, element }) => {
+          const data = { id: "root", parentId: null, type: "ROOT" };
+          return attachClosestEdge(data, {
+            input,
+            element,
+            allowedEdges: ["top", "bottom"],
+          });
+        },
+        onDragEnter: (args) => setClosestEdge(args.self.data.closestEdge as Edge),
+        onDragLeave: () => setClosestEdge(null),
+        onDrop: () => setClosestEdge(null),
       })
     );
   }, []);
@@ -243,31 +263,31 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
         if (sourceData.id === targetData.id) return;
 
-        const sourceParentId = sourceData.parentId as string | null;
-        let targetParentId = targetData.parentId as string | null;
-
-        if (targetData.type === ElementTypeEnum.CONTAINER) {
-          targetParentId = targetData.id as string;
-        }
-
         const newElements = [...overlay.elements];
 
         const sourceElement = newElements.find((e) => e.id === sourceData.id);
         if (!sourceElement) return;
 
+        const sourceParentId = sourceData.parentId as string | null;
         const sourceList = newElements
           .filter((e) => e.parentId === sourceParentId)
           .sort((a, b) => a.position - b.position);
-        const targetList = newElements
-          .filter((e) => e.parentId === targetParentId)
-          .sort((a, b) => a.position - b.position);
-
         const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
+
+        let targetParentId: string | null;
+        if (targetData.type === ElementTypeEnum.CONTAINER) {
+          targetParentId = targetData.id as string;
+        } else if (targetData.type === "ROOT") {
+          targetParentId = null;
+        } else {
+          targetParentId = targetData.parentId as string | null;
+        }
 
         if (sourceParentId === targetParentId) {
           // Reordering within the same list
+          const targetList = sourceList;
           const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
-          if (startIndex < 0 || indexOfTarget < 0) return;
+          if (indexOfTarget < 0) return;
 
           const finishIndex = getReorderDestinationIndex({
             startIndex,
@@ -276,7 +296,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             axis: "vertical",
           });
 
-          const reorderedList = reorder({ list: sourceList, startIndex, finishIndex });
+          const reorderedList = reorder({ list: targetList, startIndex, finishIndex });
 
           reorderedList.forEach((item, index) => {
             const element = newElements.find((e) => e.id === item.id);
@@ -286,31 +306,60 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           // Moving from one list to another
           sourceElement.parentId = targetParentId;
 
+          const targetList = newElements
+            .filter((e) => e.parentId === targetParentId)
+            .sort((a, b) => a.position - b.position);
+
+          let finishIndex: number;
           const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
 
-          const finishIndex = getReorderDestinationIndex({
-            startIndex: -1, // Treat as a new item
-            indexOfTarget: targetData.type === "ROOT" ? targetList.length : indexOfTarget,
-            closestEdgeOfTarget: target.data.closestEdge as Edge | null,
-            axis: "vertical",
-          });
+          if (indexOfTarget >= 0) {
+            // Dropped on an item
+            finishIndex = getReorderDestinationIndex({
+              startIndex: -1,
+              indexOfTarget,
+              closestEdgeOfTarget: target.data.closestEdge as Edge | null,
+              axis: "vertical",
+            });
+          } else {
+            // Dropped on a container
+            const closestEdge = target.data.closestEdge as Edge | null;
+            if (closestEdge === "bottom") {
+              finishIndex = targetList.length;
+            } else {
+              // 'top' or null
+              finishIndex = 0;
+            }
+          }
 
-          const newTargetList = [...targetList];
-          newTargetList.splice(finishIndex, 0, sourceElement);
-
-          newTargetList.forEach((item, index) => {
-            const element = newElements.find((e) => e.id === item.id);
-            if (element) element.position = index;
-          });
-
+          // Update positions in the source list
           sourceList.splice(startIndex, 1);
           sourceList.forEach((item, index) => {
-            const element = newElements.find((e) => e.id === item.id);
-            if (element) element.position = index;
+            const el = newElements.find((e) => e.id === item.id);
+            if (el) el.position = index;
+          });
+
+          // Update positions in the target list
+          const newTargetList = [...targetList];
+          newTargetList.splice(finishIndex, 0, sourceElement);
+          newTargetList.forEach((item, index) => {
+            const el = newElements.find((e) => e.id === item.id);
+            if (el) {
+              el.position = index;
+            }
           });
         }
 
         onOverlayChange({ ...overlay, elements: newElements });
+
+        fetch(`/api/elements/reorder`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ elements: newElements, overlayId: overlay.id }),
+        });
       },
     });
   }, [overlay, onOverlayChange]);

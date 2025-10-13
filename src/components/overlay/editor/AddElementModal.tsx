@@ -28,27 +28,22 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
   const [name, setName] = useState("");
   const [type, setType] = useState<ElementTypeEnum>(ElementTypeEnum.TITLE);
 
-  const handleAddElement = () => {
-    const newElement: PrismaElement = {
-      id: crypto.randomUUID(),
-      name: name || `${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Element`,
-      type,
-      position: overlay.elements.length,
-      style: {},
-      overlayId: overlay.id,
-      parentId: null,
-      title: type === ElementTypeEnum.TITLE ? { text: "Title" } : null,
-      counter: type === ElementTypeEnum.COUNTER ? { value: 0 } : null,
-    };
+  const handleAddElement = async () => {
+    const response = await fetch(`/api/overlays/${overlay.id}/elements`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ name: name || `${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Element`, type }),
+    });
 
-    const newOverlay = {
-      ...overlay,
-      elements: [...overlay.elements, newElement],
-    };
-
-    onOverlayChange(newOverlay);
-    setIsOpen(false);
-    setName("");
+    if (response.ok) {
+      const updatedOverlay = await response.json();
+      onOverlayChange(updatedOverlay);
+      setIsOpen(false);
+      setName("");
+    }
   };
 
   return (
