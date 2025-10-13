@@ -42,7 +42,7 @@ export const ContainerEditor: React.FC<{
   const style = (element.style || {}) as ContainerStyle;
   const children = overlay.elements
     .filter((e) => e.parentId === element.id)
-    .sort((a, b) => a.position - b.position);
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   const ref = useRef(null);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
@@ -90,8 +90,9 @@ export const ContainerEditor: React.FC<{
               [closestEdge]: -2,
               left: 0,
               right: 0,
-              height: 4,
-              background: "blue",
+              height: "2px",
+              backgroundColor: "#388bff",
+              boxShadow: "0 0 0 1px #388bff",
             }}
           />
         )}

@@ -164,8 +164,10 @@ export const ElementListItem = ({
             [closestEdge]: -2,
             left: 0,
             right: 0,
-            height: 4,
-            background: "blue",
+            height: "2px",
+            backgroundColor: "#388bff",
+            boxShadow: "0 0 0 1px #388bff",
+            zIndex: 1,
           }}
         />
       )}
@@ -224,7 +226,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 }) => {
   const rootElements = overlay.elements
     .filter((element) => !element.parentId)
-    .sort((a, b) => a.position - b.position);
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const ref = useRef(null);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
@@ -271,7 +273,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         const sourceParentId = sourceData.parentId as string | null;
         const sourceList = newElements
           .filter((e) => e.parentId === sourceParentId)
-          .sort((a, b) => a.position - b.position);
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
 
         let targetParentId: string | null;
@@ -308,7 +310,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
           const targetList = newElements
             .filter((e) => e.parentId === targetParentId)
-            .sort((a, b) => a.position - b.position);
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
           let finishIndex: number;
           const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
@@ -365,7 +367,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   }, [overlay, onOverlayChange]);
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative p-2 space-y-2">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium">Elements</h3>
         <AddElementModal overlay={overlay} onOverlayChange={onOverlayChange} />
@@ -380,6 +382,19 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           />
         ))}
       </div>
+      {closestEdge && (
+        <div
+          style={{
+            position: "absolute",
+            [closestEdge]: closestEdge === "top" ? "4rem" : "-2px",
+            left: "8px",
+            right: "8px",
+            height: "2px",
+            backgroundColor: "#388bff",
+            boxShadow: "0 0 0 1px #388bff",
+          }}
+        />
+      )}
     </div>
   );
 };
