@@ -25,6 +25,7 @@ export const handleOverlaysRoutes = async (
           include: {
             title: true,
             counter: true,
+            timer: true,
           },
         },
       },
@@ -86,6 +87,7 @@ export const handleOverlaysRoutes = async (
               include: {
                 title: true,
                 counter: true,
+                timer: true,
               },
             },
           },
@@ -140,6 +142,7 @@ export const handleOverlaysRoutes = async (
             include: {
               title: true,
               counter: true,
+              timer: true,
             },
           },
         },
@@ -160,6 +163,7 @@ export const handleOverlaysRoutes = async (
             include: {
               title: true,
               counter: true,
+              timer: true,
             },
           },
         },
@@ -237,6 +241,7 @@ export const handleOverlaysRoutes = async (
                 include: {
                   title: true,
                   counter: true,
+                  timer: true,
                 },
               },
             },
@@ -287,6 +292,7 @@ export const handleOverlaysRoutes = async (
                 include: {
                   title: true,
                   counter: true,
+                  timer: true,
                 },
               },
             },

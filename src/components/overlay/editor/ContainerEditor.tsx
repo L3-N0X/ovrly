@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
   StretchHorizontal,
+  Trash2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { type ContainerStyle } from "@/lib/types";
@@ -25,13 +26,15 @@ import { handleValueChange } from "./helper";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { ElementListItem } from "./elementlist/ElementListItem";
+import { Button } from "@/components/ui/button";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
   overlay: PrismaOverlay;
   onOverlayChange: (newOverlay: PrismaOverlay) => void;
   onChange: (newStyle: ContainerStyle) => void;
-}> = ({ element, onChange, overlay, onOverlayChange }) => {
+  onDelete?: () => void;
+}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
@@ -113,7 +116,12 @@ export const ContainerEditor: React.FC<{
       </div>
       {editorExpanded && (
         <div className="p-2 mt-2 space-y-4">
-          <h4 className="font-semibold">Edit: {element.name}</h4>
+          <div className="flex justify-between items-center">
+            <h4 className="font-semibold">Edit: {element.name}</h4>
+            <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+              <Trash2 />
+            </Button>
+          </div>
           <div className="space-y-2">
             <Label>Direction</Label>
             <Select

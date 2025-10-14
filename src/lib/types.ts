@@ -2,6 +2,7 @@ export const ElementTypeEnum = {
   COUNTER: "COUNTER",
   TITLE: "TITLE",
   CONTAINER: "CONTAINER",
+  TIMER: "TIMER",
 } as const;
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
@@ -52,6 +53,14 @@ export interface CounterStyle extends BaseElementStyle {
   radius?: number;
 }
 
+// Specific style for a Timer element
+export interface TimerStyle extends BaseElementStyle {
+  backgroundColor?: string;
+  padding?: number;
+  radius?: number;
+  format?: string;
+}
+
 // Specific style for a Container element
 export interface ContainerStyle extends BaseElementStyle {
   paddingX?: number;
@@ -69,7 +78,7 @@ export interface ContainerStyle extends BaseElementStyle {
 }
 
 // A union of all possible element style types
-export type ElementStyle = BaseElementStyle | CounterStyle | ContainerStyle;
+export type ElementStyle = BaseElementStyle | CounterStyle | ContainerStyle | TimerStyle;
 
 // The generic Element object from the backend
 export interface PrismaElement {
@@ -80,6 +89,7 @@ export interface PrismaElement {
   style: ElementStyle | null;
   title?: { id: string; text: string } | null;
   counter?: { id: string; value: number } | null;
+  timer?: { id: string; startedAt: string | null; pausedAt: string | null } | null;
   parentId?: string | null;
   children?: PrismaElement[];
 }

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ElementTypeEnum, type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { ElementTypeEnum, type ElementType, type PrismaOverlay } from "@/lib/types";
 
 interface AddElementModalProps {
   overlay: PrismaOverlay;
@@ -26,7 +26,7 @@ interface AddElementModalProps {
 export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOverlayChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
-  const [type, setType] = useState<ElementTypeEnum>(ElementTypeEnum.TITLE);
+  const [type, setType] = useState<ElementType>(ElementTypeEnum.TITLE);
 
   const handleAddElement = async () => {
     const response = await fetch(`/api/overlays/${overlay.id}/elements`, {
@@ -67,13 +67,14 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
           </div>
           <div className="space-y-2">
             <Label htmlFor="element-type">Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v as ElementTypeEnum)}>
+            <Select value={type} onValueChange={(v) => setType(v as ElementType)}>
               <SelectTrigger id="element-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ElementTypeEnum.TITLE}>Title</SelectItem>
                 <SelectItem value={ElementTypeEnum.COUNTER}>Counter</SelectItem>
+                <SelectItem value={ElementTypeEnum.TIMER}>Timer</SelectItem>
                 <SelectItem value={ElementTypeEnum.CONTAINER}>Container</SelectItem>
               </SelectContent>
             </Select>

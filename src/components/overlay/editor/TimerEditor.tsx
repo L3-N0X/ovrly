@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type CounterStyle, type PrismaElement } from "@/lib/types";
+import { type TimerStyle, type PrismaElement } from "@/lib/types";
 import React from "react";
 import { ColorPicker, useColor } from "react-color-palette";
 import { FontPicker } from "../../FontPicker";
@@ -10,14 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const CounterStyleEditor: React.FC<{
+export const TimerStyleEditor: React.FC<{ 
   element: PrismaElement;
-  onChange: (newStyle: CounterStyle) => void;
+  onChange: (newStyle: TimerStyle) => void;
   onDelete?: () => void;
 }> = ({ element, onChange, onDelete }) => {
-  const [color, setColor] = useColor((element.style as CounterStyle)?.color || "#ffffff");
+  const [color, setColor] = useColor((element.style as TimerStyle)?.color || "#ffffff");
   const [bgColor, setBgColor] = useColor(
-    (element.style as CounterStyle)?.backgroundColor || "#333333"
+    (element.style as TimerStyle)?.backgroundColor || "#333333"
   );
 
   const updateStyle = (path: string, value: string | number) => {
@@ -25,7 +25,7 @@ export const CounterStyleEditor: React.FC<{
     onChange(handleValueChange(newStyle, path, value));
   };
 
-  const style = (element.style || {}) as CounterStyle;
+  const style = (element.style || {}) as TimerStyle;
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
@@ -34,6 +34,14 @@ export const CounterStyleEditor: React.FC<{
         <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
           <Trash2 />
         </Button>
+      </div>
+      <div className="space-y-2">
+        <Label>Time Format</Label>
+        <Input
+          value={style?.format || "HH:mm:ss"}
+          onChange={(e) => updateStyle("format", e.target.value)}
+          className="h-10 w-full"
+        />
       </div>
       <div className="space-y-2">
         <Label>Font Size</Label>
@@ -67,7 +75,7 @@ export const CounterStyleEditor: React.FC<{
           <FontPicker
             value={style?.fontFamily || ""}
             onChange={(font) => updateStyle("fontFamily", font)}
-            previewWord="1234567890"
+            previewWord="12:34:56"
             className="w-full h-10"
           />
         </div>
@@ -117,7 +125,7 @@ export const CounterStyleEditor: React.FC<{
             <Slider
               value={[
                 (() => {
-                  const padding = (element.style as CounterStyle)?.padding;
+                  const padding = (element.style as TimerStyle)?.padding;
                   return padding !== undefined && padding !== null ? padding : 0;
                 })(),
               ]}
@@ -147,7 +155,7 @@ export const CounterStyleEditor: React.FC<{
             <Slider
               value={[
                 (() => {
-                  const radius = (element.style as CounterStyle)?.radius;
+                  const radius = (element.style as TimerStyle)?.radius;
                   return radius !== undefined && radius !== null ? radius : 0;
                 })(),
               ]}

@@ -34,6 +34,7 @@
     "dotenv": "^17.2.3",
     "google-font-metadata": "^6.0.7",
     "lucide-react": "^0.545.0",
+    "moment": "^2.30.1",
     "react": "^19.1.1",
     "react-color-palette": "^7.3.1",
     "react-dom": "^19.1.1",

@@ -23,6 +23,49 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     .filter((element) => !element.parentId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
+  // Function to delete an element and all its children recursively
+  const deleteElement = async (elementId: string) => {
+    const newElements = [...overlay.elements];
+    const elementToDelete = newElements.find((e) => e.id === elementId);
+
+    if (!elementToDelete) return;
+
+    // Find all children of the element to delete
+    const findChildren = (parentId: string): string[] => {
+      const children = newElements.filter((e) => e.parentId === parentId);
+      let allChildren: string[] = [];
+      for (const child of children) {
+        allChildren.push(child.id);
+        allChildren = [...allChildren, ...findChildren(child.id)];
+      }
+      return allChildren;
+    };
+
+    // Get all children IDs to delete
+    const childrenIds = findChildren(elementId);
+    const allIdsToDelete = [elementId, ...childrenIds];
+
+    // Remove all elements to delete
+    const filteredElements = newElements.filter((e) => !allIdsToDelete.includes(e.id));
+
+    // Update the overlay with the filtered elements
+    const updatedOverlay = { ...overlay, elements: filteredElements };
+    onOverlayChange(updatedOverlay);
+
+    // Persist to backend
+    await fetch(`/api/elements/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        elementIds: allIdsToDelete,
+        overlayId: overlay.id,
+      }),
+    }).catch(console.error);
+  };
+
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
@@ -195,6 +238,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             element={element}
             onOverlayChange={onOverlayChange}
             overlay={overlay}
+            onDeleteElement={deleteElement}
             className={element.type === ElementTypeEnum.CONTAINER ? "mb-3" : "mb-1"}
           />
         ))}

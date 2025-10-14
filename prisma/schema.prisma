@@ -57,6 +57,7 @@ model Element {
   // Relations for specific element types
   title     Title?
   counter   Counter?
+  timer     Timer?
 
   // Self-relation for grouping
   parentId  String?
@@ -67,6 +68,7 @@ model Element {
 enum ElementType {
   TITLE
   COUNTER
+  TIMER
   CONTAINER
 }
 
@@ -82,6 +84,14 @@ model Counter {
   value     Int     @default(0)
   elementId String  @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Timer {
+  id        String    @id @default(cuid())
+  startedAt DateTime?
+  pausedAt  DateTime?
+  elementId String    @unique
+  element   Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model Account {

@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
+import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import { DragPreview } from "./DragPreview";
 
@@ -29,11 +30,13 @@ export const ElementListItem = ({
   element,
   onOverlayChange,
   overlay,
+  onDeleteElement,
   className = "",
 }: {
   element: PrismaElement;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   overlay: PrismaOverlay;
+  onDeleteElement?: (elementId: string) => void;
   className?: string;
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -235,12 +238,21 @@ export const ElementListItem = ({
             <TitleStyleEditor
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
             />
           )}
           {element.type === ElementTypeEnum.COUNTER && (
             <CounterStyleEditor
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
+            />
+          )}
+          {element.type === ElementTypeEnum.TIMER && (
+            <TimerStyleEditor
+              element={element}
+              onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (
@@ -249,6 +261,7 @@ export const ElementListItem = ({
               overlay={overlay}
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
             />
           )}
         </div>

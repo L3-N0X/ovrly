@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../lib/auth-client";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -14,7 +14,7 @@ export function SettingsPage() {
   const [editors, setEditors] = useState<Editor[]>([]);
   const [twitchName, setTwitchName] = useState("");
 
-  const fetchEditors = async () => {
+  const fetchEditors = useCallback(async () => {
     if (!session) return;
     const response = await fetch("http://localhost:3000/api/editors", {
       credentials: "include",
@@ -23,11 +23,11 @@ export function SettingsPage() {
       const data = await response.json();
       setEditors(data);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
     fetchEditors();
-  }, [session]);
+  }, [fetchEditors]);
 
   const handleAddEditor = async () => {
     if (!session || !twitchName) return;

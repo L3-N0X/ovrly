@@ -12,6 +12,7 @@ export const handlePublicOverlaysRoutes = async (req: Request, path: string) => 
           include: {
             title: true,
             counter: true,
+            timer: true,
           },
         },
       },

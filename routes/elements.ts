@@ -1,7 +1,27 @@
 import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
+
+async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
+  const allIds = new Set<string>(initialIds);
+  let frontier = [...initialIds];
+  while (frontier.length > 0) {
+    const children = await prisma.element.findMany({
+      where: { parentId: { in: frontier } },
+      select: { id: true },
+    });
+    const childIds = children.map((c) => c.id);
+    frontier = [];
+    for (const childId of childIds) {
+      if (!allIds.has(childId)) {
+        allIds.add(childId);
+        frontier.push(childId);
+      }
+    }
+  }
+  return Array.from(allIds);
+}
 
 export const handleElementsRoutes = async (
   req: Request,
@@ -65,6 +85,8 @@ export const handleElementsRoutes = async (
         elementCreateData.title = { create: { text: "New Title" } };
       } else if (type === "COUNTER") {
         elementCreateData.counter = { create: { value: 0 } };
+      } else if (type === "TIMER") {
+        elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
       } else {
@@ -85,10 +107,12 @@ export const handleElementsRoutes = async (
             include: {
               title: true,
               counter: true,
+              timer: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
+                  timer: true,
                   children: true,
                 },
               },
@@ -112,7 +136,135 @@ export const handleElementsRoutes = async (
     }
   }
 
-  const elementIdMatch = path.match(/^\/api\/elements\/(?!reorder)([a-zA-Z0-9_-]+)$/);
+  const deleteBulkMatch = path.match(/^\/api\/elements\/delete$/);
+  if (deleteBulkMatch && req.method === "DELETE") {
+    const session = await authenticate(req);
+    if (!session) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    try {
+      const { ids } = await req.json();
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return new Response(JSON.stringify({ error: "Element IDs are required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const firstElement = await prisma.element.findFirst({
+        where: { id: { in: ids } },
+        include: { overlay: true },
+      });
+
+      if (!firstElement) {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+
+      const isOwner = firstElement.overlay.userId === session.user.id;
+      const editors = await prisma.editor.findMany({
+        where: { userId: firstElement.overlay.userId },
+      });
+      const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
+
+      if (!isOwner && !isEditor) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const elements = await prisma.element.findMany({
+        where: { id: { in: ids } },
+        select: { overlayId: true },
+      });
+
+      if (elements.some((e) => e.overlayId !== firstElement.overlayId)) {
+        return new Response(
+          JSON.stringify({
+            error: "Cannot delete elements from different overlays",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const allIdsToDelete = await getAllDescendantIds(prisma, ids);
+
+      const elementsToDelete = await prisma.element.findMany({
+        where: { id: { in: allIdsToDelete } },
+        select: { id: true, parentId: true },
+      });
+      const elementMap = new Map(elementsToDelete.map((e) => [e.id, e]));
+
+      const depths = new Map<string, number>();
+      function getDepth(id: string): number {
+        if (depths.has(id)) return depths.get(id)!;
+        const element = elementMap.get(id);
+        if (!element || !element.parentId || !elementMap.has(element.parentId)) {
+          depths.set(id, 0);
+          return 0;
+        }
+        const depth = getDepth(element.parentId) + 1;
+        depths.set(id, depth);
+        return depth;
+      }
+
+      elementsToDelete.forEach((e) => getDepth(e.id));
+
+      const levels = new Map<number, string[]>();
+      for (const [id, depth] of depths.entries()) {
+        if (!levels.has(depth)) {
+          levels.set(depth, []);
+        }
+        levels.get(depth)!.push(id);
+      }
+
+      const sortedLevels = Array.from(levels.keys()).sort((a, b) => b - a);
+      for (const level of sortedLevels) {
+        const levelIds = levels.get(level)!;
+        await prisma.element.deleteMany({ where: { id: { in: levelIds } } });
+      }
+
+      const updatedOverlay = await prisma.overlay.findUnique({
+        where: { id: firstElement.overlayId },
+        include: {
+          elements: {
+            include: {
+              title: true,
+              counter: true,
+              timer: true,
+              children: {
+                include: {
+                  title: true,
+                  counter: true,
+                  timer: true,
+                  children: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      server.publish(`overlay-${firstElement.overlayId}`, JSON.stringify(updatedOverlay));
+
+      return new Response(null, { status: 204, headers: corsHeaders });
+    } catch (e) {
+      console.error(e);
+      return new Response(JSON.stringify({ error: "Invalid request" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  const elementIdMatch = path.match(/^\/api\/elements\/(?!reorder|delete)([a-zA-Z0-9_-]+)$/);
   if (elementIdMatch) {
     const session = await authenticate(req);
     if (!session) {
@@ -149,7 +301,8 @@ export const handleElementsRoutes = async (
     if (req.method === "PATCH") {
       try {
         const { name, style, data, position, parentId } = await req.json();
-        const elementUpdateData: Prisma.ElementUncheckedUpdateInput = {} as Prisma.ElementUncheckedUpdateInput;
+        const elementUpdateData: Prisma.ElementUncheckedUpdateInput =
+          {} as Prisma.ElementUncheckedUpdateInput;
         if (name) elementUpdateData.name = name;
         if (style) elementUpdateData.style = style;
         if (position) elementUpdateData.position = position;
@@ -162,12 +315,21 @@ export const handleElementsRoutes = async (
           if (element.type === "COUNTER" && typeof data.value === "number") {
             elementUpdateData.counter = { update: { value: data.value } };
           }
+          if (element.type === "TIMER") {
+            const { startedAt, pausedAt } = data;
+            elementUpdateData.timer = {
+              update: {
+                startedAt: startedAt ? new Date(startedAt) : null,
+                pausedAt: pausedAt ? new Date(pausedAt) : null,
+              },
+            };
+          }
         }
 
         const updatedElement = await prisma.element.update({
           where: { id: elementId },
           data: elementUpdateData,
-          include: { title: true, counter: true, children: true },
+          include: { title: true, counter: true, timer: true, children: true },
         });
 
         const updatedOverlay = await prisma.overlay.findUnique({
@@ -177,10 +339,12 @@ export const handleElementsRoutes = async (
               include: {
                 title: true,
                 counter: true,
+                timer: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
+                    timer: true,
                     children: true,
                   },
                 },
@@ -203,9 +367,10 @@ export const handleElementsRoutes = async (
     }
 
     if (req.method === "DELETE") {
-      if (!isOwner) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
+      console.log("Handling delete request for element:", elementId);
+      if (!isOwner && !isEditor) {
+        return new Response(JSON.stringify({ error: "Element not found" }), {
+          status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -219,6 +384,7 @@ export const handleElementsRoutes = async (
             include: {
               title: true,
               counter: true,
+              timer: true,
             },
           },
         },

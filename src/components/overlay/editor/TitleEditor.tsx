@@ -7,11 +7,14 @@ import { ColorPicker, useColor } from "react-color-palette";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
 import { handleValueChange } from "./helper";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const TitleStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: BaseElementStyle) => void;
-}> = ({ element, onChange }) => {
+  onDelete?: () => void;
+}> = ({ element, onChange, onDelete }) => {
   const [color, setColor] = useColor((element.style as BaseElementStyle)?.color || "#ffffff");
 
   const updateStyle = (path: string, value: string | number) => {
@@ -23,7 +26,12 @@ export const TitleStyleEditor: React.FC<{
 
   return (
     <div className="space-y-4 p-4 border rounded-lg mt-2">
-      <h4 className="font-semibold">Edit: {element.name}</h4>
+      <div className="flex justify-between items-center">
+        <h4 className="font-semibold">Edit: {element.name}</h4>
+        <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+          <Trash2 />
+        </Button>
+      </div>
       <div className="space-y-2">
         <Label>Font Size</Label>
         <div className="flex gap-4">
