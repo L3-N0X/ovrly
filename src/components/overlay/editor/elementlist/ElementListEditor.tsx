@@ -1,18 +1,12 @@
 import { ElementTypeEnum, type PrismaOverlay } from "@/lib/types";
 import {
-  attachClosestEdge,
   extractClosestEdge,
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import {
-  dropTargetForElements,
-  monitorForElements,
-  type ElementDropTargetEventBasePayload,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect } from "react";
 import { AddElementModal } from "../AddElementModal";
 import { ElementListItem } from "./ElementListItem";
 
@@ -28,221 +22,140 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   const rootElements = overlay.elements
     .filter((element) => !element.parentId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-  const listRef = useRef(null);
-  const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
-
-  useEffect(() => {
-    console.log("ElementListEditor closestEdge changed:", closestEdge);
-  }, [closestEdge]);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-
-    function onChange(args: ElementDropTargetEventBasePayload) {
-      const source = args.source;
-
-      // Check if source is from the same list
-      if (source.data.parentId === null) {
-        // For root elements
-        setClosestEdge(null);
-        return;
-      }
-
-      const closestEdge = extractClosestEdge(args.self.data);
-      setClosestEdge(closestEdge);
-    }
-
-    return combine(
-      dropTargetForElements({
-        element: el,
-        getData: ({ input, element }) => {
-          const data = { id: "root", parentId: null, type: "ROOT" };
-          return attachClosestEdge(data, {
-            input,
-            element,
-            allowedEdges: ["top", "bottom"],
-          });
-        },
-        canDrop: (args) => {
-          // Always allow dropping on the root list if it's not the same element
-          return args.source.data.id !== "root";
-        },
-        onDragEnter: onChange,
-        onDrag: onChange, // Important for continuous updates
-        onDragLeave: () => setClosestEdge(null),
-        onDrop: () => setClosestEdge(null),
-      })
-    );
-  }, [overlay]); // Add overlay to dependency array
 
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
         const target = location.current.dropTargets[0];
 
-        // If no target is found or the target is the root, it means the element was dropped outside any specific drop target
-        // This could mean it's being moved to the root level
-        if (!target || (target.data.type === "ROOT" && target.data.id === "root")) {
-          const sourceData = source.data;
-          const newElements = [...overlay.elements];
-          const sourceElement = newElements.find((e) => e.id === sourceData.id);
-          if (!sourceElement) return;
-
-          // If the element was inside a container, move it to root level
-          if (sourceElement.parentId !== null) {
-            sourceElement.parentId = null;
-
-            // Update positions in the source list (old parent)
-            const sourceList = newElements
-              .filter((e) => e.parentId === sourceData.parentId)
-              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-            const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
-            if (startIndex !== -1) {
-              sourceList.splice(startIndex, 1);
-              sourceList.forEach((item, index) => {
-                const el = newElements.find((e) => e.id === item.id);
-                if (el) el.position = index;
-              });
-            }
-
-            // Update positions in the target list (root level)
-            const rootElements = newElements
-              .filter((e) => e.parentId === null)
-              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-
-            // Add the moved element to the end of the root list
-            sourceElement.position = rootElements.length;
-
-            onOverlayChange({ ...overlay, elements: newElements });
-
-            fetch(`/api/elements/reorder`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              credentials: "include",
-              body: JSON.stringify({ elements: newElements, overlayId: overlay.id }),
-            });
-          }
+        if (!target) {
           return;
         }
 
         const sourceData = source.data;
         const targetData = target.data;
 
-        if (sourceData.id === targetData.id) return;
+        // Can't drop on yourself
+        if (sourceData.id === targetData.id) {
+          return;
+        }
 
         const newElements = [...overlay.elements];
-
         const sourceElement = newElements.find((e) => e.id === sourceData.id);
-        if (!sourceElement) return;
+
+        if (!sourceElement) {
+          return;
+        }
 
         const sourceParentId = sourceData.parentId as string | null;
-        const sourceList = newElements
-          .filter((e) => e.parentId === sourceParentId)
-          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-        const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
+        const closestEdge = extractClosestEdge(targetData) as Edge | null;
 
+        // Determine the target parent ID based on drop location
         let targetParentId: string | null;
+        let isDroppedInsideContainer = false;
+
         if (targetData.type === ElementTypeEnum.CONTAINER) {
-          // Check if we're moving from inside this container to outside (as a sibling)
-          // If the source element is from inside this container, we should move it to be a sibling
-          if (targetData.id === sourceElement.parentId) {
-            // Moving from inside container to outside as a sibling
-            targetParentId = null;
+          // Check if we have a closest edge
+          if (closestEdge) {
+            // Dropped on the edge of a container - treat as sibling
+            targetParentId = targetData.parentId as string | null;
           } else {
-            // Check if the drop is specifically on the container (vs next to it)
-            // If closestEdge is null, it means the drop was directly on the container element
-            // which usually means we want to put it inside
-            const closestEdge = target.data.closestEdge as Edge | null;
-            if (closestEdge === null) {
-              // No specific edge indicated - treat as drop into container
-              targetParentId = targetData.id as string;
-            } else {
-              // Specific edge indicated (top/bottom) - treat as drop next to container
-              targetParentId = null;
-            }
+            // Dropped in the middle/on the container itself - drop inside
+            targetParentId = targetData.id as string;
+            isDroppedInsideContainer = true;
           }
-        } else if (targetData.type === "ROOT") {
-          targetParentId = null;
         } else {
+          // Dropped on a regular element - use its parent
           targetParentId = targetData.parentId as string | null;
         }
 
+        // Get source and target lists
+        const sourceList = newElements
+          .filter((e) => e.parentId === sourceParentId)
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+        const targetList = newElements
+          .filter((e) => e.parentId === targetParentId)
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+        const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
+
+        if (startIndex === -1) {
+          return;
+        }
+
         if (sourceParentId === targetParentId) {
-          // Reordering within the same list
-          const targetList = sourceList;
+          // Reordering within the same parent
           const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
-          if (indexOfTarget < 0) return;
+
+          if (indexOfTarget < 0) {
+            return;
+          }
 
           const finishIndex = getReorderDestinationIndex({
             startIndex,
             indexOfTarget,
-            closestEdgeOfTarget: target.data.closestEdge as Edge | null,
+            closestEdgeOfTarget: closestEdge,
             axis: "vertical",
           });
 
-          const reorderedList = reorder({ list: targetList, startIndex, finishIndex });
+          if (startIndex === finishIndex) {
+            return;
+          }
+
+          const reorderedList = reorder({
+            list: targetList,
+            startIndex,
+            finishIndex,
+          });
 
           reorderedList.forEach((item, index) => {
             const element = newElements.find((e) => e.id === item.id);
-            if (element) element.position = index;
+            if (element) {
+              element.position = index;
+            }
           });
         } else {
-          // Moving from one list to another
+          // Moving between different parents
           sourceElement.parentId = targetParentId;
 
-          const targetList = newElements
-            .filter((e) => e.parentId === targetParentId)
-            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+          // Remove from source list
+          sourceList.splice(startIndex, 1);
+          sourceList.forEach((item, index) => {
+            const el = newElements.find((e) => e.id === item.id);
+            if (el) {
+              el.position = index;
+            }
+          });
 
+          // Determine insertion index in target list
           let finishIndex: number;
-          const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
 
-          if (indexOfTarget >= 0) {
-            // Dropped on an item
-            finishIndex = getReorderDestinationIndex({
-              startIndex: -1,
-              indexOfTarget,
-              closestEdgeOfTarget: target.data.closestEdge as Edge | null,
-              axis: "vertical",
-            });
+          if (isDroppedInsideContainer) {
+            // Dropped inside container - add at the end
+            finishIndex = targetList.length;
           } else {
-            // Dropped on a container (but not moving inside it)
-            const closestEdge = target.data.closestEdge as Edge | null;
-            if (closestEdge === "bottom") {
-              // Insert after the container
-              const containerIndex = targetList.findIndex((e) => e.id === targetData.id);
-              if (containerIndex !== -1) {
-                finishIndex = containerIndex + 1;
-              } else {
-                finishIndex = targetList.length;
-              }
-            } else if (closestEdge === "top") {
-              // Insert before the container
-              const containerIndex = targetList.findIndex((e) => e.id === targetData.id);
-              if (containerIndex !== -1) {
-                finishIndex = containerIndex;
-              } else {
-                finishIndex = 0;
-              }
+            // Dropped as a sibling - use edge to determine position
+            const indexOfTarget = targetList.findIndex((e) => e.id === targetData.id);
+
+            if (indexOfTarget >= 0) {
+              // Target found in list
+              finishIndex = getReorderDestinationIndex({
+                startIndex: -1, // Coming from outside this list
+                indexOfTarget,
+                closestEdgeOfTarget: closestEdge,
+                axis: "vertical",
+              });
             } else {
-              // No edge specified - default to end of list
+              // Target not in this list (shouldn't happen, but fallback)
               finishIndex = targetList.length;
             }
           }
 
-          // Update positions in the source list
-          sourceList.splice(startIndex, 1);
-          sourceList.forEach((item, index) => {
-            const el = newElements.find((e) => e.id === item.id);
-            if (el) el.position = index;
-          });
-
-          // Update positions in the target list
+          // Insert into target list
           const newTargetList = [...targetList];
           newTargetList.splice(finishIndex, 0, sourceElement);
+
           newTargetList.forEach((item, index) => {
             const el = newElements.find((e) => e.id === item.id);
             if (el) {
@@ -253,14 +166,18 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
         onOverlayChange({ ...overlay, elements: newElements });
 
+        // Persist to backend
         fetch(`/api/elements/reorder`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify({ elements: newElements, overlayId: overlay.id }),
-        });
+          body: JSON.stringify({
+            elements: newElements,
+            overlayId: overlay.id,
+          }),
+        }).catch(console.error);
       },
     });
   }, [overlay, onOverlayChange]);
@@ -271,7 +188,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         <h3 className="text-lg font-medium">Elements</h3>
         <AddElementModal overlay={overlay} onOverlayChange={onOverlayChange} />
       </div>
-      <div ref={listRef} className="space-y-2 relative p-3">
+      <div className="space-y-2 relative">
         {rootElements.map((element) => (
           <ElementListItem
             key={element.id}
@@ -281,22 +198,6 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             className={element.type === ElementTypeEnum.CONTAINER ? "mb-3" : "mb-1"}
           />
         ))}
-        {closestEdge && (
-          <div
-            style={{
-              position: "absolute",
-              top: closestEdge === "top" ? -2 : undefined,
-              bottom: closestEdge === "bottom" ? -2 : undefined,
-              left: 0,
-              right: 0,
-              height: "2px",
-              backgroundColor: "white",
-              boxShadow: "0 0 1px white",
-              zIndex: 50,
-              pointerEvents: "none",
-            }}
-          />
-        )}
       </div>
     </div>
   );

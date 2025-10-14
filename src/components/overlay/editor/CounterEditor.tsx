@@ -7,6 +7,9 @@ import { ColorPicker, useColor } from "react-color-palette";
 import { FontPicker } from "../../FontPicker";
 import { handleValueChange } from "./helper";
 import { Input } from "@/components/ui/input";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: CounterStyle) => void;
@@ -25,6 +28,12 @@ export const CounterStyleEditor: React.FC<{
 
   return (
     <div className="space-y-4 p-4 border rounded-lg mt-2">
+      <div className="flex justify-between items-center">
+        <h4 className="font-semibold">Edit: {element.name}</h4>
+        <Button variant="destructiveGhost" size="icon-lg" onClick={() => {}}>
+          <Trash2 />
+        </Button>
+      </div>
       <h4 className="font-semibold">Edit: {element.name}</h4>
       <div className="space-y-2">
         <Label>Font Size</Label>

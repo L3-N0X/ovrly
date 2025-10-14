@@ -14,7 +14,6 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import {
   draggable,
   dropTargetForElements,
-  type ElementDropTargetEventBasePayload,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
@@ -38,8 +37,8 @@ export const ElementListItem = ({
   className?: string;
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const ref = useRef(null);
-  const dragHandleRef = useRef(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
@@ -47,47 +46,6 @@ export const ElementListItem = ({
     const el = ref.current;
     const handle = dragHandleRef.current;
     if (!el || !handle) return;
-
-    function onChange(args: ElementDropTargetEventBasePayload) {
-      const source = args.source;
-      const self = args.self;
-
-      // Check if this is the source element being dragged over itself
-      const isSource = source.element === handle;
-      if (isSource) {
-        setClosestEdge(null);
-        return;
-      }
-
-      // Extract the closest edge from the data
-      const closestEdge = extractClosestEdge(self.data);
-
-      // Get the source index to handle adjacent elements specially
-      const sourceData = source.data;
-      const sourceIndex = (sourceData.index as number) || (element.position as number) || 0; // You may need to pass index in your data
-
-      // Calculate if this item is directly before or after the source
-      // You'll need to determine the index of this element in the list
-      const currentElementIndex = overlay.elements
-        .filter((e: PrismaElement) => e.parentId === element.parentId)
-        .sort((a: PrismaElement, b: PrismaElement) => (a.position ?? 0) - (b.position ?? 0))
-        .findIndex((e: PrismaElement) => e.id === element.id);
-
-      const isItemBeforeSource = currentElementIndex === sourceIndex - 1;
-      const isItemAfterSource = currentElementIndex === sourceIndex + 1;
-
-      // Hide indicator if dragging over adjacent items in the right direction
-      const isDropIndicatorHidden =
-        (isItemBeforeSource && closestEdge === "bottom") ||
-        (isItemAfterSource && closestEdge === "top");
-
-      if (isDropIndicatorHidden) {
-        setClosestEdge(null);
-        return;
-      }
-
-      setClosestEdge(closestEdge);
-    }
 
     return combine(
       draggable({
@@ -97,10 +55,6 @@ export const ElementListItem = ({
           id: element.id,
           parentId: element.parentId,
           type: element.type,
-          index: overlay.elements
-            .filter((e: PrismaElement) => e.parentId === element.parentId)
-            .sort((a: PrismaElement, b: PrismaElement) => (a.position ?? 0) - (b.position ?? 0))
-            .findIndex((e: PrismaElement) => e.id === element.id),
         }),
         onGenerateDragPreview: ({ nativeSetDragImage, source, location }) => {
           setCustomNativeDragPreview({
@@ -119,34 +73,91 @@ export const ElementListItem = ({
         onDragStart: () => setDragging(true),
         onDrop: () => {
           setDragging(false);
-          setClosestEdge(null);
         },
       }),
       dropTargetForElements({
         element: el,
+        canDrop: ({ source }) => {
+          // Can't drop on yourself
+          if (source.data.id === element.id) {
+            return false;
+          }
+
+          // Prevent dropping a parent into its own child
+          if (element.type === ElementTypeEnum.CONTAINER) {
+            const sourceId = source.data.id as string;
+            let currentParentId = element.parentId;
+
+            while (currentParentId) {
+              if (currentParentId === sourceId) {
+                return false;
+              }
+              const parent = overlay.elements.find((e) => e.id === currentParentId);
+              currentParentId = parent?.parentId || null;
+            }
+          }
+
+          return true;
+        },
         getData: ({ input, element: targetElement }) => {
           const data = {
             id: element.id,
             parentId: element.parentId,
             type: element.type,
-            index: overlay.elements
-              .filter((e: PrismaElement) => e.parentId === element.parentId)
-              .sort((a: PrismaElement, b: PrismaElement) => (a.position ?? 0) - (b.position ?? 0))
-              .findIndex((e: PrismaElement) => e.id === element.id),
           };
+
+          // For containers, attach closest edge to allow dropping as sibling
           return attachClosestEdge(data, {
             input,
             element: targetElement,
             allowedEdges: ["top", "bottom"],
           });
         },
-        onDragEnter: onChange,
-        onDrag: onChange, // This is crucial - it updates during the drag
-        onDragLeave: () => setClosestEdge(null),
-        onDrop: () => setClosestEdge(null),
+        onDragEnter: ({ self, source }) => {
+          if (source.data.id === element.id) {
+            return;
+          }
+
+          const edge = extractClosestEdge(self.data);
+          setClosestEdge(edge);
+        },
+        onDrag: ({ self, source }) => {
+          if (source.data.id === element.id) {
+            return;
+          }
+
+          const edge = extractClosestEdge(self.data);
+
+          // Hide indicator for adjacent items in reorder scenarios
+          if (source.data.parentId === element.parentId) {
+            const siblings = overlay.elements
+              .filter((e) => e.parentId === element.parentId)
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+            const sourceIndex = siblings.findIndex((e) => e.id === source.data.id);
+            const targetIndex = siblings.findIndex((e) => e.id === element.id);
+
+            // Hide if dragging over immediate neighbors in the wrong direction
+            if (
+              (sourceIndex === targetIndex - 1 && edge === "bottom") ||
+              (sourceIndex === targetIndex + 1 && edge === "top")
+            ) {
+              setClosestEdge(null);
+              return;
+            }
+          }
+
+          setClosestEdge(edge);
+        },
+        onDragLeave: () => {
+          setClosestEdge(null);
+        },
+        onDrop: () => {
+          setClosestEdge(null);
+        },
       })
     );
-  }, [element, onOverlayChange, overlay, expanded]);
+  }, [element, overlay, expanded]);
 
   const updateElementStyle = async (elementId: string, newStyle: ElementStyle) => {
     const newOverlay = JSON.parse(JSON.stringify(overlay));
@@ -162,7 +173,7 @@ export const ElementListItem = ({
         },
         credentials: "include",
         body: JSON.stringify({ style: newStyle }),
-      });
+      }).catch(console.error);
     }
   };
 
@@ -181,8 +192,8 @@ export const ElementListItem = ({
             left: 0,
             right: 0,
             height: "2px",
-            backgroundColor: "white", // Changed to white as requested
-            boxShadow: "0 0 0 1px white",
+            backgroundColor: "#388bff",
+            boxShadow: "0 0 0 1px #388bff",
             zIndex: 50,
             pointerEvents: "none",
           }}
@@ -193,7 +204,7 @@ export const ElementListItem = ({
           !dragging && "hover:cursor-pointer hover:bg-accent"
         } ${expanded ? "bg-muted" : ""}`}
       >
-        <div ref={dragHandleRef} className="cursor-grab">
+        <div ref={dragHandleRef} className="cursor-grab active:cursor-grabbing">
           <GripVertical />
         </div>
         <div
@@ -201,7 +212,16 @@ export const ElementListItem = ({
           className="flex items-center w-full justify-between cursor-pointer"
         >
           <span className="text-lg font-medium">{element.name}</span>
-          <Chip className="ml-1 text-xs text-muted-foreground">{element.type}</Chip>
+          <Chip
+            className={
+              "ml-1 text-xs text-muted-foreground" +
+              (element.type === ElementTypeEnum.CONTAINER
+                ? " bg-blue-950 text-white border-blue-800"
+                : "bg-muted border-border")
+            }
+          >
+            {element.type}
+          </Chip>
         </div>
         {expanded ? (
           <ChevronDown className="h-6 w-6 mr-1 cursor-pointer" onClick={() => setExpanded(false)} />
