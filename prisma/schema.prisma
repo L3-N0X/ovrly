@@ -90,6 +90,8 @@ model Timer {
   id        String    @id @default(cuid())
   startedAt DateTime?
   pausedAt  DateTime?
+  duration  Int?
+  countDown Boolean   @default(false)
   elementId String    @unique
   element   Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }

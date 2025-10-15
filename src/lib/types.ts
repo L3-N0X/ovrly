@@ -89,7 +89,7 @@ export interface PrismaElement {
   style: ElementStyle | null;
   title?: { id: string; text: string } | null;
   counter?: { id: string; value: number } | null;
-  timer?: { id: string; startedAt: string | null; pausedAt: string | null } | null;
+  timer?: { id: string; startedAt: string | null; pausedAt: string | null; duration: number | null; countDown: boolean; } | null;
   parentId?: string | null;
   children?: PrismaElement[];
 }

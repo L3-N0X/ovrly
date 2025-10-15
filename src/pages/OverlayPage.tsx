@@ -2,13 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Check, Copy, Minus, Plus, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, Copy, Minus, Plus, Pause, Play, RotateCcw, Pencil } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaElement, PrismaOverlay, BaseElementStyle } from "@/lib/types";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
+import { TimerEditModal } from "@/components/overlay/editor/TimerEditModal";
 
 const OverlayPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,8 @@ const OverlayPage: React.FC = () => {
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
+  const [selectedTimer, setSelectedTimer] = useState<PrismaElement | null>(null);
 
   const calculateScale = useCallback(() => {
     if (previewContainerRef.current) {
@@ -95,6 +98,14 @@ const OverlayPage: React.FC = () => {
       try {
         const updatedOverlay: PrismaOverlay = JSON.parse(event.data);
         setOverlay(updatedOverlay);
+
+        if (selectedTimer) {
+          const newSelectedTimer = updatedOverlay.elements.find((el) => el.id === selectedTimer.id);
+          if (newSelectedTimer) {
+            setSelectedTimer(newSelectedTimer);
+          }
+        }
+
         // Load fonts when overlay data changes via WebSocket
         loadOverlayFonts(updatedOverlay);
       } catch (error) {
@@ -109,7 +120,7 @@ const OverlayPage: React.FC = () => {
       // connection is not yet open by canceling the connection attempt.
       ws.close();
     };
-  }, [id]);
+  }, [id, selectedTimer]);
 
   useEffect(() => {
     calculateScale();
@@ -118,6 +129,7 @@ const OverlayPage: React.FC = () => {
   }, [calculateScale, overlay]);
 
   const formatTime = useCallback((milliseconds: number) => {
+    if (milliseconds < 0) milliseconds = 0;
     const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -132,48 +144,6 @@ const OverlayPage: React.FC = () => {
 
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }, []);
-
-  useEffect(() => {
-    const timerElements = overlay ? overlay.elements.filter((el) => el.type === "TIMER") : [];
-    const intervalIds: number[] = [];
-
-    const initialTimes: { [key: string]: string } = {};
-
-    timerElements.forEach((timerElement) => {
-      if (!timerElement.timer) {
-        initialTimes[timerElement.id] = "00:00";
-        return;
-      }
-
-      const { startedAt, pausedAt } = timerElement.timer;
-      const getPausedDuration = () => (pausedAt ? new Date(pausedAt).getTime() : 0);
-
-      if (startedAt) {
-        const startTime = new Date(startedAt).getTime();
-        const pausedDuration = getPausedDuration();
-
-        const elapsed = Date.now() - startTime;
-        initialTimes[timerElement.id] = formatTime(pausedDuration + elapsed);
-
-        const intervalId = window.setInterval(() => {
-          const elapsed = Date.now() - startTime;
-          setTimerDisplayTimes((prev) => ({
-            ...prev,
-            [timerElement.id]: formatTime(pausedDuration + elapsed),
-          }));
-        }, 1000);
-        intervalIds.push(intervalId);
-      } else {
-        initialTimes[timerElement.id] = formatTime(getPausedDuration());
-      }
-    });
-
-    setTimerDisplayTimes(initialTimes);
-
-    return () => {
-      intervalIds.forEach(clearInterval);
-    };
-  }, [overlay, formatTime]);
 
   // Debounced PATCH request function
   const debouncedUpdate = useCallback((url: string, body: object) => {
@@ -339,9 +309,152 @@ const OverlayPage: React.FC = () => {
     const timerElement = overlay?.elements.find((el) => el.id === elementId);
     if (!timerElement?.id) return;
     sendUpdateImmediately(timerElement.id, {
-      data: { startedAt: null, pausedAt: new Date(0).toISOString() },
+      data: {
+        startedAt: null,
+        pausedAt: new Date(0).toISOString(),
+        duration: 0,
+        countDown: false,
+      },
     });
   };
+
+  const handleTimerUpdate = (
+    elementId: string,
+    update: { duration?: number; countDown?: boolean }
+  ) => {
+    if (!overlay) return;
+
+    const timerElement = overlay.elements.find((el) => el.id === elementId);
+    if (!timerElement?.timer) return;
+
+    const updatePayload: {
+      duration?: number;
+      countDown?: boolean;
+      pausedAt?: string;
+      startedAt?: string | null;
+    } = { ...update };
+
+    const isSwitchingToCountdown = update.countDown === true && !timerElement.timer.countDown;
+
+    if (isSwitchingToCountdown) {
+      const { startedAt, pausedAt } = timerElement.timer;
+      let currentElapsedTime = pausedAt ? new Date(pausedAt).getTime() : 0;
+      if (startedAt) {
+        currentElapsedTime += Date.now() - new Date(startedAt).getTime();
+      }
+
+      updatePayload.duration = currentElapsedTime; // Set duration to current time
+      updatePayload.pausedAt = new Date(0).toISOString(); // Reset elapsed time for the countdown
+      updatePayload.startedAt = null; // Pause the timer to see the result
+    }
+
+    // Optimistic Update
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    updateElementById(newOverlay.elements, elementId, (el) => {
+      if (el.timer) {
+        // Manually apply payload properties
+        if (updatePayload.countDown !== undefined) el.timer.countDown = updatePayload.countDown;
+        if (updatePayload.duration !== undefined) el.timer.duration = updatePayload.duration;
+        if (updatePayload.pausedAt !== undefined) el.timer.pausedAt = updatePayload.pausedAt;
+        if (updatePayload.startedAt !== undefined) el.timer.startedAt = updatePayload.startedAt;
+        else if (updatePayload.startedAt === null) el.timer.startedAt = null;
+      }
+    });
+    setOverlay(newOverlay);
+
+    // Send to backend
+    sendUpdateImmediately(elementId, { data: updatePayload });
+  };
+
+  const handleTimerAddTime = (elementId: string, timeToAdd: number) => {
+    if (!overlay) return;
+    const timerElement = overlay.elements.find((el) => el.id === elementId);
+    if (!timerElement?.timer) return;
+
+    const { pausedAt, duration, countDown } = timerElement.timer;
+    const updatePayload: {
+      duration?: number;
+      countDown?: boolean;
+      pausedAt?: string;
+      startedAt?: string | null;
+    } = {};
+
+    if (countDown) {
+      const newDuration = (duration || 0) + timeToAdd;
+      updatePayload.duration = newDuration > 0 ? newDuration : 0;
+    } else {
+      const oldPausedDuration = pausedAt ? new Date(pausedAt).getTime() : 0;
+      const newPausedDuration = oldPausedDuration + timeToAdd;
+      updatePayload.pausedAt = new Date(
+        newPausedDuration > 0 ? newPausedDuration : 0
+      ).toISOString();
+    }
+
+    // Optimistic update
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    updateElementById(newOverlay.elements, elementId, (el) => {
+      if (el.timer) {
+        Object.assign(el.timer, updatePayload);
+      }
+    });
+    setOverlay(newOverlay);
+
+    sendUpdateImmediately(elementId, { data: updatePayload });
+  };
+
+  useEffect(() => {
+    const timerElements = overlay ? overlay.elements.filter((el) => el.type === "TIMER") : [];
+    const intervalIds: number[] = [];
+
+    const initialTimes: { [key: string]: string } = {};
+
+    timerElements.forEach((timerElement) => {
+      if (!timerElement.timer) {
+        initialTimes[timerElement.id] = "00:00";
+        return;
+      }
+
+      const { startedAt, pausedAt, duration, countDown } = timerElement.timer;
+      const getPausedDuration = () => (pausedAt ? new Date(pausedAt).getTime() : 0);
+
+      if (startedAt) {
+        const startTime = new Date(startedAt).getTime();
+        const pausedDuration = getPausedDuration();
+
+        const updateDisplay = () => {
+          const elapsed = Date.now() - startTime;
+          let displayTime;
+          if (countDown) {
+            displayTime = (duration || 0) - (pausedDuration + elapsed);
+          } else {
+            displayTime = pausedDuration + elapsed;
+          }
+          setTimerDisplayTimes((prev) => ({
+            ...prev,
+            [timerElement.id]: formatTime(displayTime),
+          }));
+        };
+
+        updateDisplay();
+        const intervalId = window.setInterval(updateDisplay, 1000);
+        intervalIds.push(intervalId);
+      } else {
+        let displayTime;
+        if (countDown) {
+          displayTime = (duration || 0) - getPausedDuration();
+        } else {
+          displayTime = getPausedDuration();
+        }
+        initialTimes[timerElement.id] = formatTime(displayTime);
+      }
+    });
+
+    setTimerDisplayTimes((prev) => ({ ...prev, ...initialTimes }));
+
+    return () => {
+      intervalIds.forEach(clearInterval);
+    };
+  }, [overlay, formatTime]);
 
   const handleDeleteOverlay = async () => {
     try {
@@ -442,6 +555,17 @@ const OverlayPage: React.FC = () => {
                         {timerDisplayTimes[timerElement.id] || "00:00"}
                       </div>
                       <Button
+                        onClick={() => {
+                          setSelectedTimer(timerElement);
+                          setIsTimerModalOpen(true);
+                        }}
+                        size="icon-lg"
+                        variant="secondary"
+                        className="h-14 w-14"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
                         onClick={() => handleTimerToggle(timerElement.id)}
                         size="icon-lg"
                         variant="secondary"
@@ -463,7 +587,7 @@ const OverlayPage: React.FC = () => {
                       </Button>
                     </div>
                   </div>
-                ))}
+                ))}{" "}
                 {counterElements.map((counterElement) => (
                   <div key={counterElement.id} className="space-y-2">
                     <Label htmlFor={`count-${counterElement.id}`}>
@@ -487,10 +611,7 @@ const OverlayPage: React.FC = () => {
                         id={`count-${counterElement.id}`}
                         value={counterElement.counter?.value || 0}
                         onChange={(e) =>
-                          handleCounterChange(
-                            counterElement.id,
-                            parseInt(e.target.value, 10) || 0
-                          )
+                          handleCounterChange(counterElement.id, parseInt(e.target.value, 10) || 0)
                         }
                         className="w-36 text-center text-2xl h-14"
                       />
@@ -547,6 +668,15 @@ const OverlayPage: React.FC = () => {
           </div>
         </div>
       </div>
+      {selectedTimer && (
+        <TimerEditModal
+          isOpen={isTimerModalOpen}
+          onClose={() => setIsTimerModalOpen(false)}
+          element={selectedTimer}
+          onUpdate={handleTimerUpdate}
+          onAddTime={handleTimerAddTime}
+        />
+      )}
     </>
   );
 };

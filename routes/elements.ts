@@ -316,12 +316,22 @@ export const handleElementsRoutes = async (
             elementUpdateData.counter = { update: { value: data.value } };
           }
           if (element.type === "TIMER") {
-            const { startedAt, pausedAt } = data;
+            const { startedAt, pausedAt, duration, countDown } = data;
+            const timerUpdateData: Prisma.TimerUpdateInput = {};
+            if (startedAt !== undefined) {
+              timerUpdateData.startedAt = startedAt ? new Date(startedAt) : null;
+            }
+            if (pausedAt !== undefined) {
+              timerUpdateData.pausedAt = pausedAt ? new Date(pausedAt) : null;
+            }
+            if (duration !== undefined) {
+              timerUpdateData.duration = duration;
+            }
+            if (countDown !== undefined) {
+              timerUpdateData.countDown = countDown;
+            }
             elementUpdateData.timer = {
-              update: {
-                startedAt: startedAt ? new Date(startedAt) : null,
-                pausedAt: pausedAt ? new Date(pausedAt) : null,
-              },
+              update: timerUpdateData,
             };
           }
         }
