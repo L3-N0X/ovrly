@@ -27,7 +27,7 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         ) : null;
       case "TIMER":
         return timer ? (
-          <Timer startedAt={timer.startedAt ? new Date(timer.startedAt) : null} pausedAt={timer.pausedAt ? new Date(timer.pausedAt) : null} style={(style || {}) as TimerStyle} />
+          <Timer startedAt={timer.startedAt ? new Date(timer.startedAt) : null} pausedAt={timer.pausedAt ? new Date(timer.pausedAt) : null} duration={timer.duration} countDown={timer.countDown} style={(style || {}) as TimerStyle} />
         ) : null;
       case "CONTAINER":
         return (

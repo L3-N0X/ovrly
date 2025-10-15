@@ -10,6 +10,7 @@ import FontLoader from "@/components/FontLoader";
 import type { PrismaElement, PrismaOverlay, BaseElementStyle } from "@/lib/types";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 import { TimerEditModal } from "@/components/overlay/editor/TimerEditModal";
+import { useTimer } from "@/lib/hooks/useTimer";
 
 const OverlayPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +19,6 @@ const OverlayPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
-  const [timerDisplayTimes, setTimerDisplayTimes] = useState<{ [key: string]: string }>({});
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -335,6 +335,7 @@ const OverlayPage: React.FC = () => {
     } = { ...update };
 
     const isSwitchingToCountdown = update.countDown === true && !timerElement.timer.countDown;
+    const isSwitchingToCountUp = update.countDown === false && timerElement.timer.countDown;
 
     if (isSwitchingToCountdown) {
       const { startedAt, pausedAt } = timerElement.timer;
@@ -346,6 +347,18 @@ const OverlayPage: React.FC = () => {
       updatePayload.duration = currentElapsedTime; // Set duration to current time
       updatePayload.pausedAt = new Date(0).toISOString(); // Reset elapsed time for the countdown
       updatePayload.startedAt = null; // Pause the timer to see the result
+    } else if (isSwitchingToCountUp) {
+      const { startedAt, pausedAt, duration } = timerElement.timer;
+      let currentElapsedTime = pausedAt ? new Date(pausedAt).getTime() : 0;
+      if (startedAt) {
+        currentElapsedTime += Date.now() - new Date(startedAt).getTime();
+      }
+
+      const remainingTime = (duration || 0) - currentElapsedTime;
+
+      updatePayload.pausedAt = new Date(remainingTime > 0 ? remainingTime : 0).toISOString();
+      updatePayload.duration = 0; // Reset duration as it's not used for count-up
+      updatePayload.startedAt = null; // Pause the timer
     }
 
     // Optimistic Update
@@ -402,60 +415,6 @@ const OverlayPage: React.FC = () => {
     sendUpdateImmediately(elementId, { data: updatePayload });
   };
 
-  useEffect(() => {
-    const timerElements = overlay ? overlay.elements.filter((el) => el.type === "TIMER") : [];
-    const intervalIds: number[] = [];
-
-    const initialTimes: { [key: string]: string } = {};
-
-    timerElements.forEach((timerElement) => {
-      if (!timerElement.timer) {
-        initialTimes[timerElement.id] = "00:00";
-        return;
-      }
-
-      const { startedAt, pausedAt, duration, countDown } = timerElement.timer;
-      const getPausedDuration = () => (pausedAt ? new Date(pausedAt).getTime() : 0);
-
-      if (startedAt) {
-        const startTime = new Date(startedAt).getTime();
-        const pausedDuration = getPausedDuration();
-
-        const updateDisplay = () => {
-          const elapsed = Date.now() - startTime;
-          let displayTime;
-          if (countDown) {
-            displayTime = (duration || 0) - (pausedDuration + elapsed);
-          } else {
-            displayTime = pausedDuration + elapsed;
-          }
-          setTimerDisplayTimes((prev) => ({
-            ...prev,
-            [timerElement.id]: formatTime(displayTime),
-          }));
-        };
-
-        updateDisplay();
-        const intervalId = window.setInterval(updateDisplay, 1000);
-        intervalIds.push(intervalId);
-      } else {
-        let displayTime;
-        if (countDown) {
-          displayTime = (duration || 0) - getPausedDuration();
-        } else {
-          displayTime = getPausedDuration();
-        }
-        initialTimes[timerElement.id] = formatTime(displayTime);
-      }
-    });
-
-    setTimerDisplayTimes((prev) => ({ ...prev, ...initialTimes }));
-
-    return () => {
-      intervalIds.forEach(clearInterval);
-    };
-  }, [overlay, formatTime]);
-
   const handleDeleteOverlay = async () => {
     try {
       await fetch(`/api/overlays/${id}`, {
@@ -489,6 +448,22 @@ const OverlayPage: React.FC = () => {
   const counterElements = overlay.elements.filter((el) => el.type === "COUNTER");
   const titleElements = overlay.elements.filter((el) => el.type === "TITLE");
   const timerElements = overlay.elements.filter((el) => el.type === "TIMER");
+
+  const TimerRenderer: React.FC<{ timer: NonNullable<PrismaElement["timer"]> }> = ({ timer }) => {
+    const time = useTimer({
+      ...timer,
+      startedAt: timer.startedAt ? new Date(timer.startedAt) : null,
+      pausedAt: timer.pausedAt ? new Date(timer.pausedAt) : null,
+    });
+    return <>{formatTime(time)}</>;
+  };
+
+  const TimerDisplay: React.FC<{ timerElement: PrismaElement }> = ({ timerElement }) => {
+    if (!timerElement.timer) {
+      return <>00:00</>;
+    }
+    return <TimerRenderer timer={timerElement.timer} />;
+  };
 
   return (
     <>
@@ -552,7 +527,7 @@ const OverlayPage: React.FC = () => {
                     <Label>Timer: {timerElement.name}</Label>
                     <div className="flex items-center space-x-2">
                       <div className="text-2xl font-mono bg-secondary h-14 flex items-center justify-center rounded-md px-4 flex-grow">
-                        {timerDisplayTimes[timerElement.id] || "00:00"}
+                        <TimerDisplay timerElement={timerElement} />
                       </div>
                       <Button
                         onClick={() => {

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import moment from "moment";
+import { useTimer } from "@/lib/hooks/useTimer";
 
 // Define a more specific type for timer styles
 interface TimerStyle {
@@ -21,45 +22,7 @@ interface TimerProps {
 }
 
 const Timer: React.FC<TimerProps> = ({ startedAt, pausedAt, duration, countDown, style }) => {
-  const [displayTime, setDisplayTime] = useState(0);
-
-  useEffect(() => {
-    const getPausedDuration = () => (pausedAt ? new Date(pausedAt).getTime() : 0);
-
-    let intervalId: number | undefined;
-
-    const calculateAndUpdate = () => {
-      let newDisplayTime;
-      if (startedAt) {
-        const startTime = new Date(startedAt).getTime();
-        const elapsed = Date.now() - startTime;
-        if (countDown) {
-          newDisplayTime = (duration || 0) - (getPausedDuration() + elapsed);
-        } else {
-          newDisplayTime = getPausedDuration() + elapsed;
-        }
-      } else {
-        if (countDown) {
-          newDisplayTime = (duration || 0) - getPausedDuration();
-        } else {
-          newDisplayTime = getPausedDuration();
-        }
-      }
-      setDisplayTime(newDisplayTime);
-    };
-
-    calculateAndUpdate(); // Initial calculation
-
-    if (startedAt) {
-      intervalId = window.setInterval(calculateAndUpdate, 1000);
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [startedAt, pausedAt, duration, countDown]);
+  const displayTime = useTimer({ startedAt, pausedAt, duration, countDown });
 
   const safeStyle = style || {};
   const timerStyle: React.CSSProperties = {
