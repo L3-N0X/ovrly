@@ -54,14 +54,13 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
     // Persist to backend
     await fetch(`/api/elements/delete`, {
-      method: "POST",
+      method: "DELETE",
       headers: {
         "Content-Type": "application/json",
       },
       credentials: "include",
       body: JSON.stringify({
-        elementIds: allIdsToDelete,
-        overlayId: overlay.id,
+        ids: allIdsToDelete,
       }),
     }).catch(console.error);
   };
