@@ -23,9 +23,9 @@
           "type": "COUNTER",
           "style": {
             "fontSize": 48,
-            "color": "#ffffff",
-            "fontFamily": "Arial",
-            "backgroundColor": "#000000",
+            "color": "#ffffffff",
+            "fontFamily": "Roboto",
+            "backgroundColor": "#00000000",
             "padding": 10,
             "radius": 5
           },
@@ -58,8 +58,8 @@
           "type": "TITLE",
           "style": {
             "fontSize": 36,
-            "color": "#ffffff",
-            "fontFamily": "Arial",
+            "color": "#ffffffff",
+            "fontFamily": "Roboto",
             "backgroundColor": "#0000",
             "padding": 10,
             "radius": 5
@@ -93,8 +93,8 @@
           "type": "TITLE",
           "style": {
             "fontSize": 36,
-            "color": "#ffffff",
-            "fontFamily": "Arial",
+            "color": "#ffffffff",
+            "fontFamily": "Roboto",
             "backgroundColor": "#0000",
             "padding": 10,
             "radius": 5
@@ -108,9 +108,9 @@
           "type": "COUNTER",
           "style": {
             "fontSize": 48,
-            "color": "#ffffff",
-            "fontFamily": "Arial",
-            "backgroundColor": "#000000",
+            "color": "#ffffffff",
+            "fontFamily": "Roboto",
+            "backgroundColor": "#00000000",
             "padding": 10,
             "radius": 5
           },
@@ -143,9 +143,9 @@
           "type": "COUNTER",
           "style": {
             "fontSize": 48,
-            "color": "#ffffff",
-            "fontFamily": "Arial",
-            "backgroundColor": "#000000",
+            "color": "#ffffffff",
+            "fontFamily": "Roboto",
+            "backgroundColor": "#00000000",
             "padding": 10,
             "radius": 5
           },
@@ -158,9 +158,9 @@
           "type": "TITLE",
           "style": {
             "fontSize": 36,
-            "color": "#ffffff",
-            "fontFamily": "Arial",
-            "backgroundColor": "#000000",
+            "color": "#ffffffff",
+            "fontFamily": "Roboto",
+            "backgroundColor": "#00000000",
             "padding": 10,
             "radius": 5
           },
@@ -195,7 +195,7 @@
           "style": {
             "fontSize": 24,
             "color": "#cccccc",
-            "fontFamily": "Arial",
+            "fontFamily": "Roboto",
             "backgroundColor": "transparent",
             "padding": 5,
             "radius": 0
