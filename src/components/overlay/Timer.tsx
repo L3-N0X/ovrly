@@ -34,6 +34,7 @@ const Timer: React.FC<TimerProps> = ({ startedAt, pausedAt, duration, countDown,
     backgroundColor: safeStyle.backgroundColor,
     borderRadius: typeof safeStyle.radius === "number" ? `${safeStyle.radius}px` : undefined,
     padding: typeof safeStyle.padding === "number" ? `${safeStyle.padding}px` : undefined,
+    transition: "all 0.2s ease-in-out",
   };
 
   const formatDuration = (time: number) => {

@@ -39,9 +39,6 @@ export const useTimer = ({ startedAt, pausedAt, duration, countDown }: UseTimerP
 
     if (startedAt) {
       intervalId = window.setInterval(calculateAndUpdate, 1000);
-    } else {
-      // Ensure displayTime is updated when timer is paused/reset
-      calculateAndUpdate();
     }
 
     return () => {

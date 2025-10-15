@@ -21,6 +21,7 @@
         "@radix-ui/react-toggle-group": "^1.1.11",
         "@tailwindcss/vite": "^4.1.14",
         "@types/react-window": "1.8.8",
+        "@uiw/react-color": "^2.9.0",
         "better-auth": "^1.3.27",
         "chromium-bidi": "^10.2.0",
         "class-variance-authority": "^0.7.1",
@@ -494,6 +495,50 @@
 
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@8.46.0", "", { "dependencies": { "@typescript-eslint/types": "8.46.0", "eslint-visitor-keys": "^4.2.1" } }, "sha512-FrvMpAK+hTbFy7vH5j1+tMYHMSKLE6RzluFJlkFNKD0p9YsUT75JlBSmr5so3QRzvMwU5/bIEdeNrxm8du8l3Q=="],
 
+    "@uiw/color-convert": ["@uiw/color-convert@2.9.0", "", { "peerDependencies": { "@babel/runtime": ">=7.19.0" } }, "sha512-tFm6iac8iN3VL9IIAXKAVpBX6ZQH7ucCvb+EgZNM5y8prRWlk53cERnP4RycE3wnYb/HUKW0lrngoygQnEWAHg=="],
+
+    "@uiw/react-color": ["@uiw/react-color@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0", "@uiw/react-color-block": "2.9.0", "@uiw/react-color-chrome": "2.9.0", "@uiw/react-color-circle": "2.9.0", "@uiw/react-color-colorful": "2.9.0", "@uiw/react-color-compact": "2.9.0", "@uiw/react-color-editable-input": "2.9.0", "@uiw/react-color-editable-input-hsla": "2.9.0", "@uiw/react-color-editable-input-rgba": "2.9.0", "@uiw/react-color-github": "2.9.0", "@uiw/react-color-hue": "2.9.0", "@uiw/react-color-material": "2.9.0", "@uiw/react-color-name": "2.9.0", "@uiw/react-color-saturation": "2.9.0", "@uiw/react-color-shade-slider": "2.9.0", "@uiw/react-color-sketch": "2.9.0", "@uiw/react-color-slider": "2.9.0", "@uiw/react-color-swatch": "2.9.0", "@uiw/react-color-wheel": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-lXay6JDzat/+klzNk4NQpYJYcGfIBhGLIEGWpzQvp+fOh69sV/rF5XyB1boXFfgopx8JZtb3yurKySuIR4EuDA=="],
+
+    "@uiw/react-color-alpha": ["@uiw/react-color-alpha@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-drag-event-interactive": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-tP9zs2KUPzIGvdtTBTNlDEdwHWcNJ3Ju/nnpPTsKERRJF2vzucb3v18JzihX0ACiOXU9+JVqgpAVgvoZXMeITA=="],
+
+    "@uiw/react-color-block": ["@uiw/react-color-block@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-editable-input": "2.9.0", "@uiw/react-color-swatch": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-RP5W0xglRxPjH9Fw4m/QlPGb3aczzEoan3lKXxI+q6zVRckxl5kXadPqPCbLS+j1PLozzb2gI/dDG7ZdPYxZyA=="],
+
+    "@uiw/react-color-chrome": ["@uiw/react-color-chrome@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0", "@uiw/react-color-editable-input": "2.9.0", "@uiw/react-color-editable-input-hsla": "2.9.0", "@uiw/react-color-editable-input-rgba": "2.9.0", "@uiw/react-color-github": "2.9.0", "@uiw/react-color-hue": "2.9.0", "@uiw/react-color-saturation": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-cQCeNE0K/+/nP/GCQhMq1tfvxIlmFeFXIP+AkF73F6awl1q9oNEnNiJnJ8k8EjeduES43V2IkNFmQdxC+Wy05g=="],
+
+    "@uiw/react-color-circle": ["@uiw/react-color-circle@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-swatch": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-0jJJpdPJC7l9++RKJZ1MWkQSatVk5zPfCqR21pUrDK18E7UmSpwx7/zvMqX3avumcu4wt3RUXhVT80kHKHq+yQ=="],
+
+    "@uiw/react-color-colorful": ["@uiw/react-color-colorful@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0", "@uiw/react-color-hue": "2.9.0", "@uiw/react-color-saturation": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-qw7zhgX9J4aydK0hKKLroXMYp0tw3ASNuZM1fQNwXXIpOkEW4zO+PHTkzUBpbII68wGS8tAxsZessTWNpAVi0w=="],
+
+    "@uiw/react-color-compact": ["@uiw/react-color-compact@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-editable-input": "2.9.0", "@uiw/react-color-editable-input-rgba": "2.9.0", "@uiw/react-color-swatch": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-PB3YMi8DP+Qh3EXabxI67j+RBvOlNEMzWyqsXX4TdBe/0gHujk0GCMTrm0Sk+kcZd+AzCTF01vdGqrgF2uh5cQ=="],
+
+    "@uiw/react-color-editable-input": ["@uiw/react-color-editable-input@2.9.0", "", { "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-y4/U8tVcF/F27ziTb0iAgvuibYNwF5rrDIAqyTqCdsNJYk8esIgnazAUD5x8Qn8oWWSqMC8gnzOxH9XTcECckg=="],
+
+    "@uiw/react-color-editable-input-hsla": ["@uiw/react-color-editable-input-hsla@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-editable-input-rgba": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-/RniQBTjR5II4AZkFmtjkzUgwPEMis5yv4Tb4PWTwUlWiRRgSjtiSgeGS3Jv25lnz6sK9U0JJQgcCQK3KJEBqw=="],
+
+    "@uiw/react-color-editable-input-rgba": ["@uiw/react-color-editable-input-rgba@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-editable-input": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-vLg0QV4FN9Emfz/ulGbXnYV/Gj00GnKrlqxJewOeiSoK9cuG3AZUmLUDAUexAoYtAgnRr3WF2EvzUPufteMuqA=="],
+
+    "@uiw/react-color-github": ["@uiw/react-color-github@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-swatch": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-gTs21kGLBUbscnAktjtGXkZf4nY5mFQyBkL6eK7ewWgQyefMRqnIpIYDHjiZQoPUcOgEV2mD5DXzXIVMzssoVg=="],
+
+    "@uiw/react-color-hue": ["@uiw/react-color-hue@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-2Ix027ref3ppiVq+OQkbyKr6O8fLTH+n0wEW4xhHfa3kV8mBa2bEu8jAjrkSwO6uElaE6OJcuqYe2llyKRlIFg=="],
+
+    "@uiw/react-color-material": ["@uiw/react-color-material@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-editable-input": "2.9.0", "@uiw/react-color-editable-input-rgba": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-rhAQcGJFa0/W26FqjVmy45YeIJEDwxZ6/loOlLgTLhBRvh7ZkTEzryHeOOnIoP/LYOFCsFI/xCfIPRXpk8vxAQ=="],
+
+    "@uiw/react-color-name": ["@uiw/react-color-name@2.9.0", "", { "dependencies": { "colors-named": "^1.0.1", "colors-named-hex": "^1.0.1" }, "peerDependencies": { "@babel/runtime": ">=7.19.0" } }, "sha512-zxMUiXVC5hikQl5UCFpE1ALrvIDhVmQUh5NfMMDmT61DyUS9CXob8DGqyCgv4sVEuIEzM5Py8QrY1j0oMNczeA=="],
+
+    "@uiw/react-color-saturation": ["@uiw/react-color-saturation@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-drag-event-interactive": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-tBARqsW0ap+gwByGKSid1nYaGJd6dw2MTMwCABF9rebPQHtYbN/YgBjl9dNnp6XDGd+VBhH4RbpM38WV7J1F4g=="],
+
+    "@uiw/react-color-shade-slider": ["@uiw/react-color-shade-slider@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-+WDHiwzxqOJ7ECVu+jeDoVeAzKnaMGUZe4bdlqFarvhzZMLHUyAKlQf8fcniMB89jl+81z2g/aDeq1kPhv1/QA=="],
+
+    "@uiw/react-color-sketch": ["@uiw/react-color-sketch@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0", "@uiw/react-color-editable-input": "2.9.0", "@uiw/react-color-editable-input-rgba": "2.9.0", "@uiw/react-color-hue": "2.9.0", "@uiw/react-color-saturation": "2.9.0", "@uiw/react-color-swatch": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-0Bu8FjF6xj+RvKY3aS1yqyo8067BmV33BIZ1GzCnbz0cpSzPcDXUt1axE/mG2SD4J/b8zVcfyKj0K50Y9yE0Gg=="],
+
+    "@uiw/react-color-slider": ["@uiw/react-color-slider@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-color-alpha": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-TfMumLhXqWtZwtJyF3v/bcWJv2ZZ/NESd5bUya7/SNW66ukmfiiUG0LFYy1db+flwl4Tj9yL7nYKYf6Xp90ieA=="],
+
+    "@uiw/react-color-swatch": ["@uiw/react-color-swatch@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-kA4Yg2sXkw2ji7BxG34TjfhQOnk5mmxTjTjzX70gX7bj4dS2DcGbr5lq3JunssCPUJD5OykU9hhhDlZnFLmHcg=="],
+
+    "@uiw/react-color-wheel": ["@uiw/react-color-wheel@2.9.0", "", { "dependencies": { "@uiw/color-convert": "2.9.0", "@uiw/react-drag-event-interactive": "2.9.0" }, "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-/YYlqqppYtZbet2NLU5Pk1eR4WZ71O8YCwxFGYtJEIXLkyDjsBuznnobYr5MM4YHsJBPNrml3PCoSVoYVki4KQ=="],
+
+    "@uiw/react-drag-event-interactive": ["@uiw/react-drag-event-interactive@2.9.0", "", { "peerDependencies": { "@babel/runtime": ">=7.19.0", "react": ">=16.9.0", "react-dom": ">=16.9.0" } }, "sha512-oBqrClsSuYA3IjkSHp4uHOBLgPkR98KeKeheqCRltF8w/a1CPaFCl43pyKyxwXaTV6qM6cb3VkT3JRCHMNqTzA=="],
+
     "@vitejs/plugin-react": ["@vitejs/plugin-react@5.0.4", "", { "dependencies": { "@babel/core": "^7.28.4", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.38", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-La0KD0vGkVkSk6K+piWDKRUyg8Rl5iAIKRMH0vMJI0Eg47bq1eOxmoObAaQG37WMW9MSyk7Cs8EIWwJC1PtzKA=="],
 
     "acorn": ["acorn@8.15.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg=="],
@@ -563,6 +608,10 @@
     "color-convert": ["color-convert@2.0.1", "", { "dependencies": { "color-name": "~1.1.4" } }, "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ=="],
 
     "color-name": ["color-name@1.1.4", "", {}, "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA=="],
+
+    "colors-named": ["colors-named@1.0.2", "", {}, "sha512-2ANq2r393PV9njYUD66UdfBcxR1slMqRA3QRTWgCx49JoCJ+kOhyfbQYxKJbPZQIhZUcNjVOs5AlyY1WwXec3w=="],
+
+    "colors-named-hex": ["colors-named-hex@1.0.2", "", {}, "sha512-k6kq1e1pUCQvSVwIaGFq2l0LrkAPQZWyeuZn1Z8nOiYSEZiKoFj4qx690h2Kd34DFl9Me0gKS6MUwAMBJj8nuA=="],
 
     "concat-map": ["concat-map@0.0.1", "", {}, "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg=="],
 

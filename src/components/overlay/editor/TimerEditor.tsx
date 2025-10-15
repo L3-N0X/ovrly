@@ -1,31 +1,38 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type TimerStyle, type PrismaElement } from "@/lib/types";
-import React from "react";
-import { ColorPicker, useColor } from "react-color-palette";
+import { type PrismaElement, type TimerStyle } from "@/lib/types";
+import { debounce } from "@/lib/utils";
+import { Info, Trash2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
-import { handleValueChange } from "./helper";
-import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ColorPickerEditor } from "./ColorPickerEditor";
 
-export const TimerStyleEditor: React.FC<{ 
+export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: TimerStyle) => void;
   onDelete?: () => void;
 }> = ({ element, onChange, onDelete }) => {
-  const [color, setColor] = useColor((element.style as TimerStyle)?.color || "#ffffff");
-  const [bgColor, setBgColor] = useColor(
-    (element.style as TimerStyle)?.backgroundColor || "#333333"
-  );
+  const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
 
-  const updateStyle = (path: string, value: string | number) => {
-    const newStyle = JSON.parse(JSON.stringify(element.style || {}));
-    onChange(handleValueChange(newStyle, path, value));
+  const debouncedOnChange = debounce(onChange, 400);
+
+  const [fgPopoverOpen, setFgPopoverOpen] = useState(false);
+  const [bgPopoverOpen, setBgPopoverOpen] = useState(false);
+
+  useEffect(() => {
+    if (!fgPopoverOpen && !bgPopoverOpen) {
+      setStyle((element.style as TimerStyle) || {});
+    }
+  }, [element.style, fgPopoverOpen, bgPopoverOpen]);
+
+  const handleStyleChange = (newStyle: Partial<TimerStyle>) => {
+    const updatedStyle = { ...style, ...newStyle };
+    setStyle(updatedStyle);
+    debouncedOnChange(updatedStyle);
   };
-
-  const style = (element.style || {}) as TimerStyle;
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
@@ -36,10 +43,42 @@ export const TimerStyleEditor: React.FC<{
         </Button>
       </div>
       <div className="space-y-2">
-        <Label>Time Format</Label>
+        <div className="flex items-center gap-2">
+          <Label>Time Format</Label>
+          <Popover>
+            <PopoverTrigger>
+              <Info className="h-4 w-4 cursor-pointer" />
+            </PopoverTrigger>
+            <PopoverContent>
+              <div className="space-y-2 p-4 text-sm">
+                <p className="font-semibold">Format hint for entering timer display:</p>
+                <p>
+                  Use special placeholders for your timer: <strong>H</strong> for hours,{" "}
+                  <strong>m</strong> for minutes, <strong>s</strong> for seconds.
+                </p>
+                <p>
+                  Example: <strong>H:mm:ss</strong> → 1:05:09
+                </p>
+                <p>Mix and match as needed for your display:</p>
+                <ul className="list-disc list-inside pl-4">
+                  <li>
+                    <strong>mm:ss</strong> → 07:45 (minutes:seconds)
+                  </li>
+                  <li>
+                    <strong>H:mm</strong> → 3:22 (hours:minutes)
+                  </li>
+                  <li>
+                    <strong>H[h] mm[min] ss[s]</strong> → 2h 01min 15s (text inside brackets will be
+                    shown as written)
+                  </li>
+                </ul>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
         <Input
           value={style?.format || "HH:mm:ss"}
-          onChange={(e) => updateStyle("format", e.target.value)}
+          onChange={(e) => handleStyleChange({ format: e.target.value })}
           className="h-10 w-full"
         />
       </div>
@@ -48,7 +87,7 @@ export const TimerStyleEditor: React.FC<{
         <div className="flex gap-4">
           <Slider
             value={[typeof style?.fontSize === "number" ? style.fontSize : 128]}
-            onValueChange={(v) => updateStyle("fontSize", v[0])}
+            onValueChange={(v) => handleStyleChange({ fontSize: v[0] })}
             max={400}
             min={0}
           />
@@ -57,12 +96,12 @@ export const TimerStyleEditor: React.FC<{
             value={typeof style?.fontSize === "number" ? style.fontSize : 128}
             onChange={(e) => {
               if (e.target.value === "") {
-                updateStyle("fontSize", 0);
+                handleStyleChange({ fontSize: 0 });
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
-                updateStyle("fontSize", val);
+                handleStyleChange({ fontSize: val });
               }
             }}
             className="h-10 w-20"
@@ -74,26 +113,25 @@ export const TimerStyleEditor: React.FC<{
           <Label>Font Family</Label>
           <FontPicker
             value={style?.fontFamily || ""}
-            onChange={(font) => updateStyle("fontFamily", font)}
+            onChange={(font) => handleStyleChange({ fontFamily: font })}
             previewWord="12:34:56"
             className="w-full h-10"
           />
         </div>
         <div className="space-y-2">
           <Label>Color</Label>
-          <Popover>
+          <Popover open={fgPopoverOpen} onOpenChange={setFgPopoverOpen}>
             <PopoverTrigger asChild>
               <button
                 className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: color.hex }}
+                style={{ backgroundColor: style.color || "#ffffff" }}
               />
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <ColorPicker
-                color={color}
-                onChange={(c) => {
-                  setColor(c);
-                  updateStyle("color", c.hex);
+              <ColorPickerEditor
+                value={style.color ?? "#ffffff"}
+                onChange={(color) => {
+                  handleStyleChange({ color: color });
                 }}
               />
             </PopoverContent>
@@ -101,19 +139,18 @@ export const TimerStyleEditor: React.FC<{
         </div>
         <div className="space-y-2">
           <Label>Background</Label>
-          <Popover>
+          <Popover open={bgPopoverOpen} onOpenChange={setBgPopoverOpen}>
             <PopoverTrigger asChild>
               <button
                 className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: bgColor.hex }}
+                style={{ backgroundColor: style.backgroundColor || "#333333" }}
               />
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <ColorPicker
-                color={bgColor}
-                onChange={(c) => {
-                  setBgColor(c);
-                  updateStyle("backgroundColor", c.hex);
+              <ColorPickerEditor
+                value={style.backgroundColor ?? "#ffffff"}
+                onChange={(color) => {
+                  handleStyleChange({ backgroundColor: color });
                 }}
               />
             </PopoverContent>
@@ -123,13 +160,8 @@ export const TimerStyleEditor: React.FC<{
           <Label>Padding</Label>
           <div className="flex gap-4">
             <Slider
-              value={[
-                (() => {
-                  const padding = (element.style as TimerStyle)?.padding;
-                  return padding !== undefined && padding !== null ? padding : 0;
-                })(),
-              ]}
-              onValueChange={(v) => updateStyle("padding", v[0])}
+              value={[typeof style?.padding === "number" ? style.padding : 0]}
+              onValueChange={(v) => handleStyleChange({ padding: v[0] })}
               max={300}
               min={0}
             />
@@ -137,12 +169,12 @@ export const TimerStyleEditor: React.FC<{
               value={typeof style?.padding === "number" ? style.padding : 0}
               onChange={(e) => {
                 if (e.target.value === "") {
-                  updateStyle("padding", 0);
+                  handleStyleChange({ padding: 0 });
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
-                  updateStyle("padding", val);
+                  handleStyleChange({ padding: val });
                 }
               }}
               className="h-10 w-20"
@@ -153,25 +185,20 @@ export const TimerStyleEditor: React.FC<{
           <Label>Corner Radius</Label>
           <div className="flex gap-4">
             <Slider
-              value={[
-                (() => {
-                  const radius = (element.style as TimerStyle)?.radius;
-                  return radius !== undefined && radius !== null ? radius : 0;
-                })(),
-              ]}
-              onValueChange={(v) => updateStyle("radius", v[0])}
+              value={[typeof style?.radius === "number" ? style.radius : 0]}
+              onValueChange={(v) => handleStyleChange({ radius: v[0] })}
               max={100}
             />
             <Input
               value={typeof style?.radius === "number" ? style.radius : 0}
               onChange={(e) => {
                 if (e.target.value === "") {
-                  updateStyle("radius", 0);
+                  handleStyleChange({ radius: 0 });
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
-                  updateStyle("radius", val);
+                  handleStyleChange({ radius: val });
                 }
               }}
               className="h-10 w-20"
