@@ -111,6 +111,29 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+.w-color-sketch {
+  --sketch-background: var(--input) !important;
+  --sketch-border: 1px solid var(--border) !important;
+  --sketch-box-shadow: rgb(0 0 0 / 10%) 0 1px 2px 0px !important;
+  --sketch-swatch-border-top: var(--border) !important;
+  color: var(--foreground) !important;
+  border: var(--sketch-border) !important;
+  box-shadow: var(--sketch-box-shadow) !important;
+  border-radius: 0.375rem !important;
+
+  .w-color-editable-input {
+    --editable-input-label-color: var(--muted-foreground) !important;
+    --editable-input-box-shadow: rgb(0 0 0 / 10%) 0 1px 2px 0px !important;
+    --editable-input-color: var(--foreground) !important;
+    input {
+      border-radius: 0.375rem !important;
+      border: var(--sketch-border) !important;
+      font-size: 0.8rem !important;
+      text-align: center !important;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
