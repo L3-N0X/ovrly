@@ -1,15 +1,14 @@
 import dotenv from "dotenv";
 import { handleCors } from "./middleware/cors";
 import { handleAuthRoutes } from "./routes/auth";
-import presets from "./routes/presets";
-import publicOverlays from "./routes/publicOverlays";
-import editors from "./routes/editors";
+import { handlePresetsRoutes } from "./routes/presets";
+import { handlePublicOverlaysRoutes } from "./routes/publicOverlays";
+import { handleEditorsRoutes } from "./routes/editors";
 import { handleFilesRoutes } from './routes/files';
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
-import { handlePresetsRoutes } from "./routes/presets";
-import { handlePublicOverlaysRoutes } from "./routes/publicOverlays";
 import { handleReorderRoutes } from "./routes/reorder";
+import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
 import { WebSocketData } from "./types";
 
 dotenv.config();
@@ -65,6 +64,12 @@ const server = Bun.serve({
       return editorResponse;
     }
 
+    // Handle overlay editor routes
+    const overlayEditorResponse = await handleOverlayEditorsRoutes(req, path);
+    if (overlayEditorResponse) {
+      return overlayEditorResponse;
+    }
+
     // Handle preset routes
     const presetResponse = await handlePresetsRoutes(req, path);
     if (presetResponse) {
@@ -76,7 +81,6 @@ const server = Bun.serve({
     if (filesResponse) {
       return filesResponse;
     }
-
 
     // Handle WebSocket upgrade
     if (path === "/ws") {

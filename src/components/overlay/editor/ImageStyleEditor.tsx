@@ -12,7 +12,7 @@ interface ImageStyleEditorProps {
 const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onStyleChange }) => {
   const style = (element.style || {}) as ImageStyle;
 
-  const handleValueChange = (key: keyof ImageStyle, value: any) => {
+  const handleValueChange = (key: keyof ImageStyle, value: ImageStyle[keyof ImageStyle]) => {
     onStyleChange({ ...style, [key]: value });
   };
 

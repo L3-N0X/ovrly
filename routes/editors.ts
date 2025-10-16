@@ -13,7 +13,7 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
     }
 
     if (req.method === "GET") {
-      const editors = await prisma.editor.findMany({ where: { userId: session.user.id } });
+      const editors = await prisma.editor.findMany({ where: { ownerId: session.user.id } });
       return new Response(JSON.stringify(editors), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -28,8 +28,17 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
+        const editor = await prisma.user.findFirst({ where: { name: twitchName } });
+        if (!editor) {
+          return new Response(JSON.stringify({ error: "User not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         const newEditor = await prisma.editor.create({
-          data: { userId: session.user.id, editorTwitchName: twitchName },
+          data: { ownerId: session.user.id, editorId: editor.id, editorTwitchName: twitchName },
         });
         return new Response(JSON.stringify(newEditor), {
           status: 201,
@@ -52,9 +61,18 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
+        const editor = await prisma.user.findFirst({ where: { name: twitchName } });
+        if (!editor) {
+          return new Response(JSON.stringify({ error: "User not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         await prisma.editor.delete({
           where: {
-            userId_editorTwitchName: { userId: session.user.id, editorTwitchName: twitchName },
+            ownerId_editorId: { ownerId: session.user.id, editorId: editor.id },
           },
         });
         return new Response(null, { status: 204, headers: corsHeaders });

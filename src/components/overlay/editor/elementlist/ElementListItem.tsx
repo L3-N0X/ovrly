@@ -23,9 +23,10 @@ import ReactDOM from "react-dom/client";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
 import { TimerStyleEditor } from "../TimerEditor";
-import { ImageStyleEditor } from "../ImageStyleEditor";
+import ImageStyleEditor from "../ImageStyleEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import { DragPreview } from "./DragPreview";
+import { ImageStyle } from "@/lib/types";
 
 export const ElementListItem = ({
   element,
@@ -259,7 +260,7 @@ export const ElementListItem = ({
           {element.type === ElementTypeEnum.IMAGE && (
             <ImageStyleEditor
               element={element}
-              onStyleChange={(style) => updateElementStyle(element.id, style)}
+              onStyleChange={(style: ImageStyle) => updateElementStyle(element.id, style)}
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
@@ -7,6 +7,7 @@ import OverlayHeader from "@/components/pages/overlay/OverlayHeader";
 import OverlayPreview from "@/components/pages/overlay/OverlayPreview";
 import DataControls from "@/components/pages/overlay/DataControls";
 import DangerZone from "@/components/pages/overlay/DangerZone";
+import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -26,6 +27,11 @@ const OverlayPage: React.FC = () => {
     selectedTimer,
     setSelectedTimer,
   } = useOverlayData();
+  const [isShareModalOpen, setShareModalOpen] = useState(false);
+
+  const handleToggleShareModal = () => {
+    setShareModalOpen(!isShareModalOpen);
+  };
 
   const loadOverlayFonts = (overlayData: PrismaOverlay | null) => {
     if (!overlayData) return null;
@@ -63,7 +69,7 @@ const OverlayPage: React.FC = () => {
     <>
       {loadOverlayFonts(overlay)}
       <div className="container mx-auto">
-        <OverlayHeader overlay={overlay} id={id} />
+        <OverlayHeader overlay={overlay} id={id} onShare={handleToggleShareModal} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <OverlayPreview overlay={overlay} />
@@ -88,6 +94,7 @@ const OverlayPage: React.FC = () => {
           </div>
         </div>
       </div>
+      <ShareOverlayModal overlayId={id} isOpen={isShareModalOpen} onClose={handleToggleShareModal} />
     </>
   );
 };

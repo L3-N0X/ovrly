@@ -30,9 +30,9 @@ export class LocalStorage implements FileStorage {
     const filePath = path.join(UPLOAD_DIR, filename);
     try {
       await fs.unlink(filePath);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // It's okay if the file doesn't exist
-      if (error.code !== 'ENOENT') {
+      if ((error as { code: string }).code !== 'ENOENT') {
         throw error;
       }
     }

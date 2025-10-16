@@ -8,19 +8,21 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  name             String
-  email            String    @unique
-  emailVerified    Boolean   @default(false)
-  image            String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  twoFactorEnabled Boolean   @default(false)
-  Session          Session[]
-  Account          Account[]
-  Overlay          Overlay[]
-  Editors          Editor[]
-  Image            Image[]
+  id                    String          @id @default(cuid())
+  name                  String
+  email                 String          @unique
+  emailVerified         Boolean         @default(false)
+  image                 String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  twoFactorEnabled      Boolean         @default(false)
+  Session               Session[]
+  Account               Account[]
+  Overlay               Overlay[]
+  Image                 Image[]
+  globalEditors         Editor[]        @relation("GlobalEditors")
+  editorFor             Editor[]        @relation("EditorFor")
+  overlaysSharedWithMe  OverlayEditor[]
 }
 
 model Image {
@@ -35,25 +37,38 @@ model Image {
 
 model Editor {
   id               String   @id @default(cuid())
-  userId           String // The user who is sharing their overlays
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  editorTwitchName String // The Twitch username of the user who is granted access
+  ownerId          String
+  editorId         String
+  owner            User     @relation("GlobalEditors", fields: [ownerId], references: [id], onDelete: Cascade)
+  editor           User     @relation("EditorFor", fields: [editorId], references: [id], onDelete: Cascade)
+  editorTwitchName String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  @@unique([userId, editorTwitchName])
+  @@unique([ownerId, editorId])
 }
 
 model Overlay {
-  id          String    @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
   description String?
   globalStyle Json?
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   elements    Element[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  editors     OverlayEditor[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model OverlayEditor {
+  id        String  @id @default(cuid())
+  overlayId String
+  editorId  String
+  overlay   Overlay @relation(fields: [overlayId], references: [id], onDelete: Cascade)
+  editor    User    @relation(fields: [editorId], references: [id], onDelete: Cascade)
+
+  @@unique([overlayId, editorId])
 }
 
 model Element {

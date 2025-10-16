@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { auth } from '../auth';
 import { fileStorage } from '../services/file-storage';
 import { authenticate } from '../middleware/authMiddleware';
 import { corsHeaders } from '../middleware/cors';

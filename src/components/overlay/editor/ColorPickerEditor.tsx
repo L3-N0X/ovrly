@@ -14,7 +14,7 @@ export const ColorPickerEditor = ({
     if (value && value !== color) {
       setColor(value);
     }
-  }, [value]);
+  }, [value, color]);
 
   return (
     <Sketch

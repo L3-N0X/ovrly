@@ -49,8 +49,18 @@ export const handleOverlaysRoutes = async (
         globalStyle: originalOverlay.globalStyle,
         elements: {
           create: originalOverlay.elements.map((element) => {
-            const { id, overlayId, ...elementData } = element;
-            const createData: any = {
+            const { ...elementData } = element;
+            const createData: {
+              name: string;
+              type: "TITLE" | "COUNTER" | "TIMER" | "CONTAINER" | "IMAGE";
+              style: { [key: string]: unknown };
+              position?: number | null;
+              title?: { create: { text: string } };
+              counter?: { create: { value: number } };
+              timer?: { create: { duration?: number | null, countDown?: boolean } };
+              image?: { create: { src: string } };
+              parentId?: string | null;
+            } = {
               ...elementData,
               style: element.style || {},
             };
@@ -333,6 +343,9 @@ export const handleOverlaysRoutes = async (
 
                     return elementCreateData;
                   }
+                ),
+              },
+            },
             include: {
               elements: {
                 include: {

@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { type BaseElementStyle, type PrismaElement } from "@/lib/types";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
@@ -20,7 +20,7 @@ export const TitleStyleEditor: React.FC<{
   );
   const [isPickingColor, setIsPickingColor] = useState(false);
 
-  const debouncedOnChange = useCallback(debounce(onChange, 400), [onChange]);
+  const debouncedOnChange = debounce(onChange, 400);
 
   useEffect(() => {
     if (!isPickingColor) {

@@ -25,7 +25,7 @@ const TimerControl: React.FC<TimerControlProps> = ({
     (milliseconds: number) => {
       if (milliseconds < 0) milliseconds = 0;
       const durationMoment = moment.duration(milliseconds);
-      const format = (element.style as any)?.format || "HH:mm:ss";
+      const format = (element.style as { format?: string })?.format || "HH:mm:ss";
       return moment.utc(durationMoment.asMilliseconds()).format(format);
     },
     [element.style]
