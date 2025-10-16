@@ -6,11 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function debounce<F extends (...args: any[]) => any>(
-  func: F,
-  waitFor: number
-) {
-  let timeout: NodeJS.Timeout | null = null;
+export function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: number | null = null;
 
   const debounced = (...args: Parameters<F>) => {
     if (timeout !== null) {
