@@ -69,7 +69,7 @@ const OverlayPage: React.FC = () => {
     <>
       {loadOverlayFonts(overlay)}
       <div className="container mx-auto">
-        <OverlayHeader overlay={overlay} id={id} onShare={handleToggleShareModal} />
+        <OverlayHeader overlay={overlay} id={id} onShare={handleToggleShareModal} onBack={() => window.history.back()} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <OverlayPreview overlay={overlay} />

@@ -26,7 +26,7 @@ import { TimerStyleEditor } from "../TimerEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import { DragPreview } from "./DragPreview";
-import { ImageStyle } from "@/lib/types";
+import type { ImageStyle } from "@/lib/types";
 
 export const ElementListItem = ({
   element,

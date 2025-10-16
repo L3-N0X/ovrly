@@ -49,7 +49,6 @@ export const handleOverlaysRoutes = async (
         globalStyle: originalOverlay.globalStyle,
         elements: {
           create: originalOverlay.elements.map((element) => {
-            const { ...elementData } = element;
             const createData: {
               name: string;
               type: "TITLE" | "COUNTER" | "TIMER" | "CONTAINER" | "IMAGE";
@@ -59,10 +58,11 @@ export const handleOverlaysRoutes = async (
               counter?: { create: { value: number } };
               timer?: { create: { duration?: number | null, countDown?: boolean } };
               image?: { create: { src: string } };
-              parentId?: string | null;
             } = {
-              ...elementData,
+              name: element.name,
+              type: element.type,
               style: element.style || {},
+              position: element.position,
             };
 
             if (element.title) {
@@ -77,16 +77,14 @@ export const handleOverlaysRoutes = async (
               createData.timer = {
                 create: {
                   duration: element.timer.duration,
-                  direction: element.timer.direction,
+                  countDown: element.timer.countDown,
                 },
               };
             }
             if (element.image) {
               createData.image = {
                 create: {
-                  url: element.image.url,
-                  width: element.image.width,
-                  height: element.image.height,
+                  src: element.image.src,
                 },
               };
             }
@@ -146,7 +144,7 @@ export const handleOverlaysRoutes = async (
     }
 
     const isOwner = overlay.userId === session.user.id;
-    const editors = await prisma.editor.findMany({ where: { userId: overlay.userId } });
+    const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
     const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
 
     if (!isOwner && !isEditor) {
@@ -257,14 +255,14 @@ export const handleOverlaysRoutes = async (
         },
       });
 
-      const editors = await prisma.editor.findMany({
-        where: { editorTwitchName: session.user.name },
+      const sharedOverlayEditors = await prisma.overlayEditor.findMany({
+        where: { editorId: session.user.id },
       });
 
       const sharedOverlays = await prisma.overlay.findMany({
         where: {
-          userId: {
-            in: editors.map((v) => v.userId),
+          id: {
+            in: sharedOverlayEditors.map((v) => v.overlayId),
           },
         },
         include: {

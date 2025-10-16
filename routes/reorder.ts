@@ -36,7 +36,7 @@ export const handleReorderRoutes = async (
       }
 
       const isOwner = overlay.userId === session.user.id;
-      const editors = await prisma.editor.findMany({ where: { userId: overlay.userId } });
+      const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
       const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
 
       if (!isOwner && !isEditor) {

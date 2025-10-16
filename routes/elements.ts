@@ -49,7 +49,7 @@ export const handleElementsRoutes = async (
     }
 
     const isOwner = overlay.userId === session.user.id;
-    const editors = await prisma.editor.findMany({ where: { userId: overlay.userId } });
+    const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
     const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
 
     if (!isOwner && !isEditor) {
@@ -170,7 +170,7 @@ export const handleElementsRoutes = async (
 
       const isOwner = firstElement.overlay.userId === session.user.id;
       const editors = await prisma.editor.findMany({
-        where: { userId: firstElement.overlay.userId },
+        where: { ownerId: firstElement.overlay.userId },
       });
       const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
 
@@ -294,7 +294,7 @@ export const handleElementsRoutes = async (
     }
 
     const isOwner = element.overlay.userId === session.user.id;
-    const editors = await prisma.editor.findMany({ where: { userId: element.overlay.userId } });
+    const editors = await prisma.editor.findMany({ where: { ownerId: element.overlay.userId } });
     const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
 
     if (!isOwner && !isEditor) {

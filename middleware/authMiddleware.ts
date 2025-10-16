@@ -5,15 +5,10 @@ export const authenticate = async (req: Request) => {
   return session;
 };
 
-export const authorize = async (userId: string, overlayId: string) => {
+export const authorize = async (userId: string, overlayId:string) => {
   const overlay = await prisma.overlay.findUnique({
     where: { id: overlayId },
     include: {
-      user: {
-        include: {
-          globalEditors: true,
-        },
-      },
       editors: true,
     },
   });
@@ -23,14 +18,6 @@ export const authorize = async (userId: string, overlayId: string) => {
   }
 
   if (overlay.userId === userId) {
-    return true;
-  }
-
-  const isGlobalEditor = overlay.user.globalEditors.some(
-    (editor) => editor.editorId === userId
-  );
-
-  if (isGlobalEditor) {
     return true;
   }
 
