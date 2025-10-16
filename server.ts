@@ -1,7 +1,10 @@
 import dotenv from "dotenv";
 import { handleCors } from "./middleware/cors";
 import { handleAuthRoutes } from "./routes/auth";
-import { handleEditorsRoutes } from "./routes/editors";
+import presets from "./routes/presets";
+import publicOverlays from "./routes/publicOverlays";
+import editors from "./routes/editors";
+import { handleFilesRoutes } from './routes/files';
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handlePresetsRoutes } from "./routes/presets";
@@ -67,6 +70,13 @@ const server = Bun.serve({
     if (presetResponse) {
       return presetResponse;
     }
+
+    // Handle files routes
+    const filesResponse = await handleFilesRoutes(req, path);
+    if (filesResponse) {
+      return filesResponse;
+    }
+
 
     // Handle WebSocket upgrade
     if (path === "/ws") {
