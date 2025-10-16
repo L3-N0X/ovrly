@@ -3,6 +3,26 @@ import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
+const getRecursiveElementInclude = (depth: number) => {
+  if (depth <= 0) {
+    return {
+      title: true,
+      counter: true,
+      timer: true,
+      image: true,
+    };
+  }
+  return {
+    title: true,
+    counter: true,
+    timer: true,
+    image: true,
+    children: {
+      include: getRecursiveElementInclude(depth - 1),
+    },
+  };
+};
+
 async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
   const allIds = new Set<string>(initialIds);
   let frontier = [...initialIds];
@@ -106,21 +126,10 @@ export const handleElementsRoutes = async (
         where: { id: overlayId },
         include: {
           elements: {
-            include: {
-              title: true,
-              counter: true,
-              timer: true,
-              image: true,
-              children: {
-                include: {
-                  title: true,
-                  counter: true,
-                  timer: true,
-                  image: true,
-                  children: true,
-                },
-              },
+            orderBy: {
+              position: 'asc'
             },
+            include: getRecursiveElementInclude(5),
           },
         },
       });
@@ -239,21 +248,10 @@ export const handleElementsRoutes = async (
         where: { id: firstElement.overlayId },
         include: {
           elements: {
-            include: {
-              title: true,
-              counter: true,
-              timer: true,
-              image: true,
-              children: {
-                include: {
-                  title: true,
-                  counter: true,
-                  timer: true,
-                  image: true,
-                  children: true,
-                },
-              },
+            orderBy: {
+              position: 'asc'
             },
+            include: getRecursiveElementInclude(5),
           },
         },
       });
@@ -355,21 +353,10 @@ export const handleElementsRoutes = async (
           where: { id: element.overlayId },
           include: {
             elements: {
-              include: {
-                title: true,
-                counter: true,
-                timer: true,
-                image: true,
-                children: {
-                  include: {
-                    title: true,
-                    counter: true,
-                    timer: true,
-                    image: true,
-                    children: true,
-                  },
-                },
+              orderBy: {
+                position: 'asc'
               },
+              include: getRecursiveElementInclude(5),
             },
           },
         });

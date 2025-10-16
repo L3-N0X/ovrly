@@ -49,7 +49,10 @@ const TimerControl: React.FC<TimerControlProps> = ({
 
   return (
     <div className="space-y-2">
-      <Label>Timer: {element.name}</Label>
+      <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
+        Timer:
+        <span className="font-normal">{element.name}</span>
+      </Label>
       <div className="flex items-center space-x-2">
         <div className="text-2xl font-mono bg-secondary h-14 flex items-center justify-center rounded-md px-4 flex-grow">
           <TimerDisplay timerElement={element} />
@@ -71,11 +74,7 @@ const TimerControl: React.FC<TimerControlProps> = ({
           variant="secondary"
           className="h-14 w-14"
         >
-          {element.timer?.startedAt ? (
-            <Pause className="w-4 h-4" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
+          {element.timer?.startedAt ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
         </Button>
         <Button
           onClick={() => handleTimerReset(element.id)}

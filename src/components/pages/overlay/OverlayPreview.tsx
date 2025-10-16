@@ -29,7 +29,7 @@ const OverlayPreview: React.FC<OverlayPreviewProps> = ({ overlay }) => {
       className="flex flex-col items-center border rounded-lg bg-secondary pt-4 md:sticky top-20"
     >
       <h2 className="text-xl font-semibold mb-2 w-full px-4">Preview</h2>
-      <div className="aspect-[4/3] w-full max-w-full overflow-hidden flex justify-center items-center bg-sidebar">
+      <div className="aspect-[4/3] w-full max-w-full overflow-hidden flex justify-center items-center bg-black dark:bg-black">
         <div
           style={{
             width: "800px",

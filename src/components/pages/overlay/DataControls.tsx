@@ -10,6 +10,7 @@ import ImageControl from "./controls/ImageControl";
 interface DataControlsProps {
   overlay: PrismaOverlay;
   handleCounterChange: (elementId: string, value: number) => void;
+  handleImmediateCounterChange: (elementId: string, value: number) => void;
   handleTitleChange: (elementId: string, text: string) => void;
   handleImageChange: (elementId: string, src: string) => void;
   handleTimerToggle: (elementId: string) => void;
@@ -23,6 +24,7 @@ interface DataControlsProps {
 const DataControls: React.FC<DataControlsProps> = ({
   overlay,
   handleCounterChange,
+  handleImmediateCounterChange,
   handleTitleChange,
   handleImageChange,
   handleTimerToggle,
@@ -66,6 +68,7 @@ const DataControls: React.FC<DataControlsProps> = ({
                       key={element.id}
                       element={element}
                       handleCounterChange={handleCounterChange}
+                      handleImmediateCounterChange={handleImmediateCounterChange}
                     />
                   );
                 case "TITLE":

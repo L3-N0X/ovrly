@@ -22,7 +22,7 @@ function App() {
               <Route index element={<OverlayPage />} />
             </Route>
           </Route>
-          <Route path="/public/:overlayId" element={<PublicCounterPage />} />
+          <Route path="/public/overlay/:overlayId" element={<PublicCounterPage />} />
         </Routes>
       </Router>
     </ThemeProvider>

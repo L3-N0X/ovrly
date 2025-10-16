@@ -13,6 +13,7 @@ export const handlePublicOverlaysRoutes = async (req: Request, path: string) => 
             title: true,
             counter: true,
             timer: true,
+            image: true,
           },
         },
       },

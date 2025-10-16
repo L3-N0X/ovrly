@@ -2,6 +2,26 @@ import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 
+const getRecursiveElementInclude = (depth: number) => {
+  if (depth <= 0) {
+    return {
+      title: true,
+      counter: true,
+      timer: true,
+      image: true,
+    };
+  }
+  return {
+    title: true,
+    counter: true,
+    timer: true,
+    image: true,
+    children: {
+      include: getRecursiveElementInclude(depth - 1),
+    },
+  };
+};
+
 export const handleReorderRoutes = async (
   req: Request,
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
@@ -64,17 +84,10 @@ export const handleReorderRoutes = async (
         where: { id: overlayId },
         include: {
           elements: {
-            include: {
-              title: true,
-              counter: true,
-              children: {
-                include: {
-                  title: true,
-                  counter: true,
-                  children: true,
-                },
-              },
+            orderBy: {
+              position: 'asc'
             },
+            include: getRecursiveElementInclude(5),
           },
         },
       });

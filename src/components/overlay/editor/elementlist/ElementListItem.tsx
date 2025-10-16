@@ -260,7 +260,8 @@ export const ElementListItem = ({
           {element.type === ElementTypeEnum.IMAGE && (
             <ImageStyleEditor
               element={element}
-              onStyleChange={(style: ImageStyle) => updateElementStyle(element.id, style)}
+              onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (

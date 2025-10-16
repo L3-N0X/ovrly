@@ -28,6 +28,22 @@ const server = Bun.serve({
       return corsResponse;
     }
 
+    // Handle WebSocket upgrade
+    if (path === "/ws") {
+      const url = new URL(req.url);
+      const overlayId = url.searchParams.get("overlayId");
+      if (overlayId) {
+        const upgraded = server.upgrade(req, {
+          data: { overlayId },
+        });
+        if (upgraded) {
+          console.log(`[SERVER LOG] WebSocket connection upgraded for overlay ${overlayId}`);
+          return new Response(null, { status: 101 });
+        }
+      }
+      return new Response("WebSocket upgrade failed", { status: 400 });
+    }
+
     // Handle auth routes
     const authResponse = await handleAuthRoutes(req);
     if (authResponse) {
@@ -80,22 +96,6 @@ const server = Bun.serve({
     const filesResponse = await handleFilesRoutes(req, path);
     if (filesResponse) {
       return filesResponse;
-    }
-
-    // Handle WebSocket upgrade
-    if (path === "/ws") {
-      const url = new URL(req.url);
-      const overlayId = url.searchParams.get("overlayId");
-      if (overlayId) {
-        const upgraded = server.upgrade(req, {
-          data: { overlayId },
-        });
-        if (upgraded) {
-          console.log(`[SERVER LOG] WebSocket connection upgraded for overlay ${overlayId}`);
-          return;
-        }
-      }
-      return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
     console.log(`[SERVER LOG] No route matched. Responding with "Hello world!".`);

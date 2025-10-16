@@ -179,6 +179,18 @@ export const useOverlayData = () => {
     }
   };
 
+  const handleImmediateCounterChange = (elementId: string, value: number) => {
+    if (!overlay) return;
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    const elementUpdated = updateElementById(newOverlay.elements, elementId, (el) => {
+      if (el.counter) el.counter.value = value;
+    });
+    if (elementUpdated) {
+      setOverlay(newOverlay);
+      sendUpdateImmediately(elementId, { data: { value } });
+    }
+  };
+
   const handleTitleChange = (elementId: string, text: string) => {
     if (!overlay) return;
     const newOverlay = JSON.parse(JSON.stringify(overlay));
@@ -347,6 +359,7 @@ export const useOverlayData = () => {
     error,
     handleOverlayChange,
     handleCounterChange,
+    handleImmediateCounterChange,
     handleTitleChange,
     handleImageChange,
     handleTimerToggle,

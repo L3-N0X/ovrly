@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -9,8 +10,16 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { type ContainerStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import {
+  AlignHorizontalDistributeCenter,
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignHorizontalJustifyStart,
+  AlignHorizontalSpaceAround,
+  AlignHorizontalSpaceBetween,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
@@ -21,12 +30,8 @@ import {
   Trash2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import { type ContainerStyle } from "@/lib/types";
-import { handleValueChange } from "./helper";
-import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { ElementListItem } from "./elementlist/ElementListItem";
-import { Button } from "@/components/ui/button";
+import { handleValueChange } from "./helper";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
@@ -242,22 +247,32 @@ export const ContainerEditor: React.FC<{
           </div>
           <div className="space-y-2">
             <Label>Justify Content</Label>
-            <Select
+            <ToggleGroup
+              type="single"
               value={style?.justifyContent || "flex-start"}
-              onValueChange={(v) => updateStyle("justifyContent", v)}
+              onValueChange={(v) => v && updateStyle("justifyContent", v)}
+              className="w-full"
+              variant="outline"
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="flex-start">Start</SelectItem>
-                <SelectItem value="center">Center</SelectItem>
-                <SelectItem value="flex-end">End</SelectItem>
-                <SelectItem value="space-between">Space Between</SelectItem>
-                <SelectItem value="space-around">Space Around</SelectItem>
-                <SelectItem value="space-evenly">Space Evenly</SelectItem>
-              </SelectContent>
-            </Select>
+              <ToggleGroupItem value="flex-start" className="w-full">
+                <AlignHorizontalJustifyStart className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="center" className="w-full">
+                <AlignHorizontalJustifyCenter className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="flex-end" className="w-full">
+                <AlignHorizontalJustifyEnd className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="space-between" className="w-full">
+                <AlignHorizontalSpaceBetween className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="space-around" className="w-full">
+                <AlignHorizontalSpaceAround className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="space-evenly" className="w-full">
+                <AlignHorizontalDistributeCenter className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
       )}

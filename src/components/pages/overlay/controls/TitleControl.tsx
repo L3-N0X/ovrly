@@ -11,7 +11,10 @@ interface TitleControlProps {
 const TitleControl: React.FC<TitleControlProps> = ({ element, handleTitleChange }) => {
   return (
     <div className="space-y-2">
-      <Label htmlFor={`title-${element.id}`}>Title: {element.name}</Label>
+      <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
+        Title:
+        <span className="font-normal">{element.name}</span>
+      </Label>
       <Input
         id={`title-${element.id}`}
         value={element.title?.text || ""}

@@ -17,6 +17,7 @@ const OverlayPage: React.FC = () => {
     error,
     handleOverlayChange,
     handleCounterChange,
+    handleImmediateCounterChange,
     handleTitleChange,
     handleImageChange,
     handleTimerToggle,
@@ -78,6 +79,7 @@ const OverlayPage: React.FC = () => {
             <DataControls
               overlay={overlay}
               handleCounterChange={handleCounterChange}
+              handleImmediateCounterChange={handleImmediateCounterChange}
               handleTitleChange={handleTitleChange}
               handleImageChange={handleImageChange}
               handleTimerToggle={handleTimerToggle}
