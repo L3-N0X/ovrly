@@ -87,6 +87,8 @@ export const handleElementsRoutes = async (
         elementCreateData.counter = { create: { value: 0 } };
       } else if (type === "TIMER") {
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
+      } else if (type === "IMAGE") {
+        elementCreateData.image = { create: { src: "" } };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
       } else {
@@ -314,6 +316,9 @@ export const handleElementsRoutes = async (
           }
           if (element.type === "COUNTER" && typeof data.value === "number") {
             elementUpdateData.counter = { update: { value: data.value } };
+          }
+          if (element.type === "IMAGE" && typeof data.src === "string") {
+            elementUpdateData.image = { update: { src: data.src } };
           }
           if (element.type === "TIMER") {
             const { startedAt, pausedAt, duration, countDown } = data;

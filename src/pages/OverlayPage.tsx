@@ -17,6 +17,7 @@ const OverlayPage: React.FC = () => {
     handleOverlayChange,
     handleCounterChange,
     handleTitleChange,
+    handleImageChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerUpdate,
@@ -72,6 +73,7 @@ const OverlayPage: React.FC = () => {
               overlay={overlay}
               handleCounterChange={handleCounterChange}
               handleTitleChange={handleTitleChange}
+              handleImageChange={handleImageChange}
               handleTimerToggle={handleTimerToggle}
               handleTimerReset={handleTimerReset}
               handleTimerUpdate={handleTimerUpdate}

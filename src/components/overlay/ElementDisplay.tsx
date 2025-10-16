@@ -4,6 +4,7 @@ import Title from "./Title";
 import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
+import Image from "./Image";
 
 interface ElementDisplayProps {
   element: PrismaElement;
@@ -37,6 +38,8 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
             ))}
           </Container>
         );
+      case "IMAGE":
+        return <Image element={element} />;
       default:
         return null;
     }

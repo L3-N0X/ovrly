@@ -23,6 +23,7 @@ import ReactDOM from "react-dom/client";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
 import { TimerStyleEditor } from "../TimerEditor";
+import { ImageStyleEditor } from "../ImageStyleEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import { DragPreview } from "./DragPreview";
 
@@ -253,6 +254,12 @@ export const ElementListItem = ({
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+            />
+          )}
+          {element.type === ElementTypeEnum.IMAGE && (
+            <ImageStyleEditor
+              element={element}
+              onStyleChange={(style) => updateElementStyle(element.id, style)}
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (

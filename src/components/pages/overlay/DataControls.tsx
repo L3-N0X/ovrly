@@ -5,11 +5,13 @@ import type { PrismaElement, PrismaOverlay } from "@/lib/types";
 import TimerControl from "./controls/TimerControl";
 import CounterControl from "./controls/CounterControl";
 import TitleControl from "./controls/TitleControl";
+import ImageControl from "./controls/ImageControl";
 
 interface DataControlsProps {
   overlay: PrismaOverlay;
   handleCounterChange: (elementId: string, value: number) => void;
   handleTitleChange: (elementId: string, text: string) => void;
+  handleImageChange: (elementId: string, src: string) => void;
   handleTimerToggle: (elementId: string) => void;
   handleTimerReset: (elementId: string) => void;
   handleTimerUpdate: (elementId: string, update: { duration?: number; countDown?: boolean }) => void;
@@ -22,6 +24,7 @@ const DataControls: React.FC<DataControlsProps> = ({
   overlay,
   handleCounterChange,
   handleTitleChange,
+  handleImageChange,
   handleTimerToggle,
   handleTimerReset,
   handleTimerUpdate,
@@ -32,7 +35,7 @@ const DataControls: React.FC<DataControlsProps> = ({
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
 
   const editableElements = overlay.elements.filter(
-    (el) => el.type === "COUNTER" || el.type === "TITLE" || el.type === "TIMER"
+    (el) => el.type === "COUNTER" || el.type === "TITLE" || el.type === "TIMER" || el.type === "IMAGE"
   );
 
   return (
@@ -71,6 +74,14 @@ const DataControls: React.FC<DataControlsProps> = ({
                       key={element.id}
                       element={element}
                       handleTitleChange={handleTitleChange}
+                    />
+                  );
+                case "IMAGE":
+                  return (
+                    <ImageControl
+                      key={element.id}
+                      element={element}
+                      handleImageChange={handleImageChange}
                     />
                   );
                 default:

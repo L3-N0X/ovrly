@@ -191,6 +191,18 @@ export const useOverlayData = () => {
     }
   };
 
+  const handleImageChange = (elementId: string, src: string) => {
+    if (!overlay) return;
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    const elementUpdated = updateElementById(newOverlay.elements, elementId, (el) => {
+      if (el.image) el.image.src = src;
+    });
+    if (elementUpdated) {
+      setOverlay(newOverlay);
+      sendUpdateImmediately(elementId, { data: { src } });
+    }
+  };
+
   const handleTimerToggle = (elementId: string) => {
     const timerElement = overlay?.elements.find((el) => el.id === elementId);
     if (!timerElement?.id || !timerElement.timer) return;
@@ -336,6 +348,7 @@ export const useOverlayData = () => {
     handleOverlayChange,
     handleCounterChange,
     handleTitleChange,
+    handleImageChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerUpdate,

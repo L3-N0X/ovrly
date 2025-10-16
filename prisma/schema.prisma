@@ -1,8 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
+  image            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  twoFactorEnabled Boolean   @default(false)
+  Session          Session[]
+  Account          Account[]
+  Overlay          Overlay[]
+  Editors          Editor[]
+  Image            Image[]
+}
+
 model Image {
   id        String   @id @default(cuid())
   url       String
   filename  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+}
+
+model Editor {
+  id               String   @id @default(cuid())
+  userId           String // The user who is sharing their overlays
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  editorTwitchName String // The Twitch username of the user who is granted access
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, editorTwitchName])
+}
+
+model Overlay {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  globalStyle Json?
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  elements    Element[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Element {
+  id        String      @id @default(cuid())
+  overlayId String
+  overlay   Overlay     @relation(fields: [overlayId], references: [id], onDelete: Cascade)
+  type      ElementType
+  name      String
+  style     Json?
+  position  Int?
+
+  // Relations for specific element types
+  title     Title?
+  counter   Counter?
+  timer     Timer?
+  image     ImageElement?
+
+  // Self-relation for grouping
+  parentId  String?
+  parent    Element?    @relation("ElementChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Element[]   @relation("ElementChildren")
+}
+
+enum ElementType {
+  TITLE
+  COUNTER
+  TIMER
+  CONTAINER
+  IMAGE
+}
+
+model Title {
+  id        String  @id @default(cuid())
+  text      String
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Counter {
+  id        String  @id @default(cuid())
+  value     Int     @default(0)
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Timer {
+  id        String    @id @default(cuid())
+  startedAt DateTime?
+  pausedAt  DateTime?
+  duration  Int?
+  countDown Boolean   @default(false)
+  elementId String    @unique
+  element   Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model ImageElement {
+  id        String  @id @default(cuid())
+  src       String
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  expiresAt             DateTime?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
 }
