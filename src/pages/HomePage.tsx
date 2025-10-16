@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -15,6 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -25,7 +34,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import { Inbox, Plus, RefreshCw, Users } from "lucide-react";
+import {
+  ClipboardCopy,
+  CopyPlus,
+  ExternalLink,
+  Inbox,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Users,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -67,6 +86,7 @@ const HomePage: React.FC = () => {
   );
   const [presets, setPresets] = useState<OverlayPreset[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchOverlays = async () => {
     setIsLoading(true);
@@ -119,6 +139,64 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     fetchPresets();
   }, []);
+
+  const handleDuplicateOverlay = async (overlayId: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/overlays/${overlayId}/duplicate`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to duplicate overlay");
+      }
+      fetchOverlays();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
+    }
+  };
+
+  const handleCopyPublicUrl = (overlayId: string) => {
+    const url = `${window.location.origin}/public/overlay/${overlayId}`;
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setCopiedId(overlayId);
+        setTimeout(() => setCopiedId(null), 2000);
+      },
+      (err) => {
+        alert("Failed to copy URL.");
+        console.error("Could not copy text: ", err);
+      }
+    );
+  };
+
+  const handleDeleteOverlay = async (overlayId: string) => {
+    if (!window.confirm("Are you sure you want to delete this overlay?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/overlays/${overlayId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to delete overlay");
+      }
+      fetchOverlays();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
+    }
+  };
 
   const handleCreateOverlay = async () => {
     if (!newOverlayName || !selectedPreset) {
@@ -336,28 +414,86 @@ const HomePage: React.FC = () => {
             ) : error ? (
               <p className="text-red-500 text-center">{error}</p>
             ) : overlays.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {overlays.map((overlay) => (
                   <Card
                     key={overlay.id}
-                    onClick={() => navigate(`/overlay/${overlay.id}`)}
-                    className="cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
+                    className="flex flex-col hover:shadow-lg transition-shadow"
                   >
-                    <CardHeader className="flex-grow">
-                      <CardTitle className="flex items-center justify-between">
-                        <span className="truncate">{overlay.name}</span>
-                        {overlay.userId !== user.user.id && (
-                          <span title="Shared with you">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                          </span>
-                        )}
+                    <CardHeader>
+                      <CardTitle className="flex items-start justify-between">
+                        <span className="truncate pr-2">{overlay.name}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => navigate(`/overlay/${overlay.id}`)}
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              <span>Open Editor</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleCopyPublicUrl(overlay.id)}
+                            >
+                              <ClipboardCopy className="mr-2 h-4 w-4" />
+                              <span>
+                                {copiedId === overlay.id
+                                  ? "Copied!"
+                                  : "Copy public URL"}
+                              </span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDuplicateOverlay(overlay.id)}
+                            >
+                              <CopyPlus className="mr-2 h-4 w-4" />
+                              <span>Duplicate</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-500 focus:text-red-500"
+                              onClick={() => handleDeleteOverlay(overlay.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </CardTitle>
                       {overlay.description && (
-                        <CardDescription className="pt-2">
+                        <CardDescription className="pt-1">
                           {overlay.description}
                         </CardDescription>
                       )}
                     </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center">
+                          {overlay.userId !== user.user.id && (
+                            <div
+                              className="flex items-center mr-4"
+                              title="Shared with you"
+                            >
+                              <Users className="h-4 w-4 mr-1" />
+                              <span>Shared</span>
+                            </div>
+                          )}
+                          <span>
+                            {overlay.elements.length} element
+                            {overlay.elements.length !== 1 && "s"}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <p className="text-xs text-muted-foreground">
+                        Created on{" "}
+                        {new Date(overlay.createdAt).toLocaleDateString()}
+                      </p>
+                    </CardFooter>
                   </Card>
                 ))}
               </div>

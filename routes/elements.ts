@@ -110,11 +110,13 @@ export const handleElementsRoutes = async (
               title: true,
               counter: true,
               timer: true,
+              image: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
+                  image: true,
                   children: true,
                 },
               },
@@ -241,11 +243,13 @@ export const handleElementsRoutes = async (
               title: true,
               counter: true,
               timer: true,
+              image: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
+                  image: true,
                   children: true,
                 },
               },
@@ -344,7 +348,7 @@ export const handleElementsRoutes = async (
         const updatedElement = await prisma.element.update({
           where: { id: elementId },
           data: elementUpdateData,
-          include: { title: true, counter: true, timer: true, children: true },
+          include: { title: true, counter: true, timer: true, image: true, children: true },
         });
 
         const updatedOverlay = await prisma.overlay.findUnique({
@@ -355,11 +359,13 @@ export const handleElementsRoutes = async (
                 title: true,
                 counter: true,
                 timer: true,
+                image: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
+                    image: true,
                     children: true,
                   },
                 },
@@ -400,6 +406,7 @@ export const handleElementsRoutes = async (
               title: true,
               counter: true,
               timer: true,
+              image: true,
             },
           },
         },

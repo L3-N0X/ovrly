@@ -7,6 +7,102 @@ export const handleOverlaysRoutes = async (
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
   path: string
 ) => {
+  const duplicateMatch = path.match(
+    /^\/api\/overlays\/([a-zA-Z0-9_-]+)\/duplicate$/
+  );
+  if (duplicateMatch && req.method === "POST") {
+    const session = await authenticate(req);
+    if (!session) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const overlayId = duplicateMatch[1];
+    const originalOverlay = await prisma.overlay.findUnique({
+      where: { id: overlayId },
+      include: {
+        elements: {
+          include: {
+            title: true,
+            counter: true,
+            timer: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!originalOverlay) {
+      return new Response(JSON.stringify({ error: "Overlay not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const newOverlay = await prisma.overlay.create({
+      data: {
+        name: `Copy of ${originalOverlay.name}`,
+        description: originalOverlay.description,
+        userId: session.user.id,
+        globalStyle: originalOverlay.globalStyle,
+        elements: {
+          create: originalOverlay.elements.map((element) => {
+            const { id, overlayId, ...elementData } = element;
+            const createData: any = {
+              ...elementData,
+              style: element.style || {},
+            };
+
+            if (element.title) {
+              createData.title = { create: { text: element.title.text } };
+            }
+            if (element.counter) {
+              createData.counter = {
+                create: { value: element.counter.value },
+              };
+            }
+            if (element.timer) {
+              createData.timer = {
+                create: {
+                  duration: element.timer.duration,
+                  direction: element.timer.direction,
+                },
+              };
+            }
+            if (element.image) {
+              createData.image = {
+                create: {
+                  url: element.image.url,
+                  width: element.image.width,
+                  height: element.image.height,
+                },
+              };
+            }
+
+            return createData;
+          }),
+        },
+      },
+      include: {
+        elements: {
+          include: {
+            title: true,
+            counter: true,
+            timer: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    return new Response(JSON.stringify(newOverlay), {
+      status: 201,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const overlayIdMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)$/);
   if (overlayIdMatch) {
     const session = await authenticate(req);
@@ -26,6 +122,7 @@ export const handleOverlaysRoutes = async (
             title: true,
             counter: true,
             timer: true,
+            image: true,
           },
         },
       },
@@ -88,6 +185,7 @@ export const handleOverlaysRoutes = async (
                 title: true,
                 counter: true,
                 timer: true,
+                image: true,
               },
             },
           },
@@ -143,6 +241,7 @@ export const handleOverlaysRoutes = async (
               title: true,
               counter: true,
               timer: true,
+              image: true,
             },
           },
         },
@@ -164,6 +263,7 @@ export const handleOverlaysRoutes = async (
               title: true,
               counter: true,
               timer: true,
+              image: true,
             },
           },
         },
@@ -233,15 +333,13 @@ export const handleOverlaysRoutes = async (
 
                     return elementCreateData;
                   }
-                ),
-              },
-            },
             include: {
               elements: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
+                  image: true,
                 },
               },
             },
@@ -293,6 +391,7 @@ export const handleOverlaysRoutes = async (
                   title: true,
                   counter: true,
                   timer: true,
+                  image: true,
                 },
               },
             },
