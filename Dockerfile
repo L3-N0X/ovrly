@@ -1,15 +1,20 @@
-# Stage 1: Build the frontend
-FROM oven/bun:1 AS builder
+# Stage 1: Install all dependencies
+FROM oven/bun:1 AS deps
 
 WORKDIR /app
 
 # Copy dependency management files
 COPY package.json bun.lockb ./
 
-# Install all dependencies
+# Install all dependencies including devDependencies
 RUN bun install
 
-# Copy the rest of the application source code
+# Stage 2: Build the frontend
+FROM deps AS builder
+
+WORKDIR /app
+
+# Copy all files
 COPY . .
 
 # Generate prisma client
@@ -18,14 +23,14 @@ RUN bunx prisma generate
 # Build the frontend application
 RUN bun run build
 
-# Stage 2: Create the production image
+# Stage 3: Create the production image
 FROM oven/bun:1-slim
 
 WORKDIR /app
 
-# Copy production dependencies from the builder stage
-COPY --from=builder /app/node_modules /app/node_modules
+# Install production dependencies
 COPY --from=builder /app/package.json /app/bun.lockb ./
+RUN bun install --production
 
 # Copy the backend source code
 COPY ./server.ts ./
@@ -44,4 +49,4 @@ COPY --from=builder /app/public ./public
 EXPOSE 3000
 
 # Define the command to run the application
-CMD ["bun", "server.ts"]
+CMD ["bun", "start"]

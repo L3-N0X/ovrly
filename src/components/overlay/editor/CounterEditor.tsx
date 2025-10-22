@@ -8,19 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
-import { debounce } from "@/lib/utils";
+import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
 
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: CounterStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, onDelete }) => {
-  const [style, setStyle] = useState<CounterStyle>(
-    (element.style as CounterStyle) || {}
-  );
+  ws: WebSocket | null;
+}> = ({ element, onChange, onDelete, ws }) => {
+  const [style, setStyle] = useState<CounterStyle>((element.style as CounterStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
-
-  const debouncedOnChange = debounce(onChange, 400);
 
   useEffect(() => {
     if (!isPickingColor) {
@@ -31,8 +28,20 @@ export const CounterStyleEditor: React.FC<{
   const handleStyleChange = (newStyle: Partial<CounterStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
     setStyle(updatedStyle);
-    debouncedOnChange(updatedStyle);
+    onChange(updatedStyle);
   };
+
+  const fontSizeSlider = useSyncedSlider(
+    `${element.id}-fontSize`,
+    (style.fontSize as number) || 128,
+    ws
+  );
+  const paddingSlider = useSyncedSlider(
+    `${element.id}-padding`,
+    (style.padding as number) || 0,
+    ws
+  );
+  const radiusSlider = useSyncedSlider(`${element.id}-radius`, (style.radius as number) || 0, ws);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
@@ -46,22 +55,26 @@ export const CounterStyleEditor: React.FC<{
         <Label>Font Size</Label>
         <div className="flex gap-4">
           <Slider
-            value={[typeof style?.fontSize === "number" ? style.fontSize : 128]}
-            onValueChange={(v) => handleStyleChange({ fontSize: v[0] })}
+            value={[fontSizeSlider.value]}
+            onValueChange={([v]) => fontSizeSlider.onChange(v)}
+            onMouseDown={fontSizeSlider.onMouseDown}
+            onMouseUp={fontSizeSlider.onMouseUp}
+            onTouchStart={fontSizeSlider.onTouchStart}
+            onTouchEnd={fontSizeSlider.onTouchEnd}
             max={400}
             min={0}
           />
 
           <Input
-            value={typeof style?.fontSize === "number" ? style.fontSize : 128}
+            value={fontSizeSlider.value}
             onChange={(e) => {
               if (e.target.value === "") {
-                handleStyleChange({ fontSize: 0 });
+                fontSizeSlider.onChange(0);
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
-                handleStyleChange({ fontSize: val });
+                fontSizeSlider.onChange(val);
               }
             }}
             className="h-10 w-20"
@@ -120,26 +133,25 @@ export const CounterStyleEditor: React.FC<{
           <Label>Padding</Label>
           <div className="flex gap-4">
             <Slider
-              value={[
-                (() => {
-                  const padding = (element.style as CounterStyle)?.padding;
-                  return padding !== undefined && padding !== null ? padding : 0;
-                })(),
-              ]}
-              onValueChange={(v) => handleStyleChange({ padding: v[0] })}
+              value={[paddingSlider.value]}
+              onValueChange={([v]) => paddingSlider.onChange(v)}
+              onMouseDown={paddingSlider.onMouseDown}
+              onMouseUp={paddingSlider.onMouseUp}
+              onTouchStart={paddingSlider.onTouchStart}
+              onTouchEnd={paddingSlider.onTouchEnd}
               max={300}
               min={0}
             />
             <Input
-              value={typeof style?.padding === "number" ? style.padding : 0}
+              value={paddingSlider.value}
               onChange={(e) => {
                 if (e.target.value === "") {
-                  handleStyleChange({ padding: 0 });
+                  paddingSlider.onChange(0);
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
-                  handleStyleChange({ padding: val });
+                  paddingSlider.onChange(val);
                 }
               }}
               className="h-10 w-20"
@@ -150,25 +162,24 @@ export const CounterStyleEditor: React.FC<{
           <Label>Corner Radius</Label>
           <div className="flex gap-4">
             <Slider
-              value={[
-                (() => {
-                  const radius = (element.style as CounterStyle)?.radius;
-                  return radius !== undefined && radius !== null ? radius : 0;
-                })(),
-              ]}
-              onValueChange={(v) => handleStyleChange({ radius: v[0] })}
+              value={[radiusSlider.value]}
+              onValueChange={([v]) => radiusSlider.onChange(v)}
+              onMouseDown={radiusSlider.onMouseDown}
+              onMouseUp={radiusSlider.onMouseUp}
+              onTouchStart={radiusSlider.onTouchStart}
+              onTouchEnd={radiusSlider.onTouchEnd}
               max={100}
             />
             <Input
-              value={typeof style?.radius === "number" ? style.radius : 0}
+              value={radiusSlider.value}
               onChange={(e) => {
                 if (e.target.value === "") {
-                  handleStyleChange({ radius: 0 });
+                  radiusSlider.onChange(0);
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
-                  handleStyleChange({ radius: val });
+                  radiusSlider.onChange(val);
                 }
               }}
               className="h-10 w-20"

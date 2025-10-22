@@ -13,31 +13,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GalleryHorizontal, Grid2x2, ScanEye, Square, Trash2 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { debounce } from "@/lib/utils";
+import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
 
 interface ImageStyleEditorProps {
   element: PrismaElement;
   onChange: (style: ImageStyle) => void;
   onDelete?: () => void;
+  ws: WebSocket | null;
 }
 
-const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, onDelete }) => {
+const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, onDelete, ws }) => {
   const [style, setStyle] = useState<ImageStyle>((element.style as ImageStyle) || {});
-
-  const debouncedOnChange = debounce(onChange, 400);
 
   useEffect(() => {
     setStyle((element.style as ImageStyle) || {});
   }, [element.style]);
-
-  const handleDebouncedValueChange = (
-    key: keyof ImageStyle,
-    value: ImageStyle[keyof ImageStyle]
-  ) => {
-    const newStyle = { ...style, [key]: value };
-    setStyle(newStyle);
-    debouncedOnChange(newStyle);
-  };
 
   const handleImmediateValueChange = (
     key: keyof ImageStyle,
@@ -47,6 +37,14 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
     setStyle(newStyle);
     onChange(newStyle);
   };
+
+  const widthSlider = useSyncedSlider(`${element.id}-width`, style.width || 100, ws);
+  const heightSlider = useSyncedSlider(`${element.id}-height`, style.height || 100, ws);
+  const borderRadiusSlider = useSyncedSlider(
+    `${element.id}-borderRadius`,
+    style.borderRadius || 0,
+    ws
+  );
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
@@ -62,21 +60,25 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
         <Label>Width</Label>
         <div className="flex gap-4">
           <Slider
-            value={[style.width || 100]}
-            onValueChange={([val]) => handleDebouncedValueChange("width", val)}
+            value={[widthSlider.value]}
+            onValueChange={([val]) => widthSlider.onChange(val)}
+            onMouseDown={widthSlider.onMouseDown}
+            onMouseUp={widthSlider.onMouseUp}
+            onTouchStart={widthSlider.onTouchStart}
+            onTouchEnd={widthSlider.onTouchEnd}
             max={1920}
             step={1}
           />
           <Input
-            value={style.width || 100}
+            value={widthSlider.value}
             onChange={(e) => {
               if (e.target.value === "") {
-                handleDebouncedValueChange("width", 0);
+                widthSlider.onChange(0);
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
-                handleDebouncedValueChange("width", val);
+                widthSlider.onChange(val);
               }
             }}
             className="h-10 w-20"
@@ -87,21 +89,25 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
         <Label>Height</Label>
         <div className="flex gap-4">
           <Slider
-            value={[style.height || 100]}
-            onValueChange={([val]) => handleDebouncedValueChange("height", val)}
+            value={[heightSlider.value]}
+            onValueChange={([val]) => heightSlider.onChange(val)}
+            onMouseDown={heightSlider.onMouseDown}
+            onMouseUp={heightSlider.onMouseUp}
+            onTouchStart={heightSlider.onTouchStart}
+            onTouchEnd={heightSlider.onTouchEnd}
             max={1080}
             step={1}
           />
           <Input
-            value={style.height || 100}
+            value={heightSlider.value}
             onChange={(e) => {
               if (e.target.value === "") {
-                handleDebouncedValueChange("height", 0);
+                heightSlider.onChange(0);
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
-                handleDebouncedValueChange("height", val);
+                heightSlider.onChange(val);
               }
             }}
             className="h-10 w-20"
@@ -112,21 +118,25 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
         <Label>Border Radius</Label>
         <div className="flex gap-4">
           <Slider
-            value={[style.borderRadius || 0]}
-            onValueChange={([val]) => handleDebouncedValueChange("borderRadius", val)}
+            value={[borderRadiusSlider.value]}
+            onValueChange={([val]) => borderRadiusSlider.onChange(val)}
+            onMouseDown={borderRadiusSlider.onMouseDown}
+            onMouseUp={borderRadiusSlider.onMouseUp}
+            onTouchStart={borderRadiusSlider.onTouchStart}
+            onTouchEnd={borderRadiusSlider.onTouchEnd}
             max={500}
             step={1}
           />
           <Input
-            value={style.borderRadius || 0}
+            value={borderRadiusSlider.value}
             onChange={(e) => {
               if (e.target.value === "") {
-                handleDebouncedValueChange("borderRadius", 0);
+                borderRadiusSlider.onChange(0);
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
-                handleDebouncedValueChange("borderRadius", val);
+                borderRadiusSlider.onChange(val);
               }
             }}
             className="h-10 w-20"

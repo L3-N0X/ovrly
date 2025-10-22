@@ -26,20 +26,20 @@ import { TimerStyleEditor } from "../TimerEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import { DragPreview } from "./DragPreview";
-import type { ImageStyle } from "@/lib/types";
-
 export const ElementListItem = ({
   element,
   onOverlayChange,
   overlay,
   onDeleteElement,
   className = "",
+  ws,
 }: {
   element: PrismaElement;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   overlay: PrismaOverlay;
   onDeleteElement?: (elementId: string) => void;
   className?: string;
+  ws: WebSocket | null;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -248,6 +248,7 @@ export const ElementListItem = ({
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.TIMER && (
@@ -255,6 +256,7 @@ export const ElementListItem = ({
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.IMAGE && (
@@ -262,6 +264,7 @@ export const ElementListItem = ({
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (
@@ -271,6 +274,7 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+              ws={ws}
             />
           )}
         </div>

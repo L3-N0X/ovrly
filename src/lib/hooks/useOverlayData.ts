@@ -10,6 +10,7 @@ export const useOverlayData = () => {
   const [error, setError] = useState<string | null>(null);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTimer, setSelectedTimer] = useState<PrismaElement | null>(null);
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
   const fetchOverlay = useCallback(async () => {
     setIsLoading(true);
@@ -39,9 +40,10 @@ export const useOverlayData = () => {
   useEffect(() => {
     if (!id) return;
 
-    const ws = new WebSocket(`ws://localhost:3000/ws?overlayId=${id}`);
+    const wsInstance = new WebSocket(`ws://localhost:3000/ws?overlayId=${id}`);
+    setWs(wsInstance);
 
-    ws.onmessage = (event) => {
+    wsInstance.onmessage = (event) => {
       try {
         const updatedOverlay: PrismaOverlay = JSON.parse(event.data);
         setOverlay(updatedOverlay);
@@ -58,7 +60,7 @@ export const useOverlayData = () => {
     };
 
     return () => {
-      ws.close();
+      wsInstance.close();
     };
   }, [id, selectedTimer]);
 
@@ -369,5 +371,6 @@ export const useOverlayData = () => {
     handleDeleteOverlay,
     selectedTimer,
     setSelectedTimer,
+    ws,
   };
 };

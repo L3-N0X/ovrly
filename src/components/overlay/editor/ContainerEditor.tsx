@@ -39,7 +39,8 @@ export const ContainerEditor: React.FC<{
   onOverlayChange: (newOverlay: PrismaOverlay) => void;
   onChange: (newStyle: ContainerStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
+  ws: WebSocket | null;
+}> = ({ element, onChange, overlay, onOverlayChange, onDelete, ws }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
@@ -105,6 +106,7 @@ export const ContainerEditor: React.FC<{
             element={child}
             overlay={overlay}
             onOverlayChange={onOverlayChange}
+            ws={ws}
           />
         ))}
       </div>

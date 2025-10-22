@@ -1,18 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useSession } from "@/lib/auth-client";
 
-interface Editor {
-  id: string;
+interface OverlayEditorDisplay {
+  // This will be the editorTwitchName, used for unique identification, display, and revocation.
+  identifier: string;
   name: string;
+  isGlobalEditor: boolean; // To distinguish between overlay-specific and global editors
 }
 
 interface ShareOverlayModalProps {
@@ -23,29 +25,48 @@ interface ShareOverlayModalProps {
 
 export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayModalProps) {
   const { data: session } = useSession();
-  const [overlayEditors, setOverlayEditors] = useState<Editor[]>([]);
-  const [globalEditors, setGlobalEditors] = useState<Editor[]>([]);
+  const [overlayEditorDisplays, setOverlayEditorDisplays] = useState<OverlayEditorDisplay[]>([]);
+  const [globalEditorDisplays, setGlobalEditorDisplays] = useState<OverlayEditorDisplay[]>([]);
   const [twitchName, setTwitchName] = useState("");
 
   const fetchEditors = useCallback(async () => {
     if (!session) return;
 
     // Fetch overlay-specific editors
-    const overlayEditorsResponse = await fetch(`http://localhost:3000/api/overlays/${overlayId}/editors`, {
-      credentials: "include",
-    });
+    const overlayEditorsResponse = await fetch(
+      `http://localhost:3000/api/overlays/${overlayId}/editors`,
+      {
+        credentials: "include",
+      }
+    );
     if (overlayEditorsResponse.ok) {
-      const data = await overlayEditorsResponse.json();
-      setOverlayEditors(data);
+      // Backend returns an array of prisma.OverlayEditor objects, which include editorTwitchName
+      const data: { editorId: string | null; editorTwitchName: string }[] =
+        await overlayEditorsResponse.json();
+      setOverlayEditorDisplays(
+        data.map((oe) => ({
+          identifier: oe.editorTwitchName,
+          name: oe.editorTwitchName,
+          isGlobalEditor: false,
+        }))
+      );
     }
 
     // Fetch global editors
+    // Assuming the global editors endpoint returns objects with editorId and editorTwitchName
     const globalEditorsResponse = await fetch("http://localhost:3000/api/editors", {
       credentials: "include",
     });
     if (globalEditorsResponse.ok) {
-      const data: { editorId: string, editorTwitchName: string }[] = await globalEditorsResponse.json();
-      setGlobalEditors(data.map((editor) => ({ id: editor.editorId, name: editor.editorTwitchName })));
+      const data: { editorId: string | null; editorTwitchName: string }[] =
+        await globalEditorsResponse.json();
+      setGlobalEditorDisplays(
+        data.map((editor) => ({
+          identifier: editor.editorTwitchName, // Use twitch name as identifier
+          name: editor.editorTwitchName,
+          isGlobalEditor: true,
+        }))
+      );
     }
   }, [session, overlayId]);
 
@@ -71,18 +92,28 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
     }
   };
 
-  const handleRevokeAccess = async (editorId: string) => {
+  const handleRevokeAccess = async (editorTwitchName: string) => {
     if (!session) return;
-    const response = await fetch(`http://localhost:3000/api/overlays/${overlayId}/editors/${editorId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    const response = await fetch(
+      `http://localhost:3000/api/overlays/${overlayId}/editors/${encodeURIComponent(
+        editorTwitchName
+      )}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
     if (response.ok) {
       fetchEditors();
     }
   };
 
-  const allEditors = [...overlayEditors, ...globalEditors.filter(ge => !overlayEditors.some(oe => oe.id === ge.id))];
+  const allEditors = [
+    ...overlayEditorDisplays,
+    ...globalEditorDisplays.filter(
+      (ge) => !overlayEditorDisplays.some((oe) => oe.identifier === ge.identifier)
+    ),
+  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -103,14 +134,17 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
           <h3 className="font-semibold mb-2">Current Editors:</h3>
           <ul>
             {allEditors.map((editor) => {
-              const isGlobal = globalEditors.some(ge => ge.id === editor.id);
               return (
-                <li key={editor.id} className="flex justify-between items-center mb-2">
-                  <span>{editor.name} {isGlobal && "(Global)"}</span>
-                  {!isGlobal && (
+                <li key={editor.identifier} className="flex justify-between items-center mb-2">
+                  <span>{editor.name}</span>
+                  {editor.isGlobalEditor ? (
+                    <em className="text-sm text-muted-foreground">(Global Editor)</em>
+                  ) : null}
+
+                  {!editor.isGlobalEditor && ( // Only allow revoking for overlay-specific editors
                     <Button
                       variant="destructive"
-                      onClick={() => handleRevokeAccess(editor.id)}
+                      onClick={() => handleRevokeAccess(editor.identifier)}
                     >
                       Revoke Access
                     </Button>
@@ -121,7 +155,9 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
           </ul>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

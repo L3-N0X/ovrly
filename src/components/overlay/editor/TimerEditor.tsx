@@ -14,7 +14,8 @@ export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: TimerStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, onDelete }) => {
+  ws: WebSocket | null;
+}> = ({ element, onChange, onDelete, ws }) => {
   const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
 
   const debouncedOnChange = debounce(onChange, 400);

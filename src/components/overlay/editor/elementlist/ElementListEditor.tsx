@@ -13,11 +13,13 @@ import { ElementListItem } from "./ElementListItem";
 export interface ElementListEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  ws: WebSocket | null;
 }
 
 export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   overlay,
   onOverlayChange,
+  ws,
 }) => {
   const rootElements = overlay.elements
     .filter((element) => !element.parentId)
@@ -239,6 +241,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             overlay={overlay}
             onDeleteElement={deleteElement}
             className={element.type === ElementTypeEnum.CONTAINER ? "mb-3" : "mb-1"}
+            ws={ws}
           />
         ))}
       </div>

@@ -47,16 +47,20 @@ export function SettingsPage() {
 
   const handleRevokeAccess = async (editorTwitchName: string) => {
     if (!session) return;
-    const response = await fetch("http://localhost:3000/api/editors", {
+    const encodedTwitchName = encodeURIComponent(editorTwitchName); // Encode for URL safety
+    const response = await fetch(`http://localhost:3000/api/editors/${encodedTwitchName}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ twitchName: editorTwitchName }),
       credentials: "include",
     });
     if (response.ok) {
       fetchEditors();
+    } else {
+      console.error(
+        "Failed to revoke access for:",
+        editorTwitchName,
+        response.status,
+        await response.text()
+      );
     }
   };
 
@@ -64,8 +68,11 @@ export function SettingsPage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
       <Card>
-        <CardHeader>
-          <CardTitle>Manage Editors</CardTitle>
+        <CardHeader className="pb-2">
+          {" "}
+          {/* Added padding-bottom for spacing */}
+          <CardTitle>Manage Global Editors</CardTitle>
+          <p className="text-sm text-muted-foreground">This grants access to all your overlays.</p>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 mb-4">
