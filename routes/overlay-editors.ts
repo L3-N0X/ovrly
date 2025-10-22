@@ -1,4 +1,3 @@
-
 import { prisma } from "../auth";
 import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
@@ -63,11 +62,14 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (e) {
-        console.error(e);
-        return new Response(JSON.stringify({ error: "Invalid request body or twitch name already exists" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      console.error(e);
+      return new Response(
+        JSON.stringify({ error: "Invalid request body or twitch name already exists" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
   }
 
@@ -79,18 +81,21 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
       });
     }
     try {
-        await prisma.overlayEditor.delete({
-            where: {
-              overlayId_editorTwitchName: { overlayId, editorTwitchName: editorIdentifier },
-            },
-          });
-          return new Response(null, { status: 204, headers: corsHeaders });
+      await prisma.overlayEditor.delete({
+        where: {
+          overlayId_editorTwitchName: {
+            overlayId,
+            editorTwitchName: decodeURIComponent(editorIdentifier),
+          },
+        },
+      });
+      return new Response(null, { status: 204, headers: corsHeaders });
     } catch (e) {
-        console.error(e);
-        return new Response(JSON.stringify({ error: "Editor not found" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      console.error(e);
+      return new Response(JSON.stringify({ error: "Editor not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   }
 

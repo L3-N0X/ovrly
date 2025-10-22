@@ -14,7 +14,7 @@ const Container: React.FC<ContainerProps> = ({ children, style }) => {
     gap: typeof safeStyle.gap === "number" ? `${safeStyle.gap}px` : undefined,
     justifyContent: safeStyle.justifyContent || "flex-start",
     width: "100%",
-    height: "100%",
+    height: "auto",
     boxSizing: "border-box",
     overflow: "hidden",
     alignItems: safeStyle.alignItems || "stretch",

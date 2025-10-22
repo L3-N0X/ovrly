@@ -1,5 +1,5 @@
 import { prisma } from "../auth";
-import { authenticate } from "../middleware/authMiddleware";
+import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 
 export const handleOverlaysRoutes = async (
@@ -7,9 +7,7 @@ export const handleOverlaysRoutes = async (
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
   path: string
 ) => {
-  const duplicateMatch = path.match(
-    /^\/api\/overlays\/([a-zA-Z0-9_-]+)\/duplicate$/
-  );
+  const duplicateMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/duplicate$/);
   if (duplicateMatch && req.method === "POST") {
     const session = await authenticate(req);
     if (!session) {
@@ -56,7 +54,7 @@ export const handleOverlaysRoutes = async (
               position?: number | null;
               title?: { create: { text: string } };
               counter?: { create: { value: number } };
-              timer?: { create: { duration?: number | null, countDown?: boolean } };
+              timer?: { create: { duration?: number | null; countDown?: boolean } };
               image?: { create: { src: string } };
             } = {
               name: element.name,
@@ -143,17 +141,13 @@ export const handleOverlaysRoutes = async (
       });
     }
 
-    const isOwner = overlay.userId === session.user.id;
-    const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
-    const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-    if (!isOwner && !isEditor) {
+    const isAuthorized = await authorize(session.user.id, overlayId);
+    if (!isAuthorized) {
       return new Response(JSON.stringify({ error: "Overlay not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
     if (req.method === "GET") {
       return new Response(JSON.stringify(overlay), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -214,7 +208,8 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "DELETE") {
-      if (!isOwner) {
+      // For DELETE, we should still ensure only the owner can perform the action.
+      if (overlay.userId !== session.user.id) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
