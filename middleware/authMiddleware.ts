@@ -2,6 +2,31 @@ import { auth, prisma } from "../auth";
 
 export const authenticate = async (req: Request) => {
   const session = await auth.api.getSession({ headers: req.headers });
+
+  if (session?.user) {
+    // Update Editor entries
+    await prisma.editor.updateMany({
+      where: {
+        editorTwitchName: session.user.name,
+        editorId: null,
+      },
+      data: {
+        editorId: session.user.id,
+      },
+    });
+
+    // Update OverlayEditor entries
+    await prisma.overlayEditor.updateMany({
+      where: {
+        editorTwitchName: session.user.name,
+        editorId: null,
+      },
+      data: {
+        editorId: session.user.id,
+      },
+    });
+  }
+
   return session;
 };
 

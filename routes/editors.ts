@@ -29,23 +29,22 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
           });
         }
 
-        const editor = await prisma.user.findFirst({ where: { name: twitchName } });
-        if (!editor) {
-          return new Response(JSON.stringify({ error: "User not found" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        const editorUser = await prisma.user.findFirst({ where: { name: twitchName } });
 
         const newEditor = await prisma.editor.create({
-          data: { ownerId: session.user.id, editorId: editor.id, editorTwitchName: twitchName },
+          data: {
+            ownerId: session.user.id,
+            editorId: editorUser?.id,
+            editorTwitchName: twitchName,
+          },
         });
         return new Response(JSON.stringify(newEditor), {
           status: 201,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      } catch {
-        return new Response(JSON.stringify({ error: "Invalid request body" }), {
+      } catch (e) {
+        console.error(e);
+        return new Response(JSON.stringify({ error: "Invalid request body or twitch name already exists" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -62,22 +61,14 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
           });
         }
 
-        const editor = await prisma.user.findFirst({ where: { name: twitchName } });
-        if (!editor) {
-          return new Response(JSON.stringify({ error: "User not found" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
         await prisma.editor.delete({
           where: {
-            ownerId_editorId: { ownerId: session.user.id, editorId: editor.id },
+            ownerId_editorTwitchName: { ownerId: session.user.id, editorTwitchName: twitchName },
           },
         });
         return new Response(null, { status: 204, headers: corsHeaders });
       } catch {
-        return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        return new Response(JSON.stringify({ error: "Invalid request body or editor not found" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

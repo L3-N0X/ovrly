@@ -10,17 +10,56 @@ import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
 import { WebSocketData } from "./types";
+import path from "path";
+import fs from "fs";
 
 dotenv.config();
+
+const PUBLIC_PATH = path.join(import.meta.dir, "public");
+const DIST_PATH = path.join(import.meta.dir, "dist");
+
+const mimeTypes: { [key: string]: string } = {
+  ".html": "text/html",
+  ".js": "application/javascript",
+  ".css": "text/css",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".wav": "audio/wav",
+  ".mp4": "video/mp4",
+  ".woff": "application/font-woff",
+  ".ttf": "application/font-ttf",
+  ".eot": "application/vnd.ms-fontobject",
+  ".otf": "application/font-otf",
+  ".wasm": "application/wasm",
+};
+
+async function serveStaticFile(filePath: string): Promise<Response | null> {
+  try {
+    const file = Bun.file(filePath);
+    if (await file.exists()) {
+      const extension = path.extname(filePath);
+      const contentType = mimeTypes[extension] || "application/octet-stream";
+      return new Response(file, {
+        headers: { "Content-Type": contentType },
+      });
+    }
+  } catch (error) {
+    console.error(`[SERVER LOG] Error serving static file ${filePath}:`, error);
+  }
+  return null;
+}
 
 const server = Bun.serve({
   port: 3000,
   async fetch(req, server) {
     const url = new URL(req.url);
-    const path = url.pathname;
+    let reqPath = url.pathname;
 
     console.log(`\n[SERVER LOG] =========== New Request ==========`);
-    console.log(`[SERVER LOG] Path & Method: ${req.method} ${path}`);
+    console.log(`[SERVER LOG] Path & Method: ${req.method} ${reqPath}`);
 
     // Handle CORS preflight
     const corsResponse = handleCors(req);
@@ -29,7 +68,7 @@ const server = Bun.serve({
     }
 
     // Handle WebSocket upgrade
-    if (path === "/ws") {
+    if (reqPath === "/ws") {
       const url = new URL(req.url);
       const overlayId = url.searchParams.get("overlayId");
       if (overlayId) {
@@ -44,62 +83,81 @@ const server = Bun.serve({
       return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
-    // Handle auth routes
-    const authResponse = await handleAuthRoutes(req);
-    if (authResponse) {
-      return authResponse;
+    // API Routes
+    if (reqPath.startsWith("/api/")) {
+      // Re-route API calls to their respective handlers by trimming /api
+      reqPath = reqPath.substring(4);
+      
+      // Handle auth routes
+      const authResponse = await handleAuthRoutes(req);
+      if (authResponse) {
+        return authResponse;
+      }
+
+      // Handle overlay routes
+      const overlayResponse = await handleOverlaysRoutes(req, server, reqPath);
+      if (overlayResponse) {
+        return overlayResponse;
+      }
+
+      // Handle element routes
+      const elementResponse = await handleElementsRoutes(req, server, reqPath);
+      if (elementResponse) {
+        return elementResponse;
+      }
+
+      // Handle reorder routes
+      const reorderResponse = await handleReorderRoutes(req, server, reqPath);
+      if (reorderResponse) {
+        return reorderResponse;
+      }
+
+      // Handle public overlay routes
+      const publicOverlayResponse = await handlePublicOverlaysRoutes(req, reqPath);
+      if (publicOverlayResponse) {
+        return publicOverlayResponse;
+      }
+
+      // Handle editor routes
+      const editorResponse = await handleEditorsRoutes(req, reqPath);
+      if (editorResponse) {
+        return editorResponse;
+      }
+
+      // Handle overlay editor routes
+      const overlayEditorResponse = await handleOverlayEditorsRoutes(req, reqPath);
+      if (overlayEditorResponse) {
+        return overlayEditorResponse;
+      }
+
+      // Handle preset routes
+      const presetResponse = await handlePresetsRoutes(req, reqPath);
+      if (presetResponse) {
+        return presetResponse;
+      }
+
+      // Handle files routes
+      const filesResponse = await handleFilesRoutes(req, reqPath);
+      if (filesResponse) {
+        return filesResponse;
+      }
     }
 
-    // Handle overlay routes
-    const overlayResponse = await handleOverlaysRoutes(req, server, path);
-    if (overlayResponse) {
-      return overlayResponse;
-    }
+    // Serve static files from public directory
+    let staticResponse = await serveStaticFile(path.join(PUBLIC_PATH, reqPath));
+    if (staticResponse) return staticResponse;
 
-    // Handle element routes
-    const elementResponse = await handleElementsRoutes(req, server, path);
-    if (elementResponse) {
-      return elementResponse;
-    }
+    // Serve static files from dist directory (frontend assets)
+    staticResponse = await serveStaticFile(path.join(DIST_PATH, reqPath));
+    if (staticResponse) return staticResponse;
 
-    // Handle reorder routes
-    const reorderResponse = await handleReorderRoutes(req, server, path);
-    if (reorderResponse) {
-      return reorderResponse;
-    }
+    // SPA Fallback: Serve index.html for any other route
+    console.log(`[SERVER LOG] No API route or static file matched. Serving index.html.`);
+    const spaIndex = await serveStaticFile(path.join(DIST_PATH, "index.html"));
+    if (spaIndex) return spaIndex;
 
-    // Handle public overlay routes
-    const publicOverlayResponse = await handlePublicOverlaysRoutes(req, path);
-    if (publicOverlayResponse) {
-      return publicOverlayResponse;
-    }
-
-    // Handle editor routes
-    const editorResponse = await handleEditorsRoutes(req, path);
-    if (editorResponse) {
-      return editorResponse;
-    }
-
-    // Handle overlay editor routes
-    const overlayEditorResponse = await handleOverlayEditorsRoutes(req, path);
-    if (overlayEditorResponse) {
-      return overlayEditorResponse;
-    }
-
-    // Handle preset routes
-    const presetResponse = await handlePresetsRoutes(req, path);
-    if (presetResponse) {
-      return presetResponse;
-    }
-
-    // Handle files routes
-    const filesResponse = await handleFilesRoutes(req, path);
-    if (filesResponse) {
-      return filesResponse;
-    }
-
-    console.log(`[SERVER LOG] No route matched. Responding with "Hello world!".`);
-    return new Response("Hello world!");
+    console.log(`[SERVER LOG] index.html not found. Responding with 404.`);
+    return new Response("Not Found", { status: 404 });
   },
   websocket: {
     open(ws) {

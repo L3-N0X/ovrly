@@ -81,9 +81,7 @@ const HomePage: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newOverlayName, setNewOverlayName] = useState("");
   const [newOverlayDescription, setNewOverlayDescription] = useState("");
-  const [selectedPreset, setSelectedPreset] = useState<OverlayPreset | null>(
-    null
-  );
+  const [selectedPreset, setSelectedPreset] = useState<OverlayPreset | null>(null);
   const [presets, setPresets] = useState<OverlayPreset[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -105,9 +103,7 @@ const HomePage: React.FC = () => {
       );
       setOverlays(sortedData);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred"
-      );
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -123,9 +119,7 @@ const HomePage: React.FC = () => {
       setPresets(data.presets);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "An unknown error occurred while loading presets"
+        err instanceof Error ? err.message : "An unknown error occurred while loading presets"
       );
     }
   };
@@ -142,21 +136,16 @@ const HomePage: React.FC = () => {
 
   const handleDuplicateOverlay = async (overlayId: string) => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/overlays/${overlayId}/duplicate`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`http://localhost:3000/api/overlays/${overlayId}/duplicate`, {
+        method: "POST",
+        credentials: "include",
+      });
       if (!response.ok) {
         throw new Error("Failed to duplicate overlay");
       }
       fetchOverlays();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred"
-      );
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
 
@@ -180,21 +169,16 @@ const HomePage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/overlays/${overlayId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`http://localhost:3000/api/overlays/${overlayId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       if (!response.ok) {
         throw new Error("Failed to delete overlay");
       }
       fetchOverlays();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred"
-      );
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
 
@@ -225,9 +209,7 @@ const HomePage: React.FC = () => {
       setNewOverlayDescription(""); // Reset form
       setSelectedPreset(null); // Reset form
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred"
-      );
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
       setIsCreating(false);
     }
@@ -249,11 +231,7 @@ const HomePage: React.FC = () => {
   };
 
   if (isSessionPending) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   return (
@@ -273,15 +251,8 @@ const HomePage: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">Your Overlays</h2>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={fetchOverlays}
-                  disabled={isLoading}
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-                  />
+                <Button variant="outline" size="icon" onClick={fetchOverlays} disabled={isLoading}>
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </Button>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
@@ -317,9 +288,7 @@ const HomePage: React.FC = () => {
                                   className="h-6 w-6 mr-3"
                                 />
                               ) : (
-                                <div className="text-2xl mr-3">
-                                  {preset.icon}
-                                </div>
+                                <div className="text-2xl mr-3">{preset.icon}</div>
                               )}
                               <div>
                                 <div className="font-medium">{preset.name}</div>
@@ -341,14 +310,10 @@ const HomePage: React.FC = () => {
                               className="h-6 w-6 mr-3"
                             />
                           ) : (
-                            <div className="text-2xl mr-3">
-                              {selectedPreset.icon}
-                            </div>
+                            <div className="text-2xl mr-3">{selectedPreset.icon}</div>
                           )}
                           <div>
-                            <div className="font-medium">
-                              {selectedPreset.name}
-                            </div>
+                            <div className="font-medium">{selectedPreset.name}</div>
                             <div className="text-sm text-muted-foreground">
                               {selectedPreset.description}
                             </div>
@@ -365,15 +330,11 @@ const HomePage: React.FC = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="description">
-                            Overlay Description
-                          </Label>
+                          <Label htmlFor="description">Overlay Description</Label>
                           <Input
                             id="description"
                             value={newOverlayDescription}
-                            onChange={(e) =>
-                              setNewOverlayDescription(e.target.value)
-                            }
+                            onChange={(e) => setNewOverlayDescription(e.target.value)}
                             placeholder="A short description of what this overlay is for."
                           />
                         </div>
@@ -394,10 +355,7 @@ const HomePage: React.FC = () => {
                         {selectedPreset ? "Back" : "Cancel"}
                       </Button>
                       {selectedPreset && (
-                        <Button
-                          onClick={handleCreateOverlay}
-                          disabled={isCreating}
-                        >
+                        <Button onClick={handleCreateOverlay} disabled={isCreating}>
                           {isCreating ? "Creating..." : "Create"}
                         </Button>
                       )}
@@ -408,9 +366,7 @@ const HomePage: React.FC = () => {
             </div>
 
             {isLoading && overlays.length === 0 ? (
-              <p className="text-center text-muted-foreground">
-                Loading overlays...
-              </p>
+              <p className="text-center text-muted-foreground">Loading overlays...</p>
             ) : error ? (
               <p className="text-red-500 text-center">{error}</p>
             ) : overlays.length > 0 ? (
@@ -421,40 +377,30 @@ const HomePage: React.FC = () => {
                     className="flex flex-col hover:shadow-lg transition-shadow"
                   >
                     <CardHeader>
-                      <CardTitle className="flex items-start justify-between">
-                        <span className="truncate pr-2">{overlay.name}</span>
+                      <CardTitle className="flex items-start justify-start gap-2">
+                        <span className="truncate pr-2 text-lg">{overlay.name}</span>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild className="ml-auto">
                             <Button variant="ghost" size="icon">
                               <MoreHorizontal className="h-5 w-5" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => navigate(`/overlay/${overlay.id}`)}
-                            >
+                            <DropdownMenuItem onClick={() => navigate(`/overlay/${overlay.id}`)}>
                               <ExternalLink className="mr-2 h-4 w-4" />
                               <span>Open Editor</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleCopyPublicUrl(overlay.id)}
-                            >
+                            <DropdownMenuItem onClick={() => handleCopyPublicUrl(overlay.id)}>
                               <ClipboardCopy className="mr-2 h-4 w-4" />
-                              <span>
-                                {copiedId === overlay.id
-                                  ? "Copied!"
-                                  : "Copy public URL"}
-                              </span>
+                              <span>{copiedId === overlay.id ? "Copied!" : "Copy public URL"}</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDuplicateOverlay(overlay.id)}
-                            >
+                            <DropdownMenuItem onClick={() => handleDuplicateOverlay(overlay.id)}>
                               <CopyPlus className="mr-2 h-4 w-4" />
                               <span>Duplicate</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-red-500 focus:text-red-500"
+                              variant="destructive"
                               onClick={() => handleDeleteOverlay(overlay.id)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -462,36 +408,32 @@ const HomePage: React.FC = () => {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        <Button
+                          onClick={() => navigate(`/overlay/${overlay.id}`)}
+                          variant="outline"
+                        >
+                          Edit
+                        </Button>
                       </CardTitle>
-                      {overlay.description && (
-                        <CardDescription className="pt-1">
-                          {overlay.description}
-                        </CardDescription>
-                      )}
                     </CardHeader>
                     <CardContent className="flex-grow">
+                      {overlay.description && (
+                        <CardDescription className="pt-1">{overlay.description}</CardDescription>
+                      )}
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <div className="flex items-center">
                           {overlay.userId !== user.user.id && (
-                            <div
-                              className="flex items-center mr-4"
-                              title="Shared with you"
-                            >
+                            <div className="flex items-center mr-4" title="Shared with you">
                               <Users className="h-4 w-4 mr-1" />
                               <span>Shared</span>
                             </div>
                           )}
-                          <span>
-                            {overlay.elements.length} element
-                            {overlay.elements.length !== 1 && "s"}
-                          </span>
                         </div>
                       </div>
                     </CardContent>
                     <CardFooter>
                       <p className="text-xs text-muted-foreground">
-                        Created on{" "}
-                        {new Date(overlay.createdAt).toLocaleDateString()}
+                        Created on {new Date(overlay.createdAt).toLocaleDateString()}
                       </p>
                     </CardFooter>
                   </Card>
@@ -523,10 +465,7 @@ const HomePage: React.FC = () => {
             <p className="text-muted-foreground mt-2">
               Your one-stop solution for stream overlays.
             </p>
-            <Button
-              onClick={handleTwitchSignIn}
-              className="w-full max-w-xs mt-8"
-            >
+            <Button onClick={handleTwitchSignIn} className="w-full max-w-xs mt-8">
               Sign in with Twitch
             </Button>
           </div>
