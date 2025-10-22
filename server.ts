@@ -4,14 +4,13 @@ import { handleAuthRoutes } from "./routes/auth";
 import { handlePresetsRoutes } from "./routes/presets";
 import { handlePublicOverlaysRoutes } from "./routes/publicOverlays";
 import { handleEditorsRoutes } from "./routes/editors";
-import { handleFilesRoutes } from './routes/files';
+import { handleFilesRoutes } from "./routes/files";
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
 import { WebSocketData } from "./types";
 import path from "path";
-import fs from "fs";
 
 dotenv.config();
 
@@ -56,7 +55,7 @@ const server = Bun.serve({
   port: 3000,
   async fetch(req, server) {
     const url = new URL(req.url);
-    let reqPath = url.pathname;
+    const reqPath = url.pathname;
 
     console.log(`\n[SERVER LOG] =========== New Request ==========`);
     console.log(`[SERVER LOG] Path & Method: ${req.method} ${reqPath}`);
@@ -85,9 +84,6 @@ const server = Bun.serve({
 
     // API Routes
     if (reqPath.startsWith("/api/")) {
-      // Re-route API calls to their respective handlers by trimming /api
-      reqPath = reqPath.substring(4);
-      
       // Handle auth routes
       const authResponse = await handleAuthRoutes(req);
       if (authResponse) {
