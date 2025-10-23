@@ -93,7 +93,7 @@ const OverlayPage: React.FC = () => {
 
             <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} ws={ws} />
 
-            <DangerZone handleDeleteOverlay={handleDeleteOverlay} />
+            <DangerZone handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
           </div>
         </div>
       </div>

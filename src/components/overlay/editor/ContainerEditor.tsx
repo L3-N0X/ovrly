@@ -56,19 +56,20 @@ export const ContainerEditor: React.FC<{
   const gapSlider = useSyncedSlider(
     `${element.id}-gap`,
     typeof style?.gap === "number" ? style.gap : 0,
-    ws
+    ws,
+    { onCommit: (v) => updateStyle("gap", v) }
   );
   const paddingXSlider = useSyncedSlider(
     `${element.id}-paddingX`,
     typeof style?.paddingX === "number" ? style.paddingX : 0,
     ws,
-    { debounceMs: 300 }
+    { onCommit: (v) => updateStyle("paddingX", v) }
   );
   const paddingYSlider = useSyncedSlider(
     `${element.id}-paddingY`,
     typeof style?.paddingY === "number" ? style.paddingY : 0,
     ws,
-    { debounceMs: 300 }
+    { onCommit: (v) => updateStyle("paddingY", v) }
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,7 +175,6 @@ export const ContainerEditor: React.FC<{
                 onValueChange={(v) => {
                   const val = v[0];
                   gapSlider.onChange(val);
-                  updateStyle("gap", val);
                 }}
                 onMouseDown={gapSlider.onMouseDown}
                 onMouseUp={gapSlider.onMouseUp}
@@ -209,7 +209,6 @@ export const ContainerEditor: React.FC<{
                 onValueChange={(v) => {
                   const val = v[0];
                   paddingXSlider.onChange(val);
-                  updateStyle("paddingX", val);
                 }}
                 onMouseDown={paddingXSlider.onMouseDown}
                 onMouseUp={paddingXSlider.onMouseUp}
@@ -244,7 +243,6 @@ export const ContainerEditor: React.FC<{
                 onValueChange={(v) => {
                   const val = v[0];
                   paddingYSlider.onChange(val);
-                  updateStyle("paddingY", val);
                 }}
                 onMouseDown={paddingYSlider.onMouseDown}
                 onMouseUp={paddingYSlider.onMouseUp}

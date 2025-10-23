@@ -1,6 +1,5 @@
 import React from "react";
 
-// Define a more specific type for counter styles
 interface CounterStyle {
   fontSize?: number;
   fontFamily?: string;

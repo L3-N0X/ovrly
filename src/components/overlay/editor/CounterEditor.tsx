@@ -34,26 +34,18 @@ export const CounterStyleEditor: React.FC<{
   const fontSizeSlider = useSyncedSlider(
     `${element.id}-fontSize`,
     (style.fontSize as number) || 128,
-    ws
+    ws,
+    { onCommit: (v) => handleStyleChange({ fontSize: v }) }
   );
   const paddingSlider = useSyncedSlider(
     `${element.id}-padding`,
     (style.padding as number) || 0,
-    ws
+    ws,
+    { onCommit: (v) => handleStyleChange({ padding: v }) }
   );
-  const radiusSlider = useSyncedSlider(`${element.id}-radius`, (style.radius as number) || 0, ws);
-
-  useEffect(() => {
-    handleStyleChange({ fontSize: fontSizeSlider.value });
-  }, [fontSizeSlider.value]);
-
-  useEffect(() => {
-    handleStyleChange({ padding: paddingSlider.value });
-  }, [paddingSlider.value]);
-
-  useEffect(() => {
-    handleStyleChange({ radius: radiusSlider.value });
-  }, [radiusSlider.value]);
+  const radiusSlider = useSyncedSlider(`${element.id}-radius`, (style.radius as number) || 0, ws, {
+    onCommit: (v) => handleStyleChange({ radius: v }),
+  });
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">

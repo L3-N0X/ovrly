@@ -282,11 +282,13 @@ const HomePage: React.FC = () => {
                               onClick={() => handlePresetSelect(preset)}
                             >
                               {preset.icon ? (
-                                <img
-                                  src={`/presets/icons/${preset.icon}`}
-                                  alt={`${preset.name} icon`}
-                                  className="h-6 w-6 mr-3"
-                                />
+                                <div className="w-10 h-10 mr-3 flex items-center justify-center">
+                                  <img
+                                    src={`/presets/icons/${preset.icon}`}
+                                    alt={`${preset.name} icon`}
+                                    className="max-h-full max-w-full object-contain"
+                                  />
+                                </div>
                               ) : (
                                 <div className="text-2xl mr-3">{preset.icon}</div>
                               )}
@@ -304,11 +306,13 @@ const HomePage: React.FC = () => {
                       <div className="space-y-4 py-4">
                         <div className="flex items-center p-3 border rounded-lg bg-accent mb-4">
                           {selectedPreset.icon ? (
-                            <img
-                              src={`/presets/icons/${selectedPreset.icon}`}
-                              alt={`${selectedPreset.name} icon`}
-                              className="h-6 w-6 mr-3"
-                            />
+                            <div className="w-10 h-10 mr-3 flex items-center justify-center">
+                              <img
+                                src={`/presets/icons/${selectedPreset.icon}`}
+                                alt={`${selectedPreset.name} icon`}
+                                className="max-h-full max-w-full object-contain"
+                              />
+                            </div>
                           ) : (
                             <div className="text-2xl mr-3">{selectedPreset.icon}</div>
                           )}

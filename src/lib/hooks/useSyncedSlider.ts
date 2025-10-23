@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { debounce } from "@/lib/utils";
+import { useState, useEffect, useRef } from "react";
 
 interface SyncedSliderOptions {
-  debounceMs?: number;
+  onCommit?: (value: number) => void;
   ignoreWindowMs?: number;
 }
 
@@ -12,7 +11,7 @@ export const useSyncedSlider = (
   ws: WebSocket | null,
   options: SyncedSliderOptions = {}
 ) => {
-  const { debounceMs = 400, ignoreWindowMs = 500 } = options;
+  const { onCommit, ignoreWindowMs = 500 } = options;
 
   const [uiValue, setUiValue] = useState(initialValue);
   const isDragging = useRef(false);
@@ -25,21 +24,19 @@ export const useSyncedSlider = (
     }
   }, [initialValue]);
 
-  // Debounced WebSocket sender
-  const sendToWs = useCallback(
-    debounce((value: number) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ key, value }));
-        lastSentTime.current = Date.now();
-      }
-    }, debounceMs),
-    [ws, key, debounceMs]
-  );
+  const sendToWs = (value: number) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ key, value }));
+      lastSentTime.current = Date.now();
+    }
+  };
 
-  // Handle slider interaction
-  const handleChange = (newValue: number) => {
-    setUiValue(newValue); // Update UI immediately
-    sendToWs(newValue); // Debounced send
+  const handleInteractionEnd = () => {
+    isDragging.current = false;
+    if (onCommit) {
+      onCommit(uiValue);
+    }
+    sendToWs(uiValue);
   };
 
   // Handle incoming WebSocket messages
@@ -70,10 +67,14 @@ export const useSyncedSlider = (
 
   return {
     value: uiValue,
-    onChange: handleChange,
-    onMouseDown: () => (isDragging.current = true),
-    onMouseUp: () => (isDragging.current = false),
-    onTouchStart: () => (isDragging.current = true),
-    onTouchEnd: () => (isDragging.current = false),
+    onChange: setUiValue,
+    onMouseDown: () => {
+      isDragging.current = true;
+    },
+    onMouseUp: handleInteractionEnd,
+    onTouchStart: () => {
+      isDragging.current = true;
+    },
+    onTouchEnd: handleInteractionEnd,
   };
 };
