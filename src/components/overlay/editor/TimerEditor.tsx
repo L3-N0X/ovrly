@@ -9,6 +9,7 @@ import { Info, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { ColorPickerEditor } from "./ColorPickerEditor";
+import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
@@ -34,6 +35,25 @@ export const TimerStyleEditor: React.FC<{
     setStyle(updatedStyle);
     debouncedOnChange(updatedStyle);
   };
+
+  // Synced sliders for responsive UI + websocket broadcasting
+  const syncedFontSize = useSyncedSlider(
+    `${element.id}.fontSize`,
+    typeof style?.fontSize === "number" ? style.fontSize : 128,
+    ws
+  );
+  const syncedPadding = useSyncedSlider(
+    `${element.id}.padding`,
+    typeof style?.padding === "number" ? style.padding : 0,
+    ws,
+    { debounceMs: 300 }
+  );
+  const syncedRadius = useSyncedSlider(
+    `${element.id}.radius`,
+    typeof style?.radius === "number" ? style.radius : 0,
+    ws,
+    { debounceMs: 300 }
+  );
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
@@ -87,8 +107,16 @@ export const TimerStyleEditor: React.FC<{
         <Label>Font Size</Label>
         <div className="flex gap-4">
           <Slider
-            value={[typeof style?.fontSize === "number" ? style.fontSize : 128]}
-            onValueChange={(v) => handleStyleChange({ fontSize: v[0] })}
+            value={[syncedFontSize.value]}
+            onValueChange={(v) => {
+              const val = v[0];
+              syncedFontSize.onChange(val);
+              handleStyleChange({ fontSize: val });
+            }}
+            onMouseDown={syncedFontSize.onMouseDown}
+            onMouseUp={syncedFontSize.onMouseUp}
+            onTouchStart={syncedFontSize.onTouchStart}
+            onTouchEnd={syncedFontSize.onTouchEnd}
             max={400}
             min={0}
           />
@@ -102,6 +130,8 @@ export const TimerStyleEditor: React.FC<{
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
+                // keep UI in sync
+                syncedFontSize.onChange(val);
                 handleStyleChange({ fontSize: val });
               }
             }}
@@ -161,8 +191,16 @@ export const TimerStyleEditor: React.FC<{
           <Label>Padding</Label>
           <div className="flex gap-4">
             <Slider
-              value={[typeof style?.padding === "number" ? style.padding : 0]}
-              onValueChange={(v) => handleStyleChange({ padding: v[0] })}
+              value={[syncedPadding.value]}
+              onValueChange={(v) => {
+                const val = v[0];
+                syncedPadding.onChange(val);
+                handleStyleChange({ padding: val });
+              }}
+              onMouseDown={syncedPadding.onMouseDown}
+              onMouseUp={syncedPadding.onMouseUp}
+              onTouchStart={syncedPadding.onTouchStart}
+              onTouchEnd={syncedPadding.onTouchEnd}
               max={300}
               min={0}
             />
@@ -170,11 +208,13 @@ export const TimerStyleEditor: React.FC<{
               value={typeof style?.padding === "number" ? style.padding : 0}
               onChange={(e) => {
                 if (e.target.value === "") {
+                  syncedPadding.onChange(0);
                   handleStyleChange({ padding: 0 });
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
+                  syncedPadding.onChange(val);
                   handleStyleChange({ padding: val });
                 }
               }}
@@ -186,19 +226,29 @@ export const TimerStyleEditor: React.FC<{
           <Label>Corner Radius</Label>
           <div className="flex gap-4">
             <Slider
-              value={[typeof style?.radius === "number" ? style.radius : 0]}
-              onValueChange={(v) => handleStyleChange({ radius: v[0] })}
+              value={[syncedRadius.value]}
+              onValueChange={(v) => {
+                const val = v[0];
+                syncedRadius.onChange(val);
+                handleStyleChange({ radius: val });
+              }}
+              onMouseDown={syncedRadius.onMouseDown}
+              onMouseUp={syncedRadius.onMouseUp}
+              onTouchStart={syncedRadius.onTouchStart}
+              onTouchEnd={syncedRadius.onTouchEnd}
               max={100}
             />
             <Input
               value={typeof style?.radius === "number" ? style.radius : 0}
               onChange={(e) => {
                 if (e.target.value === "") {
+                  syncedRadius.onChange(0);
                   handleStyleChange({ radius: 0 });
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
+                  syncedRadius.onChange(val);
                   handleStyleChange({ radius: val });
                 }
               }}

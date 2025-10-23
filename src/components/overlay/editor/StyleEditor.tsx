@@ -18,7 +18,7 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange, ws 
         <CardDescription>Customize the look and feel of your overlay.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
+        <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} ws={ws} />
         <hr />
         <ElementListEditor overlay={overlay} onOverlayChange={onOverlayChange} ws={ws} />
       </CardContent>

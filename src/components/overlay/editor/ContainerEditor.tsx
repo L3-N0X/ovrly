@@ -32,6 +32,7 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { ElementListItem } from "./elementlist/ElementListItem";
 import { handleValueChange } from "./helper";
+import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
@@ -50,6 +51,25 @@ export const ContainerEditor: React.FC<{
   const children = overlay.elements
     .filter((e) => e.parentId === element.id)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+  // Synced sliders for responsive UI + websocket broadcasts
+  const gapSlider = useSyncedSlider(
+    `${element.id}-gap`,
+    typeof style?.gap === "number" ? style.gap : 0,
+    ws
+  );
+  const paddingXSlider = useSyncedSlider(
+    `${element.id}-paddingX`,
+    typeof style?.paddingX === "number" ? style.paddingX : 0,
+    ws,
+    { debounceMs: 300 }
+  );
+  const paddingYSlider = useSyncedSlider(
+    `${element.id}-paddingY`,
+    typeof style?.paddingY === "number" ? style.paddingY : 0,
+    ws,
+    { debounceMs: 300 }
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDraggedOver, setIsDraggedOver] = useState(false);
@@ -150,20 +170,30 @@ export const ContainerEditor: React.FC<{
             <Label>Gap</Label>
             <div className="flex gap-4">
               <Slider
-                value={[typeof style?.gap === "number" ? style.gap : 0]}
-                onValueChange={(v) => updateStyle("gap", v[0])}
+                value={[gapSlider.value]}
+                onValueChange={(v) => {
+                  const val = v[0];
+                  gapSlider.onChange(val);
+                  updateStyle("gap", val);
+                }}
+                onMouseDown={gapSlider.onMouseDown}
+                onMouseUp={gapSlider.onMouseUp}
+                onTouchStart={gapSlider.onTouchStart}
+                onTouchEnd={gapSlider.onTouchEnd}
                 max={200}
                 min={0}
               />
               <Input
-                value={typeof style?.gap === "number" ? style.gap : 0}
+                value={gapSlider.value}
                 onChange={(e) => {
                   if (e.target.value === "") {
+                    gapSlider.onChange(0);
                     updateStyle("gap", 0);
                     return;
                   }
                   const val = parseInt(e.target.value, 10);
                   if (!isNaN(val)) {
+                    gapSlider.onChange(val);
                     updateStyle("gap", val);
                   }
                 }}
@@ -175,20 +205,30 @@ export const ContainerEditor: React.FC<{
             <Label>Padding X</Label>
             <div className="flex gap-4">
               <Slider
-                value={[typeof style?.paddingX === "number" ? style.paddingX : 0]}
-                onValueChange={(v) => updateStyle("paddingX", v[0])}
+                value={[paddingXSlider.value]}
+                onValueChange={(v) => {
+                  const val = v[0];
+                  paddingXSlider.onChange(val);
+                  updateStyle("paddingX", val);
+                }}
+                onMouseDown={paddingXSlider.onMouseDown}
+                onMouseUp={paddingXSlider.onMouseUp}
+                onTouchStart={paddingXSlider.onTouchStart}
+                onTouchEnd={paddingXSlider.onTouchEnd}
                 max={300}
                 min={0}
               />
               <Input
-                value={typeof style?.paddingX === "number" ? style.paddingX : 0}
+                value={paddingXSlider.value}
                 onChange={(e) => {
                   if (e.target.value === "") {
+                    paddingXSlider.onChange(0);
                     updateStyle("paddingX", 0);
                     return;
                   }
                   const val = parseInt(e.target.value, 10);
                   if (!isNaN(val)) {
+                    paddingXSlider.onChange(val);
                     updateStyle("paddingX", val);
                   }
                 }}
@@ -200,20 +240,30 @@ export const ContainerEditor: React.FC<{
             <Label>Padding Y</Label>
             <div className="flex gap-4">
               <Slider
-                value={[typeof style?.paddingY === "number" ? style.paddingY : 0]}
-                onValueChange={(v) => updateStyle("paddingY", v[0])}
+                value={[paddingYSlider.value]}
+                onValueChange={(v) => {
+                  const val = v[0];
+                  paddingYSlider.onChange(val);
+                  updateStyle("paddingY", val);
+                }}
+                onMouseDown={paddingYSlider.onMouseDown}
+                onMouseUp={paddingYSlider.onMouseUp}
+                onTouchStart={paddingYSlider.onTouchStart}
+                onTouchEnd={paddingYSlider.onTouchEnd}
                 max={300}
                 min={0}
               />
               <Input
-                value={typeof style?.paddingY === "number" ? style.paddingY : 0}
+                value={paddingYSlider.value}
                 onChange={(e) => {
                   if (e.target.value === "") {
+                    paddingYSlider.onChange(0);
                     updateStyle("paddingY", 0);
                     return;
                   }
                   const val = parseInt(e.target.value, 10);
                   if (!isNaN(val)) {
+                    paddingYSlider.onChange(val);
                     updateStyle("paddingY", val);
                   }
                 }}

@@ -43,6 +43,18 @@ export const CounterStyleEditor: React.FC<{
   );
   const radiusSlider = useSyncedSlider(`${element.id}-radius`, (style.radius as number) || 0, ws);
 
+  useEffect(() => {
+    handleStyleChange({ fontSize: fontSizeSlider.value });
+  }, [fontSizeSlider.value]);
+
+  useEffect(() => {
+    handleStyleChange({ padding: paddingSlider.value });
+  }, [paddingSlider.value]);
+
+  useEffect(() => {
+    handleStyleChange({ radius: radiusSlider.value });
+  }, [radiusSlider.value]);
+
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">

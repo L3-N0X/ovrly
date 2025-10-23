@@ -46,6 +46,18 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
     ws
   );
 
+  useEffect(() => {
+    handleImmediateValueChange("width", widthSlider.value);
+  }, [widthSlider.value]);
+
+  useEffect(() => {
+    handleImmediateValueChange("height", heightSlider.value);
+  }, [heightSlider.value]);
+
+  useEffect(() => {
+    handleImmediateValueChange("borderRadius", borderRadiusSlider.value);
+  }, [borderRadiusSlider.value]);
+
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">

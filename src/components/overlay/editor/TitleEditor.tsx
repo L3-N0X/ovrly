@@ -9,15 +9,15 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { debounce } from "@/lib/utils";
+import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
 
 export const TitleStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: BaseElementStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, onDelete }) => {
-  const [style, setStyle] = useState<BaseElementStyle>(
-    (element.style as BaseElementStyle) || {}
-  );
+  ws?: WebSocket | null;
+}> = ({ element, onChange, onDelete, ws = null }) => {
+  const [style, setStyle] = useState<BaseElementStyle>((element.style as BaseElementStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
   const debouncedOnChange = debounce(onChange, 400);
@@ -34,6 +34,13 @@ export const TitleStyleEditor: React.FC<{
     debouncedOnChange(updatedStyle);
   };
 
+  // responsive local slider + debounced websocket sync
+  const syncedFontSize = useSyncedSlider(
+    `${element.id}.fontSize`,
+    typeof style?.fontSize === "number" ? style.fontSize : 36,
+    ws ?? null
+  );
+
   return (
     <div className="space-y-4 p-4 border rounded-lg mt-2">
       <div className="flex justify-between items-center">
@@ -46,8 +53,16 @@ export const TitleStyleEditor: React.FC<{
         <Label>Font Size</Label>
         <div className="flex gap-4">
           <Slider
-            value={[typeof style?.fontSize === "number" ? style.fontSize : 36]}
-            onValueChange={(v) => handleStyleChange({ fontSize: v[0] })}
+            value={[syncedFontSize.value]}
+            onValueChange={(v) => {
+              const val = v[0];
+              syncedFontSize.onChange(val);
+              handleStyleChange({ fontSize: val });
+            }}
+            onMouseDown={syncedFontSize.onMouseDown}
+            onMouseUp={syncedFontSize.onMouseUp}
+            onTouchStart={syncedFontSize.onTouchStart}
+            onTouchEnd={syncedFontSize.onTouchEnd}
             max={200}
             min={0}
           />
@@ -55,11 +70,13 @@ export const TitleStyleEditor: React.FC<{
             value={typeof style?.fontSize === "number" ? style.fontSize : 36}
             onChange={(e) => {
               if (e.target.value === "") {
+                syncedFontSize.onChange(0);
                 handleStyleChange({ fontSize: 0 });
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
+                syncedFontSize.onChange(val);
                 handleStyleChange({ fontSize: val });
               }
             }}

@@ -241,6 +241,7 @@ export const ElementListItem = ({
               element={element}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.COUNTER && (
