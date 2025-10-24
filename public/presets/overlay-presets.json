@@ -1,17 +1,17 @@
 {
   "presets": [
     {
-      "id": "simple-counter",
-      "name": "Simple Counter",
-      "description": "A basic counter overlay",
-      "icon": "simple-counter.svg",
+      "name": "2x Counter",
+      "id": "2x-counter",
+      "description": "Overlay for 2 player scores",
+      "icon": "overlay_2_title_counter.svg",
       "globalStyle": {
-        "outerJustifyContent": "center",
-        "outerAlignItems": "center",
+        "outerJustifyContent": "flex-start",
+        "outerAlignItems": "flex-start",
         "innerJustifyContent": "center",
         "innerAlignItems": "center",
         "flexDirection": "column",
-        "gap": 10,
+        "gap": 24,
         "top": 0,
         "left": 0,
         "padding": 20,
@@ -19,154 +19,78 @@
       },
       "elements": [
         {
-          "name": "Counter",
-          "type": "COUNTER",
+          "name": "Horizontal Alignment",
+          "type": "CONTAINER",
           "style": {
-            "fontSize": 48,
-            "color": "#ffffffff",
-            "fontFamily": "Roboto",
-            "backgroundColor": "#00000000",
-            "padding": 10,
-            "radius": 5
+            "flexDirection": "row",
+            "gap": 33,
+            "alignItems": "baseline",
+            "justifyContent": "space-between"
           },
-          "counter": {
-            "value": 0
-          }
-        }
-      ]
-    },
-    {
-      "id": "simple-title",
-      "name": "Simple Title",
-      "description": "A basic title overlay",
-      "icon": "simple-title.svg",
-      "globalStyle": {
-        "outerJustifyContent": "center",
-        "outerAlignItems": "center",
-        "innerJustifyContent": "center",
-        "innerAlignItems": "center",
-        "flexDirection": "column",
-        "gap": 10,
-        "top": 0,
-        "left": 0,
-        "padding": 20,
-        "radius": 10
-      },
-      "elements": [
-        {
-          "name": "Title",
-          "type": "TITLE",
-          "style": {
-            "fontSize": 36,
-            "color": "#ffffffff",
-            "fontFamily": "Roboto",
-            "backgroundColor": "#0000",
-            "padding": 10,
-            "radius": 5
-          },
-          "title": {
-            "text": "New Title"
-          }
-        }
-      ]
-    },
-    {
-      "id": "title-counter",
-      "name": "Title + Counter",
-      "description": "A title with a counter",
-      "icon": "title-counter.svg",
-      "globalStyle": {
-        "outerJustifyContent": "center",
-        "outerAlignItems": "center",
-        "innerJustifyContent": "center",
-        "innerAlignItems": "center",
-        "flexDirection": "column",
-        "gap": 20,
-        "top": 0,
-        "left": 0,
-        "padding": 30,
-        "radius": 15
-      },
-      "elements": [
-        {
-          "name": "Title",
-          "type": "TITLE",
-          "style": {
-            "fontSize": 36,
-            "color": "#ffffffff",
-            "fontFamily": "Roboto",
-            "backgroundColor": "#0000",
-            "padding": 10,
-            "radius": 5
-          },
-          "title": {
-            "text": "Score"
-          }
+          "children": [
+            {
+              "name": "Player 1",
+              "type": "TITLE",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 100
+              },
+              "title": {
+                "text": "Player 1"
+              }
+            },
+            {
+              "name": "Score 1",
+              "type": "COUNTER",
+              "style": {
+                "fontFamily": "Roboto Mono",
+                "backgroundColor": "#ffffff44",
+                "padding": 22,
+                "radius": 29
+              },
+              "counter": {
+                "value": 0
+              }
+            }
+          ]
         },
         {
-          "name": "Counter",
-          "type": "COUNTER",
+          "name": "Horizontal Alignment 2",
+          "type": "CONTAINER",
           "style": {
-            "fontSize": 48,
-            "color": "#ffffffff",
-            "fontFamily": "Roboto",
-            "backgroundColor": "#00000000",
-            "padding": 10,
-            "radius": 5
+            "flexDirection": "row",
+            "gap": 32,
+            "alignItems": "baseline",
+            "justifyContent": "space-between",
+            "paddingY": 0,
+            "paddingX": 0
           },
-          "counter": {
-            "value": 0
-          }
-        }
-      ]
-    },
-    {
-      "id": "counter-title",
-      "name": "Counter + Title",
-      "description": "A counter with a title",
-      "icon": "counter-title.svg",
-      "globalStyle": {
-        "outerJustifyContent": "center",
-        "outerAlignItems": "center",
-        "innerJustifyContent": "center",
-        "innerAlignItems": "center",
-        "flexDirection": "column",
-        "gap": 20,
-        "top": 0,
-        "left": 0,
-        "padding": 30,
-        "radius": 15
-      },
-      "elements": [
-        {
-          "name": "Counter",
-          "type": "COUNTER",
-          "style": {
-            "fontSize": 48,
-            "color": "#ffffffff",
-            "fontFamily": "Roboto",
-            "backgroundColor": "#00000000",
-            "padding": 10,
-            "radius": 5
-          },
-          "counter": {
-            "value": 100
-          }
-        },
-        {
-          "name": "Title",
-          "type": "TITLE",
-          "style": {
-            "fontSize": 36,
-            "color": "#ffffffff",
-            "fontFamily": "Roboto",
-            "backgroundColor": "#00000000",
-            "padding": 10,
-            "radius": 5
-          },
-          "title": {
-            "text": "Lives"
-          }
+          "children": [
+            {
+              "name": "Player 2",
+              "type": "TITLE",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 100
+              },
+              "title": {
+                "text": "Player 2"
+              }
+            },
+            {
+              "name": "Score 2",
+              "type": "COUNTER",
+              "style": {
+                "fontFamily": "Roboto Mono",
+                "backgroundColor": "#ffffff44",
+                "padding": 23,
+                "radius": 28
+              },
+              "counter": {
+                "value": 0
+              }
+            }
+          ]
         }
       ]
     }

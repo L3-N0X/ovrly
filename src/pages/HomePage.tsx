@@ -244,7 +244,7 @@ const HomePage: React.FC = () => {
                 Welcome back, {user.user.name}!
               </h1>
               <p className="mt-2 text-lg text-muted-foreground">
-                Ready to create something amazing today?
+                Manage your stream overlays below
               </p>
             </div>
 
