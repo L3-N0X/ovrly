@@ -46,13 +46,13 @@ export const TimerStyleEditor: React.FC<{
     `${element.id}.padding`,
     typeof style?.padding === "number" ? style.padding : 0,
     ws,
-    { debounceMs: 300 }
+    { ignoreWindowMs: 300 }
   );
   const syncedRadius = useSyncedSlider(
     `${element.id}.radius`,
     typeof style?.radius === "number" ? style.radius : 0,
     ws,
-    { debounceMs: 300 }
+    { ignoreWindowMs: 300 }
   );
 
   return (
@@ -113,10 +113,8 @@ export const TimerStyleEditor: React.FC<{
               syncedFontSize.onChange(val);
               handleStyleChange({ fontSize: val });
             }}
-            onMouseDown={syncedFontSize.onMouseDown}
-            onMouseUp={syncedFontSize.onMouseUp}
-            onTouchStart={syncedFontSize.onTouchStart}
-            onTouchEnd={syncedFontSize.onTouchEnd}
+            onPointerDown={syncedFontSize.onInteractionStart}
+            onValueCommit={syncedFontSize.onInteractionEnd}
             max={400}
             min={0}
           />
@@ -197,10 +195,8 @@ export const TimerStyleEditor: React.FC<{
                 syncedPadding.onChange(val);
                 handleStyleChange({ padding: val });
               }}
-              onMouseDown={syncedPadding.onMouseDown}
-              onMouseUp={syncedPadding.onMouseUp}
-              onTouchStart={syncedPadding.onTouchStart}
-              onTouchEnd={syncedPadding.onTouchEnd}
+              onPointerDown={syncedPadding.onInteractionStart}
+              onValueCommit={syncedPadding.onInteractionEnd}
               max={300}
               min={0}
             />
@@ -232,10 +228,8 @@ export const TimerStyleEditor: React.FC<{
                 syncedRadius.onChange(val);
                 handleStyleChange({ radius: val });
               }}
-              onMouseDown={syncedRadius.onMouseDown}
-              onMouseUp={syncedRadius.onMouseUp}
-              onTouchStart={syncedRadius.onTouchStart}
-              onTouchEnd={syncedRadius.onTouchEnd}
+              onPointerDown={syncedRadius.onInteractionStart}
+              onValueCommit={syncedRadius.onInteractionEnd}
               max={100}
             />
             <Input

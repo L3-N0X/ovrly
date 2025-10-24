@@ -66,7 +66,7 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
     "global.padding",
     typeof overlay.globalStyle?.padding === "number" ? overlay.globalStyle.padding : 0,
     ws ?? null,
-    { debounceMs: 300 }
+    { ignoreWindowMs: 300 }
   );
 
   return (
@@ -100,10 +100,8 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
                 syncedGap.onChange(val);
                 updateGlobalStyle("gap", val);
               }}
-              onMouseDown={syncedGap.onMouseDown}
-              onMouseUp={syncedGap.onMouseUp}
-              onTouchStart={syncedGap.onTouchStart}
-              onTouchEnd={syncedGap.onTouchEnd}
+              onPointerDown={syncedGap.onInteractionStart}
+              onValueCommit={syncedGap.onInteractionEnd}
               max={200}
               min={0}
             />
@@ -175,10 +173,8 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
                 syncedPadding.onChange(val);
                 updateGlobalStyle("padding", val);
               }}
-              onMouseDown={syncedPadding.onMouseDown}
-              onMouseUp={syncedPadding.onMouseUp}
-              onTouchStart={syncedPadding.onTouchStart}
-              onTouchEnd={syncedPadding.onTouchEnd}
+              onPointerDown={syncedPadding.onInteractionStart}
+              onValueCommit={syncedPadding.onInteractionEnd}
               max={300}
               min={0}
             />

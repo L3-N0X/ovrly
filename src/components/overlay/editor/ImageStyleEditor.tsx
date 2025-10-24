@@ -74,10 +74,8 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
           <Slider
             value={[widthSlider.value]}
             onValueChange={([val]) => widthSlider.onChange(val)}
-            onMouseDown={widthSlider.onMouseDown}
-            onMouseUp={widthSlider.onMouseUp}
-            onTouchStart={widthSlider.onTouchStart}
-            onTouchEnd={widthSlider.onTouchEnd}
+            onPointerDown={widthSlider.onInteractionStart}
+            onValueCommit={widthSlider.onInteractionEnd}
             max={1920}
             step={1}
           />
@@ -103,10 +101,8 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
           <Slider
             value={[heightSlider.value]}
             onValueChange={([val]) => heightSlider.onChange(val)}
-            onMouseDown={heightSlider.onMouseDown}
-            onMouseUp={heightSlider.onMouseUp}
-            onTouchStart={heightSlider.onTouchStart}
-            onTouchEnd={heightSlider.onTouchEnd}
+            onPointerDown={heightSlider.onInteractionStart}
+            onValueCommit={heightSlider.onInteractionEnd}
             max={1080}
             step={1}
           />
@@ -132,10 +128,8 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
           <Slider
             value={[borderRadiusSlider.value]}
             onValueChange={([val]) => borderRadiusSlider.onChange(val)}
-            onMouseDown={borderRadiusSlider.onMouseDown}
-            onMouseUp={borderRadiusSlider.onMouseUp}
-            onTouchStart={borderRadiusSlider.onTouchStart}
-            onTouchEnd={borderRadiusSlider.onTouchEnd}
+            onPointerDown={borderRadiusSlider.onInteractionStart}
+            onValueCommit={borderRadiusSlider.onInteractionEnd}
             max={500}
             step={1}
           />

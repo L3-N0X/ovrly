@@ -176,10 +176,8 @@ export const ContainerEditor: React.FC<{
                   const val = v[0];
                   gapSlider.onChange(val);
                 }}
-                onMouseDown={gapSlider.onMouseDown}
-                onMouseUp={gapSlider.onMouseUp}
-                onTouchStart={gapSlider.onTouchStart}
-                onTouchEnd={gapSlider.onTouchEnd}
+                onPointerDown={gapSlider.onInteractionStart}
+                onValueCommit={gapSlider.onInteractionEnd}
                 max={200}
                 min={0}
               />
@@ -210,10 +208,8 @@ export const ContainerEditor: React.FC<{
                   const val = v[0];
                   paddingXSlider.onChange(val);
                 }}
-                onMouseDown={paddingXSlider.onMouseDown}
-                onMouseUp={paddingXSlider.onMouseUp}
-                onTouchStart={paddingXSlider.onTouchStart}
-                onTouchEnd={paddingXSlider.onTouchEnd}
+                onPointerDown={paddingXSlider.onInteractionStart}
+                onValueCommit={paddingXSlider.onInteractionEnd}
                 max={300}
                 min={0}
               />
@@ -244,10 +240,8 @@ export const ContainerEditor: React.FC<{
                   const val = v[0];
                   paddingYSlider.onChange(val);
                 }}
-                onMouseDown={paddingYSlider.onMouseDown}
-                onMouseUp={paddingYSlider.onMouseUp}
-                onTouchStart={paddingYSlider.onTouchStart}
-                onTouchEnd={paddingYSlider.onTouchEnd}
+                onPointerDown={paddingYSlider.onInteractionStart}
+                onValueCommit={paddingYSlider.onInteractionEnd}
                 max={300}
                 min={0}
               />

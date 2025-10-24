@@ -61,10 +61,8 @@ export const CounterStyleEditor: React.FC<{
           <Slider
             value={[fontSizeSlider.value]}
             onValueChange={([v]) => fontSizeSlider.onChange(v)}
-            onMouseDown={fontSizeSlider.onMouseDown}
-            onMouseUp={fontSizeSlider.onMouseUp}
-            onTouchStart={fontSizeSlider.onTouchStart}
-            onTouchEnd={fontSizeSlider.onTouchEnd}
+            onPointerDown={fontSizeSlider.onInteractionStart}
+            onValueCommit={fontSizeSlider.onInteractionEnd}
             max={400}
             min={0}
           />
@@ -74,11 +72,13 @@ export const CounterStyleEditor: React.FC<{
             onChange={(e) => {
               if (e.target.value === "") {
                 fontSizeSlider.onChange(0);
+                fontSizeSlider.onInteractionEnd();
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
                 fontSizeSlider.onChange(val);
+                fontSizeSlider.onInteractionEnd();
               }
             }}
             className="h-10 w-20"
@@ -139,10 +139,8 @@ export const CounterStyleEditor: React.FC<{
             <Slider
               value={[paddingSlider.value]}
               onValueChange={([v]) => paddingSlider.onChange(v)}
-              onMouseDown={paddingSlider.onMouseDown}
-              onMouseUp={paddingSlider.onMouseUp}
-              onTouchStart={paddingSlider.onTouchStart}
-              onTouchEnd={paddingSlider.onTouchEnd}
+              onPointerDown={paddingSlider.onInteractionStart}
+              onValueCommit={paddingSlider.onInteractionEnd}
               max={300}
               min={0}
             />
@@ -151,11 +149,13 @@ export const CounterStyleEditor: React.FC<{
               onChange={(e) => {
                 if (e.target.value === "") {
                   paddingSlider.onChange(0);
+                  paddingSlider.onInteractionEnd();
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
                   paddingSlider.onChange(val);
+                  paddingSlider.onInteractionEnd();
                 }
               }}
               className="h-10 w-20"
@@ -168,22 +168,22 @@ export const CounterStyleEditor: React.FC<{
             <Slider
               value={[radiusSlider.value]}
               onValueChange={([v]) => radiusSlider.onChange(v)}
-              onMouseDown={radiusSlider.onMouseDown}
-              onMouseUp={radiusSlider.onMouseUp}
-              onTouchStart={radiusSlider.onTouchStart}
-              onTouchEnd={radiusSlider.onTouchEnd}
+              onPointerDown={radiusSlider.onInteractionStart}
+              onValueCommit={radiusSlider.onInteractionEnd}
               max={100}
-            />
+            />{" "}
             <Input
               value={radiusSlider.value}
               onChange={(e) => {
                 if (e.target.value === "") {
                   radiusSlider.onChange(0);
+                  radiusSlider.onInteractionEnd();
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
                   radiusSlider.onChange(val);
+                  radiusSlider.onInteractionEnd();
                 }
               }}
               className="h-10 w-20"

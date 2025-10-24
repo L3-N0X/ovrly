@@ -68,13 +68,9 @@ export const useSyncedSlider = (
   return {
     value: uiValue,
     onChange: setUiValue,
-    onMouseDown: () => {
+    onInteractionStart: () => {
       isDragging.current = true;
     },
-    onMouseUp: handleInteractionEnd,
-    onTouchStart: () => {
-      isDragging.current = true;
-    },
-    onTouchEnd: handleInteractionEnd,
+    onInteractionEnd: handleInteractionEnd,
   };
 };

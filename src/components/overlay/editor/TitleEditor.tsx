@@ -59,10 +59,8 @@ export const TitleStyleEditor: React.FC<{
               syncedFontSize.onChange(val);
               handleStyleChange({ fontSize: val });
             }}
-            onMouseDown={syncedFontSize.onMouseDown}
-            onMouseUp={syncedFontSize.onMouseUp}
-            onTouchStart={syncedFontSize.onTouchStart}
-            onTouchEnd={syncedFontSize.onTouchEnd}
+            onPointerDown={syncedFontSize.onInteractionStart}
+            onValueCommit={syncedFontSize.onInteractionEnd}
             max={200}
             min={0}
           />
