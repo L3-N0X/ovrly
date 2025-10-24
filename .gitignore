@@ -29,3 +29,4 @@ dist-ssr
 
 prisma/dev.db
 /uploads
+/presets
