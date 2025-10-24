@@ -91,6 +91,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
                 widthSlider.onChange(val);
               }
             }}
+            onBlur={() => widthSlider.onInteractionEnd()}
             className="h-10 w-20"
           />
         </div>
@@ -118,6 +119,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
                 heightSlider.onChange(val);
               }
             }}
+            onBlur={() => heightSlider.onInteractionEnd()}
             className="h-10 w-20"
           />
         </div>
@@ -145,6 +147,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
                 borderRadiusSlider.onChange(val);
               }
             }}
+            onBlur={() => borderRadiusSlider.onInteractionEnd()}
             className="h-10 w-20"
           />
         </div>

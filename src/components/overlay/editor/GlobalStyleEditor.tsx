@@ -119,6 +119,7 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
                   updateGlobalStyle("gap", val);
                 }
               }}
+              onBlur={() => syncedGap.onInteractionEnd()}
               className="h-10 w-20"
             />
           </div>
@@ -192,6 +193,7 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
                   updateGlobalStyle("padding", val);
                 }
               }}
+              onBlur={() => syncedPadding.onInteractionEnd()}
               className="h-10 w-20"
             />
           </div>

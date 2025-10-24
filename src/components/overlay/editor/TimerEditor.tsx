@@ -133,6 +133,7 @@ export const TimerStyleEditor: React.FC<{
                 handleStyleChange({ fontSize: val });
               }
             }}
+            onBlur={() => syncedFontSize.onInteractionEnd()}
             className="h-10 w-20"
           />
         </div>
@@ -214,6 +215,7 @@ export const TimerStyleEditor: React.FC<{
                   handleStyleChange({ padding: val });
                 }
               }}
+              onBlur={() => syncedPadding.onInteractionEnd()}
               className="h-10 w-20"
             />
           </div>
@@ -246,6 +248,7 @@ export const TimerStyleEditor: React.FC<{
                   handleStyleChange({ radius: val });
                 }
               }}
+              onBlur={() => syncedRadius.onInteractionEnd()}
               className="h-10 w-20"
             />
           </div>

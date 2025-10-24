@@ -195,6 +195,7 @@ export const ContainerEditor: React.FC<{
                     updateStyle("gap", val);
                   }
                 }}
+                onBlur={() => gapSlider.onInteractionEnd()}
                 className="h-10 w-20"
               />
             </div>
@@ -227,6 +228,7 @@ export const ContainerEditor: React.FC<{
                     updateStyle("paddingX", val);
                   }
                 }}
+                onBlur={() => paddingXSlider.onInteractionEnd()}
                 className="h-10 w-20"
               />
             </div>
@@ -259,6 +261,7 @@ export const ContainerEditor: React.FC<{
                     updateStyle("paddingY", val);
                   }
                 }}
+                onBlur={() => paddingYSlider.onInteractionEnd()}
                 className="h-10 w-20"
               />
             </div>

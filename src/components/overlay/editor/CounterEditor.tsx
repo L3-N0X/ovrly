@@ -72,15 +72,14 @@ export const CounterStyleEditor: React.FC<{
             onChange={(e) => {
               if (e.target.value === "") {
                 fontSizeSlider.onChange(0);
-                fontSizeSlider.onInteractionEnd();
                 return;
               }
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val)) {
                 fontSizeSlider.onChange(val);
-                fontSizeSlider.onInteractionEnd();
               }
             }}
+            onBlur={() => fontSizeSlider.onInteractionEnd()}
             className="h-10 w-20"
           />
         </div>
@@ -149,15 +148,14 @@ export const CounterStyleEditor: React.FC<{
               onChange={(e) => {
                 if (e.target.value === "") {
                   paddingSlider.onChange(0);
-                  paddingSlider.onInteractionEnd();
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
                   paddingSlider.onChange(val);
-                  paddingSlider.onInteractionEnd();
                 }
               }}
+              onBlur={() => paddingSlider.onInteractionEnd()}
               className="h-10 w-20"
             />
           </div>
@@ -177,15 +175,14 @@ export const CounterStyleEditor: React.FC<{
               onChange={(e) => {
                 if (e.target.value === "") {
                   radiusSlider.onChange(0);
-                  radiusSlider.onInteractionEnd();
                   return;
                 }
                 const val = parseInt(e.target.value, 10);
                 if (!isNaN(val)) {
                   radiusSlider.onChange(val);
-                  radiusSlider.onInteractionEnd();
                 }
               }}
+              onBlur={() => radiusSlider.onInteractionEnd()}
               className="h-10 w-20"
             />
           </div>

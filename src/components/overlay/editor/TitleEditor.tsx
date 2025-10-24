@@ -78,6 +78,7 @@ export const TitleStyleEditor: React.FC<{
                 handleStyleChange({ fontSize: val });
               }
             }}
+            onBlur={() => syncedFontSize.onInteractionEnd()}
             className="h-10 w-20"
           />
         </div>

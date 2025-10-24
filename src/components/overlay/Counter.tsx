@@ -25,6 +25,10 @@ const Counter: React.FC<CounterProps> = ({ value, style }) => {
     backgroundColor: safeStyle.backgroundColor,
     borderRadius: typeof safeStyle.radius === "number" ? `${safeStyle.radius}px` : undefined,
     padding: typeof safeStyle.padding === "number" ? `${safeStyle.padding}px` : undefined,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
   };
 
   return <div style={counterStyle}>{value}</div>;
