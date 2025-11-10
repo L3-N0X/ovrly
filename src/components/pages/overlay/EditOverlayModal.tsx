@@ -69,7 +69,7 @@ const EditOverlayModal: React.FC<EditOverlayModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My Awesome Overlay"
-              className={error ? "border-red-400 focus:border-red-400" : ""}
+              className={error ? "border-destructive focus:border-destructive" : ""}
               disabled={isLoading}
             />
           </div>
@@ -83,7 +83,7 @@ const EditOverlayModal: React.FC<EditOverlayModalProps> = ({
               disabled={isLoading}
             />
           </div>
-          {error && <p className="text-sm text-red-400 mt-1">{error}</p>}
+          {error && <p className="text-sm text-destructive mt-1">{error}</p>}
         </div>
 
         <DialogFooter>

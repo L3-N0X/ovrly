@@ -93,7 +93,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
             onValueChange={([val]) => widthSlider.onChange(val)}
             onPointerDown={widthSlider.onInteractionStart}
             onValueCommit={widthSlider.onInteractionEnd}
-            max={1920}
+            max={1024}
             step={1}
           />
           <Input
@@ -121,7 +121,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
             onValueChange={([val]) => heightSlider.onChange(val)}
             onPointerDown={heightSlider.onInteractionStart}
             onValueCommit={heightSlider.onInteractionEnd}
-            max={1080}
+            max={1024}
             step={1}
           />
           <Input

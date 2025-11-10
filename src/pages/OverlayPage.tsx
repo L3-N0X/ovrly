@@ -6,7 +6,7 @@ import { useOverlayData } from "@/lib/hooks/useOverlayData";
 import OverlayHeader from "@/components/pages/overlay/OverlayHeader";
 import OverlayPreview from "@/components/pages/overlay/OverlayPreview";
 import DataControls from "@/components/pages/overlay/DataControls";
-import DangerZone from "@/components/pages/overlay/DangerZone";
+import OverlayAdditionalOptions from "@/components/pages/overlay/OverlayAdditionalOptions";
 import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
 
 const OverlayPage: React.FC = () => {
@@ -62,7 +62,7 @@ const OverlayPage: React.FC = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   if (error)
     return (
-      <div className="flex items-center justify-center min-h-screen text-red-500">{error}</div>
+      <div className="flex items-center justify-center min-h-screen text-destructive">{error}</div>
     );
   if (!overlay || !id)
     return <div className="flex items-center justify-center min-h-screen">Overlay not found</div>;
@@ -99,7 +99,7 @@ const OverlayPage: React.FC = () => {
 
             <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} ws={ws} />
 
-            <DangerZone handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
+            <OverlayAdditionalOptions handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
           </div>
         </div>
       </div>

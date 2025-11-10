@@ -34,7 +34,7 @@ export const TitleStyleEditor: React.FC<{
   const handleStyleChange = (newStyle: Partial<BaseElementStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
     setStyle(updatedStyle);
-debouncedOnChange(updatedStyle);
+    debouncedOnChange(updatedStyle);
   };
 
   // responsive local slider + debounced websocket sync
@@ -45,7 +45,7 @@ debouncedOnChange(updatedStyle);
   );
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg mt-2">
+    <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">

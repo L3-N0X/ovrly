@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PrismaOverlay, PrismaElement, BaseElementStyle } from "@/lib/types";
 
-interface DangerZoneProps {
+interface OverlayAdditionalOptionsProps {
   handleDeleteOverlay: () => void;
   overlay: PrismaOverlay | null;
 }
 
-const DangerZone: React.FC<DangerZoneProps> = ({ handleDeleteOverlay, overlay }) => {
+const OverlayAdditionalOptions: React.FC<OverlayAdditionalOptionsProps> = ({
+  handleDeleteOverlay,
+  overlay,
+}) => {
   const handleExport = async () => {
     if (!overlay) return;
 
@@ -84,11 +87,11 @@ const DangerZone: React.FC<DangerZoneProps> = ({ handleDeleteOverlay, overlay })
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Danger Zone</CardTitle>
-        <CardDescription>This action is irreversible. Please be certain.</CardDescription>
+        <CardTitle>Additional Options</CardTitle>
+        <CardDescription>Export or delete your overlay.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Button onClick={handleExport} variant="outline" className="w-full">
+        <Button onClick={handleExport} variant="outline" className="w-full bg-secondary">
           Export to JSON
         </Button>
         <Button onClick={handleDeleteOverlay} variant="destructive" className="w-full">
@@ -99,4 +102,4 @@ const DangerZone: React.FC<DangerZoneProps> = ({ handleDeleteOverlay, overlay })
   );
 };
 
-export default DangerZone;
+export default OverlayAdditionalOptions;

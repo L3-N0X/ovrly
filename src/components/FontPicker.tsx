@@ -232,10 +232,10 @@ export function FontPicker({
           </div>
           {isLoading ? (
             <div className="flex items-center justify-center p-4">
-              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-gray-900" />
+              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-border" />
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center p-4 text-sm text-red-500">
+            <div className="flex items-center justify-center p-4 text-sm text-destructive">
               Failed to load fonts. Please try again later.
             </div>
           ) : (

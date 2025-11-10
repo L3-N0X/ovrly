@@ -15,7 +15,10 @@ interface DataControlsProps {
   handleImageChange: (elementId: string, src: string) => void;
   handleTimerToggle: (elementId: string) => void;
   handleTimerReset: (elementId: string) => void;
-  handleTimerUpdate: (elementId: string, update: { duration?: number; countDown?: boolean }) => void;
+  handleTimerUpdate: (
+    elementId: string,
+    update: { duration?: number; countDown?: boolean }
+  ) => void;
   handleTimerAddTime: (elementId: string, timeToAdd: number) => void;
   selectedTimer: PrismaElement | null;
   setSelectedTimer: (timer: PrismaElement | null) => void;
@@ -37,7 +40,8 @@ const DataControls: React.FC<DataControlsProps> = ({
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
 
   const editableElements = overlay.elements.filter(
-    (el) => el.type === "COUNTER" || el.type === "TITLE" || el.type === "TIMER" || el.type === "IMAGE"
+    (el) =>
+      el.type === "COUNTER" || el.type === "TITLE" || el.type === "TIMER" || el.type === "IMAGE"
   );
 
   return (
@@ -92,9 +96,7 @@ const DataControls: React.FC<DataControlsProps> = ({
               }
             })
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No editable elements in this overlay.
-            </p>
+            <p className="text-sm text-muted-foreground">No editable elements in this overlay.</p>
           )}
         </CardContent>
       </Card>

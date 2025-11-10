@@ -29,7 +29,7 @@ const CounterControl: React.FC<CounterControlProps> = ({
           }
           size="icon-lg"
           variant="secondary"
-          className="h-9 w-9 rounded-r-xs"
+          className="h-9 w-9 rounded-r-xs border-input border"
         >
           <Minus className="w-4 h-4" />
         </Button>
@@ -37,7 +37,7 @@ const CounterControl: React.FC<CounterControlProps> = ({
           id={`count-${element.id}`}
           value={element.counter?.value || 0}
           onChange={(e) => handleCounterChange(element.id, parseInt(e.target.value, 10) || 0)}
-          className="w-36 text-center text-2xl h-9 border-none rounded-l-xs rounded-r-xs"
+          className="w-36 text-center text-2xl h-9 rounded-l-xs rounded-r-xs bg-input/30 border-input"
         />
         <Button
           onClick={() =>
@@ -45,7 +45,7 @@ const CounterControl: React.FC<CounterControlProps> = ({
           }
           size="icon-lg"
           variant="secondary"
-          className="h-9 w-9 rounded-l-xs"
+          className="h-9 w-9 rounded-l-xs border-input border"
         >
           <Plus className="w-4 h-4" />
         </Button>

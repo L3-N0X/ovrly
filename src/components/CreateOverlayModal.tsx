@@ -135,9 +135,9 @@ const CreateOverlayModal: React.FC<CreateOverlayModalProps> = ({
                 value={newOverlayName}
                 onChange={(e) => setNewOverlayName(e.target.value)}
                 placeholder="My Awesome Overlay"
-                className={modalError ? "border-red-400 focus:border-red-400" : ""}
+                className={modalError ? "border-destructive focus:border-destructive" : ""}
               />
-              {modalError && <p className="text-sm text-red-400 mt-1">{modalError}</p>}
+              {modalError && <p className="text-sm text-destructive mt-1">{modalError}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Overlay Description</Label>

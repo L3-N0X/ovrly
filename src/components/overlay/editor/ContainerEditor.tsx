@@ -115,7 +115,7 @@ export const ContainerEditor: React.FC<{
       <div
         ref={containerRef}
         className={`p-2 rounded-lg space-y-2 min-h-[80px] relative transition-colors ${
-          isDraggedOver ? "bg-blue-500/20 border-2 border-blue-500 border-dashed" : "bg-muted/50"
+          isDraggedOver ? "bg-chart-1/20 border-2 border-chart-1 border-dashed" : "bg-muted/50"
         }`}
       >
         {children.length === 0 && (

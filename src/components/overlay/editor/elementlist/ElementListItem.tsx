@@ -219,10 +219,10 @@ export const ElementListItem = ({
           <span className="text-lg font-medium">{element.name}</span>
           <Chip
             className={
-              "ml-1 text-xs text-muted-foreground" +
+              "ml-1 text-xs" +
               (element.type === ElementTypeEnum.CONTAINER
-                ? " bg-blue-950 text-white border-blue-800"
-                : "bg-muted border-border")
+                ? " bg-chart-1/30 text-white border-chart-1"
+                : " bg-secondary-foreground/10 text-foreground border-secondary-foreground/10")
             }
           >
             {element.type}

@@ -76,7 +76,7 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2 rounded-md cursor-pointer text-muted-foreground hover:text-foreground transition h-15 w-11 flex items-center justify-center -ml-15"
+            className="p-2 rounded-md cursor-pointer text-muted-foreground hover:text-foreground transition h-10 w-10 flex items-center justify-center"
           >
             <ChevronLeft strokeWidth={4} size="32" />
           </button>
@@ -94,13 +94,13 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 md:ml-auto">
           <Button onClick={() => setIsEditModalOpen(true)} variant="outline">
             <Edit className="mr-2" />
             Edit Name
           </Button>
           <Button onClick={handleCopyToClipboard} variant="outline">
-            {isCopied ? <Check className="mr-2 text-green-200" /> : <Copy className="mr-2" />}
+            {isCopied ? <Check className="mr-2 text-green-300" /> : <Copy className="mr-2" />}
             {isCopied ? "Copied!" : "Copy for OBS"}
           </Button>
           <Button onClick={onShare} variant="outline">

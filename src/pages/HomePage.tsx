@@ -263,7 +263,7 @@ const HomePage: React.FC = () => {
             {isLoading && overlays.length === 0 ? (
               <p className="text-center text-muted-foreground">Loading overlays...</p>
             ) : error ? (
-              <p className="text-red-400 text-center">{error}</p>
+              <p className="text-destructive text-center">{error}</p>
             ) : overlays.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {overlays.map((overlay) => (
