@@ -16,7 +16,7 @@ This project is a web-based overlay editor for live streaming. It allows users t
 The project is structured as a monorepo with a frontend and a backend.
 
 *   The **frontend** is a React application built with Vite. It's responsible for the user interface, allowing users to design and interact with their overlays.
-*   The **backend** is a Bun server that provides a RESTful API for the frontend. It handles data persistence, user authentication, and real-time updates using WebSockets.
+*   The **backend** is a Bun HTTP server that provides a RESTful API for the frontend. It handles data persistence, user authentication, and real-time updates using WebSockets.
 *   The **database** schema is defined using Prisma and includes tables for users, overlays, elements, and editors.
 
 ## Building and Running
@@ -24,7 +24,6 @@ The project is structured as a monorepo with a frontend and a backend.
 ### Prerequisites:
 
 *   Bun
-*   Node.js and npm (for `concurrently`)
 
 ### Development:
 

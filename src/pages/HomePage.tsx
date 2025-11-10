@@ -1,29 +1,5 @@
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -31,22 +7,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import {
-  ClipboardCopy,
-  CopyPlus,
-  ExternalLink,
-  Inbox,
-  MoreHorizontal,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { Inbox, Plus, RefreshCw } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import OverlayCard from "@/components/OverlayCard";
+import CreateOverlayModal from "@/components/CreateOverlayModal";
 
 interface Element {
   id: string;
@@ -85,6 +51,7 @@ const HomePage: React.FC = () => {
   const [presets, setPresets] = useState<OverlayPreset[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const fetchOverlays = async () => {
     setIsLoading(true);
@@ -103,7 +70,12 @@ const HomePage: React.FC = () => {
       );
       setOverlays(sortedData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      setError(
+        errorMessage.includes("fetch")
+          ? "Unable to connect to the server. Please check your internet connection and try again."
+          : `Failed to load overlays: ${errorMessage}`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -118,8 +90,11 @@ const HomePage: React.FC = () => {
       const data = await response.json();
       setPresets(data.presets);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
       setError(
-        err instanceof Error ? err.message : "An unknown error occurred while loading presets"
+        errorMessage.includes("fetch")
+          ? "Unable to load overlay templates. Please check your connection and refresh the page."
+          : `Failed to load templates: ${errorMessage}`
       );
     }
   };
@@ -183,8 +158,16 @@ const HomePage: React.FC = () => {
   };
 
   const handleCreateOverlay = async () => {
-    if (!newOverlayName || !selectedPreset) {
-      setError("Overlay name and preset selection are required.");
+    // Clear any previous modal errors
+    setModalError(null);
+
+    if (!newOverlayName.trim()) {
+      setModalError("Overlay name is required.");
+      return;
+    }
+
+    if (!selectedPreset) {
+      setModalError("Please select a template for your overlay.");
       return;
     }
 
@@ -194,22 +177,26 @@ const HomePage: React.FC = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newOverlayName,
-          description: newOverlayDescription,
+          name: newOverlayName.trim(),
+          description: newOverlayDescription.trim(),
           presetId: selectedPreset.id,
         }),
         credentials: "include",
       });
       if (!response.ok) {
-        throw new Error("Failed to create overlay");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to create overlay");
       }
       fetchOverlays(); // Refetch overlays after creating a new one
       setIsDialogOpen(false); // Close the dialog
       setNewOverlayName(""); // Reset form
       setNewOverlayDescription(""); // Reset form
       setSelectedPreset(null); // Reset form
+      setModalError(null); // Clear any errors
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setModalError(
+        err instanceof Error ? err.message : "An unknown error occurred while creating the overlay"
+      );
     } finally {
       setIsCreating(false);
     }
@@ -254,193 +241,42 @@ const HomePage: React.FC = () => {
                 <Button variant="outline" size="icon" onClick={fetchOverlays} disabled={isLoading}>
                   <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </Button>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={handleCreateNewOverlay}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create New
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create New Overlay</DialogTitle>
-                      <DialogDescription>
-                        {selectedPreset
-                          ? `Selected template: ${selectedPreset.name}`
-                          : "Choose a template for your new overlay"}
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    {!selectedPreset ? (
-                      <div className="space-y-4 py-4">
-                        <h3 className="font-semibold">Select a Template</h3>
-                        <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto p-1">
-                          {presets.map((preset) => (
-                            <div
-                              key={preset.id}
-                              className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                              onClick={() => handlePresetSelect(preset)}
-                            >
-                              {preset.icon ? (
-                                <div className="w-10 h-10 mr-3 flex items-center justify-center">
-                                  <img
-                                    src={`/presets/icons/${preset.icon}`}
-                                    alt={`${preset.name} icon`}
-                                    className="max-h-full max-w-full object-contain"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="text-2xl mr-3">{preset.icon}</div>
-                              )}
-                              <div>
-                                <div className="font-medium">{preset.name}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {preset.description}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 py-4">
-                        <div className="flex items-center p-3 border rounded-lg bg-accent mb-4">
-                          {selectedPreset.icon ? (
-                            <div className="w-10 h-10 mr-3 flex items-center justify-center">
-                              <img
-                                src={`/presets/icons/${selectedPreset.icon}`}
-                                alt={`${selectedPreset.name} icon`}
-                                className="max-h-full max-w-full object-contain"
-                              />
-                            </div>
-                          ) : (
-                            <div className="text-2xl mr-3">{selectedPreset.icon}</div>
-                          )}
-                          <div>
-                            <div className="font-medium">{selectedPreset.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {selectedPreset.description}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Overlay Name *</Label>
-                          <Input
-                            id="name"
-                            value={newOverlayName}
-                            onChange={(e) => setNewOverlayName(e.target.value)}
-                            placeholder="My Awesome Overlay"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="description">Overlay Description</Label>
-                          <Input
-                            id="description"
-                            value={newOverlayDescription}
-                            onChange={(e) => setNewOverlayDescription(e.target.value)}
-                            placeholder="A short description of what this overlay is for."
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (!selectedPreset) {
-                            setIsDialogOpen(false);
-                          } else {
-                            setSelectedPreset(null);
-                          }
-                        }}
-                      >
-                        {selectedPreset ? "Back" : "Cancel"}
-                      </Button>
-                      {selectedPreset && (
-                        <Button onClick={handleCreateOverlay} disabled={isCreating}>
-                          {isCreating ? "Creating..." : "Create"}
-                        </Button>
-                      )}
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                <CreateOverlayModal
+                  isDialogOpen={isDialogOpen}
+                  setIsDialogOpen={setIsDialogOpen}
+                  selectedPreset={selectedPreset}
+                  setSelectedPreset={setSelectedPreset}
+                  presets={presets}
+                  newOverlayName={newOverlayName}
+                  setNewOverlayName={setNewOverlayName}
+                  newOverlayDescription={newOverlayDescription}
+                  setNewOverlayDescription={setNewOverlayDescription}
+                  isCreating={isCreating}
+                  onCreateOverlay={handleCreateOverlay}
+                  onPresetSelect={handlePresetSelect}
+                  onCreateNewOverlay={handleCreateNewOverlay}
+                  modalError={modalError}
+                />
               </div>
             </div>
 
             {isLoading && overlays.length === 0 ? (
               <p className="text-center text-muted-foreground">Loading overlays...</p>
             ) : error ? (
-              <p className="text-red-500 text-center">{error}</p>
+              <p className="text-red-400 text-center">{error}</p>
             ) : overlays.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {overlays.map((overlay) => (
-                  <Card
+                  <OverlayCard
                     key={overlay.id}
-                    className="flex flex-col hover:shadow-lg transition-shadow"
-                  >
-                    <CardHeader>
-                      <CardTitle className="flex items-start justify-start gap-2">
-                        <span className="truncate pr-2 text-lg">{overlay.name}</span>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild className="ml-auto">
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-5 w-5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/overlay/${overlay.id}`)}>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              <span>Open Editor</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleCopyPublicUrl(overlay.id)}>
-                              <ClipboardCopy className="mr-2 h-4 w-4" />
-                              <span>{copiedId === overlay.id ? "Copied!" : "Copy public URL"}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDuplicateOverlay(overlay.id)}>
-                              <CopyPlus className="mr-2 h-4 w-4" />
-                              <span>Duplicate</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => handleDeleteOverlay(overlay.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>Delete</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button
-                          onClick={() => navigate(`/overlay/${overlay.id}`)}
-                          variant="outline"
-                        >
-                          Edit
-                        </Button>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      {overlay.description && (
-                        <CardDescription className="pt-1">{overlay.description}</CardDescription>
-                      )}
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center">
-                          {overlay.userId !== user.user.id && (
-                            <div className="flex items-center mr-4" title="Shared with you">
-                              <Users className="h-4 w-4 mr-1" />
-                              <span>Shared</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <p className="text-xs text-muted-foreground">
-                        Created on {new Date(overlay.createdAt).toLocaleDateString()}
-                      </p>
-                    </CardFooter>
-                  </Card>
+                    overlay={overlay}
+                    user={user}
+                    navigate={navigate}
+                    handleCopyPublicUrl={handleCopyPublicUrl}
+                    handleDuplicateOverlay={handleDuplicateOverlay}
+                    handleDeleteOverlay={handleDeleteOverlay}
+                    copiedId={copiedId}
+                  />
                 ))}
               </div>
             ) : (
