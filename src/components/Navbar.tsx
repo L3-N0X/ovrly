@@ -3,7 +3,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -16,7 +15,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { ModeToggle } from "./toggle";
 import { Button } from "./ui/button";
 
+import { LogOut, Settings, User } from "lucide-react";
 import ovrlyLogo from "../assets/ovrly-logo.png";
+import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 
 const Navbar = () => {
   const { data: session } = authClient.useSession();
@@ -47,29 +48,43 @@ const Navbar = () => {
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <div className="ml-auto flex-1 sm:flex-initial"></div>
         <ModeToggle></ModeToggle>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon" className="rounded-full">
-              <img
-                alt="User Avatar"
-                src={user?.image || "/default-avatar.png"}
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
-              <span className="sr-only">Toggle user menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/settings">Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="icon" className="rounded-full">
+                {(user?.image && (
+                  <img
+                    alt="User Avatar"
+                    src={user?.image}
+                    width={32}
+                    height={32}
+                    className="rounded-full"
+                  />
+                )) || <User />}
+                <span className="sr-only">Toggle user menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {user && (
+                <DropdownMenuLabel className="text-muted-foreground">
+                  {user?.name}
+                </DropdownMenuLabel>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/settings">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              {/* <DropdownMenuSeparator /> */}
+              <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </header>
   );

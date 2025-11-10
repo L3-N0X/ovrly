@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
+  CardAction,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -57,49 +57,51 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
   copiedId,
 }) => {
   return (
-    <Card className="flex flex-col hover:shadow-lg transition-shadow">
+    <Card
+      className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={() => navigate(`/overlay/${overlay.id}`)}
+    >
       <CardHeader>
-        <CardTitle className="flex items-start justify-start gap-2">
-          <span className="truncate pr-2 text-lg">{overlay.name}</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild className="ml-auto">
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/overlay/${overlay.id}`)}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                <span>Open Editor</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCopyPublicUrl(overlay.id)}>
-                <ClipboardCopy className="mr-2 h-4 w-4" />
-                <span>{copiedId === overlay.id ? "Copied!" : "Copy public URL"}</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDuplicateOverlay(overlay.id)}>
-                <CopyPlus className="mr-2 h-4 w-4" />
-                <span>Duplicate</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => handleDeleteOverlay(overlay.id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={() => navigate(`/overlay/${overlay.id}`)} variant="outline">
-            Edit
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-grow">
-        {overlay.description && (
-          <CardDescription className="pt-1">{overlay.description}</CardDescription>
-        )}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <CardTitle className="truncate text-lg">{overlay.name}</CardTitle>
+        {overlay.description && <CardDescription>{overlay.description}</CardDescription>}
+        <CardAction>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => e.stopPropagation()} // Prevent card click
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate(`/overlay/${overlay.id}`)}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  <span>Open Editor</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCopyPublicUrl(overlay.id)}>
+                  <ClipboardCopy className="mr-2 h-4 w-4" />
+                  <span>{copiedId === overlay.id ? "Copied!" : "Copy for OBS"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDuplicateOverlay(overlay.id)}>
+                  <CopyPlus className="mr-2 h-4 w-4" />
+                  <span>Duplicate</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => handleDeleteOverlay(overlay.id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardAction>
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center">
             {overlay.userId !== user.user.id && (
               <div className="flex items-center mr-4" title="Shared with you">
@@ -109,9 +111,9 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
             )}
           </div>
         </div>
-      </CardContent>
-      <CardFooter>
-        <p className="text-xs text-muted-foreground">
+      </CardHeader>
+      <CardFooter className="flex-grow">
+        <p className="text-xs text-muted-foreground self-end">
           Created on {new Date(overlay.createdAt).toLocaleDateString()}
         </p>
       </CardFooter>
