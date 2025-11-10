@@ -21,6 +21,7 @@ services:
       - db
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/ovrly
+      - DATABASE_PROVIDER=postgresql
       - JWT_SECRET=your-super-secret-jwt-key # CHANGE THIS!
       - TWITCH_CLIENT_ID=your-twitch-client-id # CHANGE THIS!
       - TWITCH_CLIENT_SECRET=your-twitch-client-secret # CHANGE THIS!
