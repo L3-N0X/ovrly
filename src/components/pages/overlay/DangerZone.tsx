@@ -9,8 +9,10 @@ interface DangerZoneProps {
 }
 
 const DangerZone: React.FC<DangerZoneProps> = ({ handleDeleteOverlay, overlay }) => {
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!overlay) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     type ExportElement = {
       name: string;

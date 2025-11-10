@@ -85,6 +85,25 @@ export const useOverlayData = () => {
     }, 500);
   }, []);
 
+  const deepEqual = (obj1: unknown, obj2: unknown): boolean => {
+    if (obj1 === obj2) return true;
+
+    if (obj1 && typeof obj1 === 'object' && obj2 && typeof obj2 === 'object') {
+      const obj1Rec = obj1 as Record<string, unknown>;
+      const obj2Rec = obj2 as Record<string, unknown>;
+      if (Object.keys(obj1Rec).length !== Object.keys(obj2Rec).length) return false;
+
+      for (const key in obj1Rec) {
+        if (Object.prototype.hasOwnProperty.call(obj1Rec, key)) {
+          if (!Object.prototype.hasOwnProperty.call(obj2Rec, key)) return false;
+          if (!deepEqual(obj1Rec[key], obj2Rec[key])) return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  };
+
   const findChangedElements = (
     updatedElements: PrismaElement[],
     originalElements: PrismaElement[]
@@ -104,7 +123,7 @@ export const useOverlayData = () => {
     const checkElements = (elements: PrismaElement[]) => {
       elements.forEach((el) => {
         const originalEl = originalMap.get(el.id);
-        if (!originalEl || JSON.stringify(el.style) !== JSON.stringify(originalEl.style)) {
+        if (!originalEl || !deepEqual(el.style, originalEl.style)) {
           changedElements.push(el);
         }
         if (el.children) {
