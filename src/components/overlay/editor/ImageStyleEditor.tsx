@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { PrismaElement, ImageStyle } from "@/lib/types";
+import type { PrismaElement, ImageStyle, PrismaOverlay } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -11,18 +11,28 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { GalleryHorizontal, Grid2x2, ScanEye, Square, Trash2 } from "lucide-react";
+import { GalleryHorizontal, Grid2x2, Pencil, ScanEye, Square, Trash2 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { RenameElementModal } from "./RenameElementModal";
 
 interface ImageStyleEditorProps {
   element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   onChange: (style: ImageStyle) => void;
   onDelete?: () => void;
   ws: WebSocket | null;
 }
 
-const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, onDelete, ws }) => {
+const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
+  element,
+  overlay,
+  onOverlayChange,
+  onChange,
+  onDelete,
+  ws,
+}) => {
   const [style, setStyle] = useState<ImageStyle>((element.style as ImageStyle) || {});
 
   useEffect(() => {
@@ -62,11 +72,18 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange, 
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
-        {onDelete && (
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        )}
+        <div className="flex items-center">
+          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+            <Button variant="ghost" size="icon-lg">
+              <Pencil />
+            </Button>
+          </RenameElementModal>
+          {onDelete && (
+            <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+              <Trash2 />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="space-y-2">
         <Label>Width</Label>

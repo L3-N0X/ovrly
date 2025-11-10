@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PrismaOverlay } from "@/lib/types";
 import { Check, ChevronLeft, Copy, Edit, Share2 } from "lucide-react";
+import { useState } from "react";
 import EditOverlayModal from "./EditOverlayModal";
 
 interface OverlayHeaderProps {
@@ -74,15 +74,18 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
     <div className="mb-8">
       <div className="flex md:items-center items-start gap-4 md:flex-row flex-col">
         <div className="flex items-center gap-4">
-          <Button onClick={onBack} variant="ghost" size="icon-lg">
-            <ChevronLeft />
-          </Button>
+          <button
+            onClick={onBack}
+            className="p-2 rounded-md cursor-pointer text-muted-foreground hover:text-foreground transition h-15 w-11 flex items-center justify-center -ml-15"
+          >
+            <ChevronLeft strokeWidth={4} size="32" />
+          </button>
           <div className="flex flex-col">
-            <h1 className="text-4xl font-bold tracking-tighter leading-tight md:leading-tighter">
+            <h1 className="text-3xl font-bold tracking-tighter leading-tight md:leading-tighter">
               {overlay.name}
             </h1>
             <p
-              className="text-lg text-gray-500"
+              className="text-md text-muted-foreground"
               style={{
                 display: overlay.description ? "initial" : "none",
               }}
@@ -94,11 +97,11 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
         <div className="flex items-center gap-2 ml-auto">
           <Button onClick={() => setIsEditModalOpen(true)} variant="outline">
             <Edit className="mr-2" />
-            Edit
+            Edit Name
           </Button>
           <Button onClick={handleCopyToClipboard} variant="outline">
             {isCopied ? <Check className="mr-2 text-green-200" /> : <Copy className="mr-2" />}
-            {isCopied ? "Copied!" : "Copy"}
+            {isCopied ? "Copied!" : "Copy for OBS"}
           </Button>
           <Button onClick={onShare} variant="outline">
             <Share2 className="mr-2" />

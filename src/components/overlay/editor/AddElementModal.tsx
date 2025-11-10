@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ElementTypeEnum, type ElementType, type PrismaOverlay } from "@/lib/types";
+import { Plus } from "lucide-react";
 
 interface AddElementModalProps {
   overlay: PrismaOverlay;
@@ -35,7 +36,10 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({ name: name || `${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Element`, type }),
+      body: JSON.stringify({
+        name: name || `${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Element`,
+        type,
+      }),
     });
 
     if (response.ok) {
@@ -49,7 +53,10 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>Add Element</Button>
+        <Button variant="secondary">
+          <Plus />
+          Add Element
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

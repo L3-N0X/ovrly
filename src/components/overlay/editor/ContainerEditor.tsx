@@ -26,6 +26,7 @@ import {
   Baseline,
   ChevronDown,
   ChevronRight,
+  Pencil,
   StretchHorizontal,
   Trash2,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ElementListItem } from "./elementlist/ElementListItem";
 import { handleValueChange } from "./helper";
 import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { RenameElementModal } from "./RenameElementModal";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
@@ -146,9 +148,20 @@ export const ContainerEditor: React.FC<{
         <div className="p-2 mt-2 space-y-4">
           <div className="flex justify-between items-center">
             <h4 className="font-semibold">Edit: {element.name}</h4>
-            <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-              <Trash2 />
-            </Button>
+            <div className="flex items-center">
+              <RenameElementModal
+                element={element}
+                overlay={overlay}
+                onOverlayChange={onOverlayChange}
+              >
+                <Button variant="ghost" size="icon-lg">
+                  <Pencil />
+                </Button>
+              </RenameElementModal>
+              <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+                <Trash2 />
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Direction</Label>

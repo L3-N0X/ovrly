@@ -1,21 +1,24 @@
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type CounterStyle, type PrismaElement } from "@/lib/types";
+import { type CounterStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { RenameElementModal } from "./RenameElementModal";
 
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   onChange: (newStyle: CounterStyle) => void;
   onDelete?: () => void;
   ws: WebSocket | null;
-}> = ({ element, onChange, onDelete, ws }) => {
+}> = ({ element, overlay, onOverlayChange, onChange, onDelete, ws }) => {
   const [style, setStyle] = useState<CounterStyle>((element.style as CounterStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
@@ -51,9 +54,16 @@ export const CounterStyleEditor: React.FC<{
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
-        <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-          <Trash2 />
-        </Button>
+        <div className="flex items-center">
+          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+            <Button variant="ghost" size="icon-lg">
+              <Pencil />
+            </Button>
+          </RenameElementModal>
+          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+            <Trash2 />
+          </Button>
+        </div>
       </div>
       <div className="space-y-2">
         <Label>Font Size</Label>

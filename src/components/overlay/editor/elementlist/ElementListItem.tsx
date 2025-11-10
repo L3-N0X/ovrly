@@ -239,6 +239,8 @@ export const ElementListItem = ({
           {element.type === ElementTypeEnum.TITLE && (
             <TitleStyleEditor
               element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
               ws={ws}
@@ -247,6 +249,8 @@ export const ElementListItem = ({
           {element.type === ElementTypeEnum.COUNTER && (
             <CounterStyleEditor
               element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
               ws={ws}
@@ -255,6 +259,8 @@ export const ElementListItem = ({
           {element.type === ElementTypeEnum.TIMER && (
             <TimerStyleEditor
               element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
               ws={ws}
@@ -263,6 +269,8 @@ export const ElementListItem = ({
           {element.type === ElementTypeEnum.IMAGE && (
             <ImageStyleEditor
               element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
               ws={ws}

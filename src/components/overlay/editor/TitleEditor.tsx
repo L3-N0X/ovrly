@@ -1,22 +1,25 @@
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type BaseElementStyle, type PrismaElement } from "@/lib/types";
+import { type BaseElementStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { debounce } from "@/lib/utils";
 import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { RenameElementModal } from "./RenameElementModal";
 
 export const TitleStyleEditor: React.FC<{
   element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   onChange: (newStyle: BaseElementStyle) => void;
   onDelete?: () => void;
   ws?: WebSocket | null;
-}> = ({ element, onChange, onDelete, ws = null }) => {
+}> = ({ element, overlay, onOverlayChange, onChange, onDelete, ws = null }) => {
   const [style, setStyle] = useState<BaseElementStyle>((element.style as BaseElementStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
@@ -31,7 +34,7 @@ export const TitleStyleEditor: React.FC<{
   const handleStyleChange = (newStyle: Partial<BaseElementStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
     setStyle(updatedStyle);
-    debouncedOnChange(updatedStyle);
+debouncedOnChange(updatedStyle);
   };
 
   // responsive local slider + debounced websocket sync
@@ -45,9 +48,16 @@ export const TitleStyleEditor: React.FC<{
     <div className="space-y-4 p-4 border rounded-lg mt-2">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
-        <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-          <Trash2 />
-        </Button>
+        <div className="flex items-center">
+          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+            <Button variant="ghost" size="icon-lg">
+              <Pencil />
+            </Button>
+          </RenameElementModal>
+          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+            <Trash2 />
+          </Button>
+        </div>
       </div>
       <div className="space-y-2">
         <Label>Font Size</Label>
