@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import type { PrismaElement, ImageStyle, PrismaOverlay } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -39,14 +39,16 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
     setStyle((element.style as ImageStyle) || {});
   }, [element.style]);
 
-  const handleImmediateValueChange = (
-    key: keyof ImageStyle,
-    value: ImageStyle[keyof ImageStyle]
-  ) => {
-    const newStyle = { ...style, [key]: value };
-    setStyle(newStyle);
-    onChange(newStyle);
-  };
+  const handleImmediateValueChange = useCallback(
+    (key: keyof ImageStyle, value: ImageStyle[keyof ImageStyle]) => {
+      setStyle((prev) => {
+        const newStyle = { ...prev, [key]: value };
+        onChange(newStyle);
+        return newStyle;
+      });
+    },
+    [onChange]
+  );
 
   const widthSlider = useSyncedSlider(`${element.id}-width`, style.width || 100, ws);
   const heightSlider = useSyncedSlider(`${element.id}-height`, style.height || 100, ws);
@@ -58,15 +60,15 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
 
   useEffect(() => {
     handleImmediateValueChange("width", widthSlider.value);
-  }, [widthSlider.value]);
+  }, [widthSlider.value, handleImmediateValueChange]);
 
   useEffect(() => {
     handleImmediateValueChange("height", heightSlider.value);
-  }, [heightSlider.value]);
+  }, [heightSlider.value, handleImmediateValueChange]);
 
   useEffect(() => {
     handleImmediateValueChange("borderRadius", borderRadiusSlider.value);
-  }, [borderRadiusSlider.value]);
+  }, [borderRadiusSlider.value, handleImmediateValueChange]);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">

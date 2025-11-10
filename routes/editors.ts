@@ -1,6 +1,7 @@
 import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { Prisma } from "@prisma/client";
 
 export const handleEditorsRoutes = async (req: Request, path: string) => {
   const editorRouteRegex = /^\/api\/editors(?:\/([^/]+))?$/;
@@ -93,11 +94,9 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
           },
         },
       });
-      return new Response(null, { status: 204, headers: corsHeaders });
-    } catch (e: any) {
-      // Explicitly type 'e' for better type safety
+    } catch (e: unknown) {
       console.error(e);
-      if (e.code === "P2025") {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
         // Prisma error code for record not found
         return new Response(
           JSON.stringify({ error: "Editor not found or you don't have permission to delete it" }),

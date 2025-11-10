@@ -16,7 +16,9 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="/" element={<LoggedInRoute />}>
               <Route index element={<HomePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+            <Route path="/settings" element={<ProtectedRoute />}>
+              <Route index element={<SettingsPage />} />
             </Route>
             <Route path="/overlay/:id" element={<ProtectedRoute />}>
               <Route index element={<OverlayPage />} />
