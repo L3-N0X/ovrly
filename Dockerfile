@@ -4,7 +4,7 @@ FROM oven/bun:1 AS deps
 WORKDIR /app
 
 # Copy dependency management files
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 
 # Install all dependencies including devDependencies
 RUN bun install
@@ -24,12 +24,12 @@ RUN bunx prisma generate
 RUN bun run build
 
 # Stage 3: Create the production image
-FROM oven/bun:1-slim
+FROM oven/bun:1
 
 WORKDIR /app
 
 # Install production dependencies
-COPY --from=builder /app/package.json /app/bun.lockb ./
+COPY --from=builder /app/package.json /app/bun.lock ./
 RUN bun install --production
 
 # Copy the backend source code
