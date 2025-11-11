@@ -13,7 +13,10 @@ services:
     restart: unless-stopped
 
   app:
-    build: .
+    build:
+      context: . # Assumes your Dockerfile is in the root
+      args:
+        - VITE_GOOGLE_FONTS_API_KEY=${VITE_GOOGLE_FONTS_API_KEY}
     container_name: ovrly-app
     ports:
       - "3000:3000"

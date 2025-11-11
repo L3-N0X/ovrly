@@ -14,6 +14,12 @@ WORKDIR /app
 COPY prisma ./prisma
 RUN bunx prisma generate
 
+# 1. Accept the build argument
+ARG VITE_GOOGLE_FONTS_API_KEY
+
+# 2. Set it as an environment variable FOR THIS BUILD STAGE
+ENV VITE_GOOGLE_FONTS_API_KEY=${VITE_GOOGLE_FONTS_API_KEY}
+
 # Copy all source code. .dockerignore should exclude node_modules etc.
 COPY . .
 
