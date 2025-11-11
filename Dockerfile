@@ -31,7 +31,7 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 
 # Copy production dependencies from the 'base' stage
 COPY --from=base /app/node_modules ./node_modules
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 
 # Copy built artifacts and necessary source from the builder stage
 # This is much cleaner than copying many individual files

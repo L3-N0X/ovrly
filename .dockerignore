@@ -5,6 +5,7 @@ node_modules
 # Bun
 .bun
 bun.lockb
+bun.lock
 
 # Misc
 .env
