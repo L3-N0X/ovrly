@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+.DS_Store
+
+# Bun
+.bun
+bun.lockb
+
+# Misc
+.env
+.env.*
+.vscode
+dist
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.idea
+.git
+.gitignore
+README.md
+.dockerignore
+docker-compose.yml
+Dockerfile

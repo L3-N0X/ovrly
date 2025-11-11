@@ -1,20 +1,15 @@
-# Stage 1: Install all dependencies
-FROM oven/bun:1 AS deps
-
+# Stage 1: Base image with dependencies
+FROM oven/bun:1 AS base
 WORKDIR /app
-
-# Copy dependency management files
 COPY package.json bun.lock ./
+# Use --frozen-lockfile to ensure reproducible builds
+RUN bun install --frozen-lockfile
 
-# Install all dependencies including devDependencies
-RUN bun install
-
-# Stage 2: Build the frontend
-FROM deps AS builder
-
+# Stage 2: Builder for the application
+FROM base AS builder
 WORKDIR /app
 
-# Copy all files
+# Copy all source code. .dockerignore should exclude node_modules etc.
 COPY . .
 
 # Set dummy env vars for prisma generate
@@ -27,30 +22,28 @@ RUN bunx prisma generate
 # Build the frontend application
 RUN bun run build
 
-# Stage 3: Create the production image
-FROM oven/bun:1
-
+# Stage 3: Production image
+FROM oven/bun:1 AS production
 WORKDIR /app
 
-# Install production dependencies
-COPY --from=builder /app/package.json /app/bun.lock ./
-RUN bun install --production
+# Copy package.json and bun.lock to install only production dependencies
+COPY package.json bun.lock ./
+RUN bun install --production --frozen-lockfile
 
-# Copy the backend source code
-COPY ./server.ts ./
-COPY ./auth.ts ./
-COPY ./middleware ./middleware
-COPY ./routes ./routes
-COPY ./services ./services
-COPY ./types ./types
-COPY ./prisma ./prisma
-
-# Copy the built frontend and public assets
+# Copy built artifacts and necessary source code from the builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/server.ts ./server.ts
+COPY --from=builder /app/auth.ts ./auth.ts
+COPY --from=builder /app/middleware ./middleware
+COPY --from=builder /app/routes ./routes
+COPY --from=builder /app/services ./services
+COPY --from=builder /app/types ./types
 
 # Expose the port the server will run on
 EXPOSE 3000
 
 # Define the command to run the application
+# The start script from package.json will be executed
 CMD ["bun", "start"]
