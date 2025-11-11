@@ -3,8 +3,8 @@ services:
     image: postgres:15
     container_name: ovrly-db
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ovrly
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -13,24 +13,40 @@ services:
     restart: unless-stopped
 
   app:
+    container_name: ovrly-app
     build:
-      context: . # Assumes your Dockerfile is in the root
+      context: .
       args:
         - VITE_GOOGLE_FONTS_API_KEY=${VITE_GOOGLE_FONTS_API_KEY}
-    container_name: ovrly-app
+
+    # Alternatively, use the pre-built image:
+    # Uncomment the line below and comment out the build section above.
+    #
+    # image: ghcr.io/l3-n0x/ovrly:latest
+
     ports:
+      # Application port, use this to access the web interface
+      # Can be forwarded or proxied as needed
       - "3000:3000"
     depends_on:
       - db
+    # IMPORTANT: Update these environment variables as needed
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/ovrly
+      # Base URL where the app will be accessible
       - APP_BASE_URL=http://localhost:3000
-      - VITE_GOOGLE_FONTS_API_KEY=${VITE_GOOGLE_FONTS_API_KEY}
+
+      # Database connection URL
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/ovrly
+
+      # A strong secret key for authentication
       - AUTH_SECRET=${OVRLY_AUTH_SECRET}
+
+      # Twitch OAuth credentials
       - AUTH_TWITCH_ID=${OVRLY_TWITCH_CLIENT_ID}
       - AUTH_TWITCH_SECRET=${OVRLY_TWITCH_CLIENT_SECRET}
-      - TWITCH_REDIRECT_URI=https://ovrly.ju5tnele.de/auth/twitch/callback
+
     volumes:
+      # Persist uploaded files, e.g. images
       - ./uploads:/app/uploads
     restart: unless-stopped
 
