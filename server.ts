@@ -166,3 +166,4 @@ const server = Bun.serve({
 });
 
 console.log(`Server running on port ${server.port}`);
+console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);
