@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package.json bun.lock ./
 # Use --frozen-lockfile to ensure reproducible builds
 RUN bun install --frozen-lockfile
+# Install openssl to prevent Prisma warnings
+RUN apt-get update -y && apt-get install -y openssl
 
 # Stage 2: Builder for the application
 FROM base AS builder
@@ -12,8 +14,7 @@ WORKDIR /app
 # Copy all source code. .dockerignore should exclude node_modules etc.
 COPY . .
 
-# Set dummy env vars for prisma generate
-ENV DATABASE_PROVIDER="sqlite"
+# Set dummy env vars for prisma generate (only DATABASE_URL is needed now)
 ENV DATABASE_URL="file:./dev.db"
 
 # Generate prisma client
