@@ -38,7 +38,9 @@ COPY package.json bun.lock ./
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/server.ts ./server.ts
+COPY --from=builder /app/auth.ts ./auth.ts
 COPY --from=builder /app/middleware ./middleware
+COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/routes ./routes
 COPY --from=builder /app/services ./services
