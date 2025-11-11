@@ -17,6 +17,10 @@ WORKDIR /app
 # Copy all files
 COPY . .
 
+# Set dummy env vars for prisma generate
+ENV DATABASE_PROVIDER="sqlite"
+ENV DATABASE_URL="file:./dev.db"
+
 # Generate prisma client
 RUN bunx prisma generate
 
