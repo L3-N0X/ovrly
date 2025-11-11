@@ -4,15 +4,17 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const appBaseUrl = process.env.APP_BASE_URL as string;
+
 export const auth = betterAuth({
   secret: process.env.AUTH_SECRET as string,
-  baseURL: "http://localhost:5173",
-  trustedOrigins: ["http://localhost:5173"],
+  baseURL: appBaseUrl,
+  trustedOrigins: [appBaseUrl],
   pages: {
-    success: "http://localhost:5173/",
+    success: `${appBaseUrl}/`,
   },
   database: prismaAdapter(prisma, {
-    provider: "sqlite",
+    provider: "postgresql",
   }),
   socialProviders: {
     twitch: {

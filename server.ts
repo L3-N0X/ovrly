@@ -57,9 +57,6 @@ const server = Bun.serve({
     const url = new URL(req.url);
     const reqPath = url.pathname;
 
-    console.log(`\n[SERVER LOG] =========== New Request ==========`);
-    console.log(`[SERVER LOG] Path & Method: ${req.method} ${reqPath}`);
-
     // Handle CORS preflight
     const corsResponse = handleCors(req);
     if (corsResponse) {
@@ -147,12 +144,9 @@ const server = Bun.serve({
     staticResponse = await serveStaticFile(path.join(DIST_PATH, reqPath));
     if (staticResponse) return staticResponse;
 
-    // SPA Fallback: Serve index.html for any other route
-    console.log(`[SERVER LOG] No API route or static file matched. Serving index.html.`);
     const spaIndex = await serveStaticFile(path.join(DIST_PATH, "index.html"));
     if (spaIndex) return spaIndex;
 
-    console.log(`[SERVER LOG] index.html not found. Responding with 404.`);
     return new Response("Not Found", { status: 404 });
   },
   websocket: {

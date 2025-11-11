@@ -127,7 +127,7 @@ export const handleElementsRoutes = async (
         include: {
           elements: {
             orderBy: {
-              position: 'asc'
+              position: "asc",
             },
             include: getRecursiveElementInclude(5),
           },
@@ -249,7 +249,7 @@ export const handleElementsRoutes = async (
         include: {
           elements: {
             orderBy: {
-              position: 'asc'
+              position: "asc",
             },
             include: getRecursiveElementInclude(5),
           },
@@ -309,12 +309,9 @@ export const handleElementsRoutes = async (
           {} as Prisma.ElementUncheckedUpdateInput;
         if (name) elementUpdateData.name = name;
         if (style) {
-          console.log("Existing style:", element.style);
-          console.log("New style from request:", style);
           const existingStyle = (element.style || {}) as Prisma.JsonObject;
           const newStyle = style as Prisma.JsonObject;
           const mergedStyle = { ...existingStyle, ...newStyle };
-          console.log("Merged style:", mergedStyle);
           elementUpdateData.style = mergedStyle;
         }
         if (position) elementUpdateData.position = position;
@@ -362,7 +359,7 @@ export const handleElementsRoutes = async (
           include: {
             elements: {
               orderBy: {
-                position: 'asc'
+                position: "asc",
               },
               include: getRecursiveElementInclude(5),
             },

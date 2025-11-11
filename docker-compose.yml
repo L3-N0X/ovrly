@@ -19,14 +19,13 @@ services:
       - "3000:3000"
     depends_on:
       - db
-    env_file:
-      - .env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/ovrly
+      - APP_BASE_URL=http://localhost:3000
       - VITE_GOOGLE_FONTS_API_KEY=${VITE_GOOGLE_FONTS_API_KEY}
       - AUTH_SECRET=${OVRLY_AUTH_SECRET}
-      - TWITCH_CLIENT_ID=${OVRLY_TWITCH_CLIENT_ID}
-      - TWITCH_CLIENT_SECRET=${OVRLY_TWITCH_CLIENT_SECRET}
+      - AUTH_TWITCH_ID=${OVRLY_TWITCH_CLIENT_ID}
+      - AUTH_TWITCH_SECRET=${OVRLY_TWITCH_CLIENT_SECRET}
       - TWITCH_REDIRECT_URI=https://ovrly.ju5tnele.de/auth/twitch/callback
     volumes:
       - ./uploads:/app/uploads
