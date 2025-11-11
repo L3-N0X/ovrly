@@ -38,6 +38,11 @@ COPY package.json bun.lock ./
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/server.ts ./server.ts
+COPY --from=builder /app/middleware ./middleware
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/routes ./routes
+COPY --from=builder /app/services ./services
+COPY --from=builder /app/types ./types
 
 # Your package.json "start" script should run the compiled server, e.g., "bun run server.ts"
 # Make sure your production start script does not rely on dev dependencies.
