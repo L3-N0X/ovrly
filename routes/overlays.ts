@@ -2,6 +2,48 @@ import { prisma } from "../auth";
 import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 
+async function createElementsRecursively(
+  overlayId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements: any[],
+  parentId: string | null = null,
+  startPosition = 0
+) {
+  let position = startPosition;
+  for (const element of elements) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const elementData: any = {
+      overlayId,
+      parentId,
+      name: element.name,
+      type: element.type,
+      style: element.style || {},
+      position: element.position ?? position++,
+    };
+
+    if (element.title) {
+      elementData.title = { create: { text: element.title.text } };
+    }
+    if (element.counter) {
+      elementData.counter = { create: { value: element.counter.value } };
+    }
+    if (element.timer) {
+      elementData.timer = {
+        create: { duration: element.timer.duration, countDown: element.timer.countDown },
+      };
+    }
+    if (element.image) {
+      elementData.image = { create: { src: element.image.src } };
+    }
+
+    const createdElement = await prisma.element.create({ data: elementData });
+
+    if (element.children && element.children.length > 0) {
+      await createElementsRecursively(overlayId, element.children, createdElement.id, 0);
+    }
+  }
+}
+
 export const handleOverlaysRoutes = async (
   req: Request,
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
@@ -27,6 +69,30 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            children: {
+              include: {
+                title: true,
+                counter: true,
+                timer: true,
+                image: true,
+                children: {
+                  include: {
+                    title: true,
+                    counter: true,
+                    timer: true,
+                    image: true,
+                    children: {
+                      include: {
+                        title: true,
+                        counter: true,
+                        timer: true,
+                        image: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -39,58 +105,23 @@ export const handleOverlaysRoutes = async (
       });
     }
 
+    // Create the overlay without elements
     const newOverlay = await prisma.overlay.create({
       data: {
         name: `Copy of ${originalOverlay.name}`,
         description: originalOverlay.description,
         userId: session.user.id,
-        globalStyle: originalOverlay.globalStyle,
-        elements: {
-          create: originalOverlay.elements.map((element) => {
-            const createData: {
-              name: string;
-              type: "TITLE" | "COUNTER" | "TIMER" | "CONTAINER" | "IMAGE";
-              style: { [key: string]: unknown };
-              position?: number | null;
-              title?: { create: { text: string } };
-              counter?: { create: { value: number } };
-              timer?: { create: { duration?: number | null; countDown?: boolean } };
-              image?: { create: { src: string } };
-            } = {
-              name: element.name,
-              type: element.type,
-              style: element.style || {},
-              position: element.position,
-            };
-
-            if (element.title) {
-              createData.title = { create: { text: element.title.text } };
-            }
-            if (element.counter) {
-              createData.counter = {
-                create: { value: element.counter.value },
-              };
-            }
-            if (element.timer) {
-              createData.timer = {
-                create: {
-                  duration: element.timer.duration,
-                  countDown: element.timer.countDown,
-                },
-              };
-            }
-            if (element.image) {
-              createData.image = {
-                create: {
-                  src: element.image.src,
-                },
-              };
-            }
-
-            return createData;
-          }),
-        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        globalStyle: originalOverlay.globalStyle as any,
       },
+    });
+
+    // Create elements recursively
+    await createElementsRecursively(newOverlay.id, originalOverlay.elements);
+
+    // Fetch the complete overlay with elements
+    const overlayWithElements = await prisma.overlay.findUnique({
+      where: { id: newOverlay.id },
       include: {
         elements: {
           include: {
@@ -98,12 +129,36 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            children: {
+              include: {
+                title: true,
+                counter: true,
+                timer: true,
+                image: true,
+                children: {
+                  include: {
+                    title: true,
+                    counter: true,
+                    timer: true,
+                    image: true,
+                    children: {
+                      include: {
+                        title: true,
+                        counter: true,
+                        timer: true,
+                        image: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
-    return new Response(JSON.stringify(newOverlay), {
+    return new Response(JSON.stringify(overlayWithElements), {
       status: 201,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -129,6 +184,30 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            children: {
+              include: {
+                title: true,
+                counter: true,
+                timer: true,
+                image: true,
+                children: {
+                  include: {
+                    title: true,
+                    counter: true,
+                    timer: true,
+                    image: true,
+                    children: {
+                      include: {
+                        title: true,
+                        counter: true,
+                        timer: true,
+                        image: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -188,6 +267,30 @@ export const handleOverlaysRoutes = async (
                 counter: true,
                 timer: true,
                 image: true,
+                children: {
+                  include: {
+                    title: true,
+                    counter: true,
+                    timer: true,
+                    image: true,
+                    children: {
+                      include: {
+                        title: true,
+                        counter: true,
+                        timer: true,
+                        image: true,
+                        children: {
+                          include: {
+                            title: true,
+                            counter: true,
+                            timer: true,
+                            image: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -245,6 +348,30 @@ export const handleOverlaysRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              children: {
+                include: {
+                  title: true,
+                  counter: true,
+                  timer: true,
+                  image: true,
+                  children: {
+                    include: {
+                      title: true,
+                      counter: true,
+                      timer: true,
+                      image: true,
+                      children: {
+                        include: {
+                          title: true,
+                          counter: true,
+                          timer: true,
+                          image: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -267,6 +394,30 @@ export const handleOverlaysRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              children: {
+                include: {
+                  title: true,
+                  counter: true,
+                  timer: true,
+                  image: true,
+                  children: {
+                    include: {
+                      title: true,
+                      counter: true,
+                      timer: true,
+                      image: true,
+                      children: {
+                        include: {
+                          title: true,
+                          counter: true,
+                          timer: true,
+                          image: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -296,49 +447,22 @@ export const handleOverlaysRoutes = async (
             });
           }
 
-          // Create the overlay with elements from the preset
+          // Create the overlay without elements
           const newOverlay = await prisma.overlay.create({
             data: {
               name,
               description,
               userId: session.user.id,
               globalStyle: selectedPreset.globalStyle || {},
-              elements: {
-                create: selectedPreset.elements.map(
-                  (element: {
-                    name: string;
-                    type: "TITLE" | "COUNTER" | "CONTAINER";
-                    style?: object;
-                    title?: { text: string };
-                    counter?: { value: number };
-                  }) => {
-                    const elementCreateData: {
-                      name: string;
-                      type: "TITLE" | "COUNTER" | "CONTAINER";
-                      style: object;
-                      title?: { create: { text: string } };
-                      counter?: { create: { value: number } };
-                    } = {
-                      name: element.name,
-                      type: element.type,
-                      style: element.style || {},
-                    };
-
-                    if (element.type === "TITLE") {
-                      elementCreateData.title = {
-                        create: { text: element.title?.text || "New Title" },
-                      };
-                    } else if (element.type === "COUNTER") {
-                      elementCreateData.counter = {
-                        create: { value: element.counter?.value || 0 },
-                      };
-                    }
-
-                    return elementCreateData;
-                  }
-                ),
-              },
             },
+          });
+
+          // Create elements recursively
+          await createElementsRecursively(newOverlay.id, selectedPreset.elements);
+
+          // Fetch the complete overlay with elements
+          const overlayWithElements = await prisma.overlay.findUnique({
+            where: { id: newOverlay.id },
             include: {
               elements: {
                 include: {
@@ -346,12 +470,36 @@ export const handleOverlaysRoutes = async (
                   counter: true,
                   timer: true,
                   image: true,
+                  children: {
+                    include: {
+                      title: true,
+                      counter: true,
+                      timer: true,
+                      image: true,
+                      children: {
+                        include: {
+                          title: true,
+                          counter: true,
+                          timer: true,
+                          image: true,
+                          children: {
+                            include: {
+                              title: true,
+                              counter: true,
+                              timer: true,
+                              image: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
           });
 
-          return new Response(JSON.stringify(newOverlay), {
+          return new Response(JSON.stringify(overlayWithElements), {
             status: 201,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -398,6 +546,30 @@ export const handleOverlaysRoutes = async (
                   counter: true,
                   timer: true,
                   image: true,
+                  children: {
+                    include: {
+                      title: true,
+                      counter: true,
+                      timer: true,
+                      image: true,
+                      children: {
+                        include: {
+                          title: true,
+                          counter: true,
+                          timer: true,
+                          image: true,
+                          children: {
+                            include: {
+                              title: true,
+                              counter: true,
+                              timer: true,
+                              image: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
