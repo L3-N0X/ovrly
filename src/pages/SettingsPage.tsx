@@ -16,7 +16,7 @@ export function SettingsPage() {
 
   const fetchEditors = useCallback(async () => {
     if (!session) return;
-    const response = await fetch("http://localhost:3000/api/editors", {
+    const response = await fetch("/api/editors", {
       credentials: "include",
     });
     if (response.ok) {
@@ -31,7 +31,7 @@ export function SettingsPage() {
 
   const handleAddEditor = async () => {
     if (!session || !twitchName) return;
-    const response = await fetch("http://localhost:3000/api/editors", {
+    const response = await fetch("/api/editors", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -48,7 +48,7 @@ export function SettingsPage() {
   const handleRevokeAccess = async (editorTwitchName: string) => {
     if (!session) return;
     const encodedTwitchName = encodeURIComponent(editorTwitchName); // Encode for URL safety
-    const response = await fetch(`http://localhost:3000/api/editors/${encodedTwitchName}`, {
+    const response = await fetch(`/api/editors/${encodedTwitchName}`, {
       method: "DELETE",
       credentials: "include",
     });

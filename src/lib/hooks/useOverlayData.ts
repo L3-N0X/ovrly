@@ -40,7 +40,8 @@ export const useOverlayData = () => {
   useEffect(() => {
     if (!id) return;
 
-    const wsInstance = new WebSocket(`ws://localhost:3000/ws?overlayId=${id}`);
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsInstance = new WebSocket(`${wsProtocol}//${window.location.host}/ws?overlayId=${id}`);
     setWs(wsInstance);
 
     wsInstance.onmessage = (event) => {
@@ -88,7 +89,7 @@ export const useOverlayData = () => {
   const deepEqual = (obj1: unknown, obj2: unknown): boolean => {
     if (obj1 === obj2) return true;
 
-    if (obj1 && typeof obj1 === 'object' && obj2 && typeof obj2 === 'object') {
+    if (obj1 && typeof obj1 === "object" && obj2 && typeof obj2 === "object") {
       const obj1Rec = obj1 as Record<string, unknown>;
       const obj2Rec = obj2 as Record<string, unknown>;
       if (Object.keys(obj1Rec).length !== Object.keys(obj2Rec).length) return false;

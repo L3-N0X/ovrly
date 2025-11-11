@@ -33,12 +33,9 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
     if (!session) return;
 
     // Fetch overlay-specific editors
-    const overlayEditorsResponse = await fetch(
-      `http://localhost:3000/api/overlays/${overlayId}/editors`,
-      {
-        credentials: "include",
-      }
-    );
+    const overlayEditorsResponse = await fetch(`/api/overlays/${overlayId}/editors`, {
+      credentials: "include",
+    });
     if (overlayEditorsResponse.ok) {
       // Backend returns an array of prisma.OverlayEditor objects, which include editorTwitchName
       const data: { editorId: string | null; editorTwitchName: string }[] =
@@ -54,7 +51,7 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
 
     // Fetch global editors
     // Assuming the global editors endpoint returns objects with editorId and editorTwitchName
-    const globalEditorsResponse = await fetch("http://localhost:3000/api/editors", {
+    const globalEditorsResponse = await fetch("/api/editors", {
       credentials: "include",
     });
     if (globalEditorsResponse.ok) {
@@ -78,7 +75,7 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
 
   const handleAddEditor = async () => {
     if (!session || !twitchName) return;
-    const response = await fetch(`http://localhost:3000/api/overlays/${overlayId}/editors`, {
+    const response = await fetch(`/api/overlays/${overlayId}/editors`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -95,9 +92,7 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
   const handleRevokeAccess = async (editorTwitchName: string) => {
     if (!session) return;
     const response = await fetch(
-      `http://localhost:3000/api/overlays/${overlayId}/editors/${encodeURIComponent(
-        editorTwitchName
-      )}`,
+      `/api/overlays/${overlayId}/editors/${encodeURIComponent(editorTwitchName)}`,
       {
         method: "DELETE",
         credentials: "include",

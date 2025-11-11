@@ -13,7 +13,7 @@ const PublicCounterPage = () => {
 
     const fetchInitialData = async () => {
       try {
-        const response = await fetch(`http://localhost:3000/api/public/overlays/${overlayId}`);
+        const response = await fetch(`/api/public/overlays/${overlayId}`);
         if (response.ok) {
           const data = await response.json();
           setOverlay(data);
@@ -25,7 +25,8 @@ const PublicCounterPage = () => {
 
     fetchInitialData();
 
-    const ws = new WebSocket(`ws://localhost:3000/ws?overlayId=${overlayId}`);
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws?overlayId=${overlayId}`);
 
     ws.onmessage = (event) => {
       try {

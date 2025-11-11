@@ -57,7 +57,7 @@ const HomePage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:3000/api/overlays", {
+      const response = await fetch("/api/overlays", {
         credentials: "include",
       });
       if (!response.ok) {
@@ -111,7 +111,7 @@ const HomePage: React.FC = () => {
 
   const handleDuplicateOverlay = async (overlayId: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/overlays/${overlayId}/duplicate`, {
+      const response = await fetch(`/api/overlays/${overlayId}/duplicate`, {
         method: "POST",
         credentials: "include",
       });
@@ -144,7 +144,7 @@ const HomePage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/overlays/${overlayId}`, {
+      const response = await fetch(`/api/overlays/${overlayId}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -173,7 +173,7 @@ const HomePage: React.FC = () => {
 
     setIsCreating(true);
     try {
-      const response = await fetch("http://localhost:3000/api/overlays", {
+      const response = await fetch("/api/overlays", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
