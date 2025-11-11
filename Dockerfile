@@ -2,49 +2,51 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 COPY package.json bun.lock ./
+
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 # Use --frozen-lockfile to ensure reproducible builds
 RUN bun install --frozen-lockfile
 # Install openssl to prevent Prisma warnings
-RUN apt-get update -y && apt-get install -y openssl
 
 # Stage 2: Builder for the application
 FROM base AS builder
 WORKDIR /app
 
+# Copy prisma schema and generate client first to leverage Docker cache
+COPY prisma ./prisma
+ENV DATABASE_URL="file:./dev.db"
+# This now works because binaryTargets is set in your schema
+RUN bunx prisma generate
+
 # Copy all source code. .dockerignore should exclude node_modules etc.
 COPY . .
 
-# Set dummy env vars for prisma generate (only DATABASE_URL is needed now)
-ENV DATABASE_URL="file:./dev.db"
-
-# Generate prisma client
-RUN bunx prisma generate
-
 # Build the frontend application
 RUN bun run build
-
-# Stage 3: Production image
 FROM oven/bun:1 AS production
 WORKDIR /app
 
-# Copy package.json and bun.lock to install only production dependencies
-COPY package.json bun.lock ./
-RUN bun install --production --frozen-lockfile
+# Install openssl for runtime
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Copy built artifacts and necessary source code from the builder stage
+# Copy production dependencies from the 'base' stage
+COPY --from=base /app/node_modules ./node_modules
+COPY package.json bun.lockb ./
+
+# Copy built artifacts and necessary source from the builder stage
+# This is much cleaner than copying many individual files
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/server.ts ./server.ts
-COPY --from=builder /app/auth.ts ./auth.ts
-COPY --from=builder /app/middleware ./middleware
-COPY --from=builder /app/routes ./routes
-COPY --from=builder /app/services ./services
-COPY --from=builder /app/types ./types
+
+# Your package.json "start" script should run the compiled server, e.g., "bun run server.ts"
+# Make sure your production start script does not rely on dev dependencies.
 
 # Expose the port the server will run on
 EXPOSE 3000
 
+# Set the DATABASE_URL for production (best practice is to set this in your deployment environment)
+# ENV DATABASE_URL="file:/app/data/prod.db"
+
 # Define the command to run the application
-# The start script from package.json will be executed
-CMD ["bun", "start"]
+CMD ["bun", "run", "start"]
