@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "bunx prisma migrate deploy && bun server.ts"
+    "start": "bunx prisma migrate deploy --schema=./prisma/schema.prisma && bun server.ts"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",

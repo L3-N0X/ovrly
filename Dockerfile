@@ -45,8 +45,7 @@ COPY --from=builder /app/server.ts ./server.ts
 # Expose the port the server will run on
 EXPOSE 3000
 
-# Set the DATABASE_URL for production (best practice is to set this in your deployment environment)
-# ENV DATABASE_URL="file:/app/data/prod.db"
+
 
 # Define the command to run the application
-CMD ["bun", "run", "start"]
+CMD ["/bin/sh", "-c", "bunx prisma migrate deploy --schema=./prisma/schema.prisma && bun server.ts"]
