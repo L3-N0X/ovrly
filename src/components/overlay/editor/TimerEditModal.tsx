@@ -6,11 +6,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { PrismaElement } from "@/lib/types";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Minus, Plus } from "lucide-react";
+import { NumberInputWithControls } from "@/components/ui/number-input-with-controls";
 
 interface TimerEditModalProps {
   element: PrismaElement;
@@ -31,6 +32,14 @@ export const TimerEditModal: React.FC<TimerEditModalProps> = ({
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(0);
 
+  useEffect(() => {
+    if (isOpen) {
+      setHours(0);
+      setMinutes(0);
+      setSeconds(0);
+    }
+  }, [isOpen]);
+
   if (!element.timer) return null;
 
   const handleAddTime = (multiplier: 1 | -1) => {
@@ -46,37 +55,38 @@ export const TimerEditModal: React.FC<TimerEditModalProps> = ({
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label htmlFor="hours">Hours</Label>
-              <Input
-                id="hours"
-                type="number"
-                value={hours}
-                onChange={(e) => setHours(parseInt(e.target.value) || 0)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="minutes">Minutes</Label>
-              <Input
-                id="minutes"
-                type="number"
-                value={minutes}
-                onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="seconds">Seconds</Label>
-              <Input
-                id="seconds"
-                type="number"
-                value={seconds}
-                onChange={(e) => setSeconds(parseInt(e.target.value) || 0)}
-              />
-            </div>
+            <NumberInputWithControls
+              id="hours"
+              label="Hours"
+              value={hours}
+              onChange={setHours}
+              onIncrement={() => setHours((prev) => prev + 1)}
+              onDecrement={() => setHours((prev) => Math.max(0, prev - 1))}
+            />
+            <NumberInputWithControls
+              id="minutes"
+              label="Minutes"
+              value={minutes}
+              onChange={setMinutes}
+              onIncrement={() => setMinutes((prev) => prev + 1)}
+              onDecrement={() => setMinutes((prev) => Math.max(0, prev - 1))}
+            />
+            <NumberInputWithControls
+              id="seconds"
+              label="Seconds"
+              value={seconds}
+              onChange={setSeconds}
+              onIncrement={() => setSeconds((prev) => prev + 1)}
+              onDecrement={() => setSeconds((prev) => Math.max(0, prev - 1))}
+            />
           </div>
           <div className="flex justify-center gap-2">
-            <Button onClick={() => handleAddTime(1)}>Add Time</Button>
+            <Button onClick={() => handleAddTime(1)} variant="outline">
+              <Plus />
+              Add Time
+            </Button>
             <Button onClick={() => handleAddTime(-1)} variant="outline">
+              <Minus />
               Remove Time
             </Button>
           </div>
