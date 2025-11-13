@@ -1,0 +1,26 @@
+[
+  {
+    "family": "Minecraft",
+    "category": "monospace",
+    "variants": ["regular"],
+    "urls": {
+      "regular": "https://cdn.jsdelivr.net/gh/IdreesInc/Minecraft-Font@v1.0/Minecraft.otf"
+    }
+  },
+  {
+    "family": "Minecraft Bold",
+    "category": "monospace",
+    "variants": ["regular"],
+    "urls": {
+      "regular": "https://cdn.jsdelivr.net/gh/IdreesInc/Minecraft-Font@v1.0/Minecraft-Bold.otf"
+    }
+  },
+  {
+    "family": "Minecraft Mono",
+    "category": "monospace",
+    "variants": ["regular"],
+    "urls": {
+      "regular": "https://cdn.jsdelivr.net/gh/IdreesInc/Monocraft@ec3a996/dist/Monocraft.ttc"
+    }
+  }
+]

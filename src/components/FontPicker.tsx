@@ -16,8 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { GoogleFont } from "@/lib/fonts";
-import { fetchGoogleFonts, loadFont } from "@/lib/fonts";
+import type { Font } from "@/lib/fonts";
+import { fetchAllFonts, loadFont } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Filter } from "lucide-react";
 import * as React from "react";
@@ -33,7 +33,7 @@ function FontListItem({
   onSelect,
   previewWord,
 }: {
-  font: GoogleFont;
+  font: Font;
   isSelected: boolean;
   onSelect: () => void;
   previewWord: string;
@@ -75,7 +75,7 @@ function FontListItem({
 }
 
 interface FontPickerProps {
-  onChange?: (font: GoogleFont["family"]) => void;
+  onChange?: (font: Font["family"]) => void;
   value?: string;
   width?: number;
   height?: number;
@@ -93,11 +93,11 @@ export function FontPicker({
   showFilters = true,
   previewWord = "The quick brown fox",
 }: FontPickerProps) {
-  const [selectedFont, setSelectedFont] = React.useState<GoogleFont | null>(null);
+  const [selectedFont, setSelectedFont] = React.useState<Font | null>(null);
   const [search, setSearch] = React.useState("");
   const [isOpen, setIsOpen] = React.useState(false);
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
-  const [fonts, setFonts] = React.useState<GoogleFont[]>([]);
+  const [fonts, setFonts] = React.useState<Font[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -106,7 +106,7 @@ export function FontPicker({
     const loadFonts = async () => {
       try {
         setIsLoading(true);
-        const fetchedFonts = await fetchGoogleFonts();
+        const fetchedFonts = await fetchAllFonts();
         setFonts(fetchedFonts);
         const font = fetchedFonts.find((font) => font.family === value);
         if (font) {
@@ -130,7 +130,7 @@ export function FontPicker({
   }, [fonts]);
 
   const filteredFonts = React.useMemo(() => {
-    return fonts.filter((font: GoogleFont) => {
+    return fonts.filter((font: Font) => {
       const matchesSearch = font.family.toLowerCase().includes(search.toLowerCase());
       const matchesCategory =
         !showFilters || selectedCategory === "all" || font.category === selectedCategory;
@@ -139,7 +139,7 @@ export function FontPicker({
   }, [fonts, search, selectedCategory, showFilters]);
 
   const handleSelectFont = React.useCallback(
-    (font: GoogleFont) => {
+    (font: Font) => {
       setSelectedFont(font);
       onChange?.(font.family);
       setIsOpen(false);
