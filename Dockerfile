@@ -4,15 +4,15 @@ WORKDIR /app
 COPY package.json bun.lock ./
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 RUN bun install --frozen-lockfile
 
 # Stage 2: Builder for the application
 FROM base AS builder
 WORKDIR /app
 
-# Copy prisma schema and generate client first to leverage Docker cache
 COPY prisma ./prisma
-RUN bunx prisma generate
+RUN bun prisma generate 
 
 # 1. Accept the build argument
 ARG VITE_GOOGLE_FONTS_API_KEY
@@ -49,5 +49,4 @@ COPY --from=builder /app/types ./types
 # Expose the port the server will run on
 EXPOSE 3000
 
-# Define the command to run the application
-CMD ["/bin/sh", "-c", "bunx prisma migrate deploy --schema=./prisma/schema.prisma && bun server.ts"]
+CMD ["/bin/sh", "-c", "bun prisma migrate deploy --schema=./prisma/schema.prisma && bun server.ts"]
