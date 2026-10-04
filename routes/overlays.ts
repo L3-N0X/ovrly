@@ -1,6 +1,7 @@
 import { prisma } from "../auth";
 import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { normalizeBingoState } from "../lib/bingo";
 
 async function createElementsRecursively(
   overlayId: string,
@@ -34,6 +35,11 @@ async function createElementsRecursively(
     }
     if (element.image) {
       elementData.image = { create: { src: element.image.src } };
+    }
+    if (element.bingo || element.type === "BINGO") {
+      // Presets and duplicates are user supplied data, so the bingo payload is
+      // normalised instead of being copied verbatim into the database.
+      elementData.bingo = { create: normalizeBingoState(element.bingo) };
     }
 
     const createdElement = await prisma.element.create({ data: elementData });
@@ -69,24 +75,28 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            bingo: true,
             children: {
               include: {
                 title: true,
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                       },
                     },
                   },
@@ -129,24 +139,28 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            bingo: true,
             children: {
               include: {
                 title: true,
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                       },
                     },
                   },
@@ -184,24 +198,28 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            bingo: true,
             children: {
               include: {
                 title: true,
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                       },
                     },
                   },
@@ -267,24 +285,28 @@ export const handleOverlaysRoutes = async (
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                         children: {
                           include: {
                             title: true,
                             counter: true,
                             timer: true,
                             image: true,
+                            bingo: true,
                           },
                         },
                       },
@@ -348,24 +370,28 @@ export const handleOverlaysRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              bingo: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                         },
                       },
                     },
@@ -394,24 +420,28 @@ export const handleOverlaysRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              bingo: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                         },
                       },
                     },
@@ -470,24 +500,28 @@ export const handleOverlaysRoutes = async (
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                           children: {
                             include: {
                               title: true,
                               counter: true,
                               timer: true,
                               image: true,
+                              bingo: true,
                             },
                           },
                         },
@@ -546,24 +580,28 @@ export const handleOverlaysRoutes = async (
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                           children: {
                             include: {
                               title: true,
                               counter: true,
                               timer: true,
                               image: true,
+                              bingo: true,
                             },
                           },
                         },

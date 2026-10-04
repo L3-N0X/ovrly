@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { PrismaElement, PrismaOverlay } from "@/lib/types";
+import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 
 export const useOverlayData = () => {
   const { id } = useParams<{ id: string }>();
@@ -8,7 +9,7 @@ export const useOverlayData = () => {
   const [overlay, setOverlay] = useState<PrismaOverlay | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [selectedTimer, setSelectedTimer] = useState<PrismaElement | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
 
@@ -65,25 +66,44 @@ export const useOverlayData = () => {
     };
   }, [id, selectedTimer]);
 
-  const debouncedUpdate = useCallback((url: string, body: object) => {
-    if (debounceTimeout.current) {
-      clearTimeout(debounceTimeout.current);
+  /**
+   * Debounced PATCH. Timers are keyed per target so rapid edits to two
+   * different elements (or two different fields of one element) cannot cancel
+   * each other out and silently drop an update.
+   */
+  const debouncedUpdate = useCallback((key: string, url: string, body: object) => {
+    const pending = debounceTimers.current.get(key);
+    if (pending) {
+      clearTimeout(pending);
     }
-    debounceTimeout.current = setTimeout(async () => {
-      try {
-        const response = await fetch(url, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to update");
+
+    debounceTimers.current.set(
+      key,
+      setTimeout(async () => {
+        debounceTimers.current.delete(key);
+        try {
+          const response = await fetch(url, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error("Failed to update");
+          }
+        } catch (err) {
+          console.error(`Failed to update ${url}`, err);
         }
-      } catch (err) {
-        console.error(err);
-      }
-    }, 500);
+      }, 500)
+    );
+  }, []);
+
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
   }, []);
 
   const deepEqual = (obj1: unknown, obj2: unknown): boolean => {
@@ -141,7 +161,7 @@ export const useOverlayData = () => {
     if (!overlay) return;
 
     if (JSON.stringify(updatedOverlay.globalStyle) !== JSON.stringify(overlay.globalStyle)) {
-      debouncedUpdate(`/api/overlays/${id}`, {
+      debouncedUpdate("overlay:globalStyle", `/api/overlays/${id}`, {
         globalStyle: updatedOverlay.globalStyle,
       });
     }
@@ -149,7 +169,7 @@ export const useOverlayData = () => {
     const changedElements = findChangedElements(updatedOverlay.elements, overlay.elements);
 
     changedElements.forEach((element) => {
-      debouncedUpdate(`/api/elements/${element.id}`, {
+      debouncedUpdate(`element:${element.id}:style`, `/api/elements/${element.id}`, {
         style: element.style,
       });
     });
@@ -197,7 +217,9 @@ export const useOverlayData = () => {
     });
     if (elementUpdated) {
       setOverlay(newOverlay);
-      debouncedUpdate(`/api/elements/${elementId}`, { data: { value } });
+      debouncedUpdate(`element:${elementId}:counter`, `/api/elements/${elementId}`, {
+        data: { value },
+      });
     }
   };
 
@@ -221,7 +243,9 @@ export const useOverlayData = () => {
     });
     if (elementUpdated) {
       setOverlay(newOverlay);
-      debouncedUpdate(`/api/elements/${elementId}`, { data: { text } });
+      debouncedUpdate(`element:${elementId}:title`, `/api/elements/${elementId}`, {
+        data: { text },
+      });
     }
   };
 
@@ -235,6 +259,29 @@ export const useOverlayData = () => {
       setOverlay(newOverlay);
       sendUpdateImmediately(elementId, { data: { src } });
     }
+  };
+
+  /**
+   * Single mutation path for bingo data. The payload is applied locally first so
+   * the editor and the OBS preview stay in step, then persisted.
+   */
+  const handleBingoDataChange = (elementId: string, data: BingoDataUpdate) => {
+    if (!overlay) return;
+
+    const newOverlay = JSON.parse(JSON.stringify(overlay));
+    const elementUpdated = updateElementById(newOverlay.elements, elementId, (el) => {
+      if (!el.bingo) return;
+      const next = applyBingoDataUpdate(normalizeBingoData(el.bingo), data);
+      el.bingo.size = next.size;
+      el.bingo.freeMiddle = next.freeMiddle;
+      el.bingo.fields = next.fields;
+      el.bingo.checked = next.checked;
+    });
+
+    if (!elementUpdated) return;
+
+    setOverlay(newOverlay);
+    debouncedUpdate(`element:${elementId}:bingo`, `/api/elements/${elementId}`, { data });
   };
 
   const handleTimerToggle = (elementId: string) => {
@@ -384,6 +431,7 @@ export const useOverlayData = () => {
     handleImmediateCounterChange,
     handleTitleChange,
     handleImageChange,
+    handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerUpdate,

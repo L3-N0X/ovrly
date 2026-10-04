@@ -87,6 +87,7 @@ model Element {
   counter   Counter?
   timer     Timer?
   image     ImageElement?
+  bingo     Bingo?
 
   // Self-relation for grouping
   parentId  String?
@@ -100,6 +101,7 @@ enum ElementType {
   TIMER
   CONTAINER
   IMAGE
+  BINGO
 }
 
 model Title {
@@ -131,6 +133,16 @@ model ImageElement {
   src       String
   elementId String  @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Bingo {
+  id         String  @id @default(cuid())
+  size       Int     @default(5)
+  freeMiddle Boolean @default(false)
+  fields     Json
+  checked    Json
+  elementId  String  @unique
+  element    Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model Account {

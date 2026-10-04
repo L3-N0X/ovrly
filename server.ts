@@ -8,6 +8,7 @@ import { handleFilesRoutes } from "./routes/files";
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
+import { handleBingoRoutes } from "./routes/bingo";
 import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
 import { WebSocketData } from "./types";
 import path from "path";
@@ -97,6 +98,12 @@ const server = Bun.serve({
       const elementResponse = await handleElementsRoutes(req, server, reqPath);
       if (elementResponse) {
         return elementResponse;
+      }
+
+      // Handle bingo routes
+      const bingoResponse = await handleBingoRoutes(req, server, reqPath);
+      if (bingoResponse) {
+        return bingoResponse;
       }
 
       // Handle reorder routes

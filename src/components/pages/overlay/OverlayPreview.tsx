@@ -38,7 +38,7 @@ const OverlayPreview: React.FC<OverlayPreviewProps> = ({ overlay }) => {
             transformOrigin: "center center",
           }}
         >
-          <OverlayCanvas overlay={overlay} />
+          <OverlayCanvas overlay={overlay} isEditor />
         </div>
       </div>
       <div className="py-2 text-sm text-muted-foreground mb-4">Live Preview (800x600)</div>

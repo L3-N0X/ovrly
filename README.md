@@ -26,6 +26,7 @@ All Elements are editable to change their content.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
 * **Timer:** Count up or down for speedruns, events, or breaks.
 * **Image:** Add player photos, logos, or more.
+* **Bingo:** A 3x3 to 7x7 card. Mark cells as the game is called, with an optional free middle and a shuffle button.
 * **Container:** Group and organize elements within your overlay.
 
 ## 📺 Usage in OBS
@@ -92,6 +93,17 @@ You need to set the following environment variables in a `.env` file in the root
 
     This will start the frontend at `http://localhost:5173` and the backend at `http://localhost:3000`.
 
+5. Apply database migrations and regenerate the Prisma client:
+
+    ```bash
+    bunx prisma migrate deploy
+    bunx prisma generate
+    ```
+
+    The generated client is not committed to the repository. If you pull a change
+    that touches `prisma/schema.prisma`, re-run `prisma generate` — a client built
+    from an older schema will not know about new models or relations.
+
 ### Building for Production
 
 ```bash
@@ -99,6 +111,10 @@ bun run build
 ```
 
 This will create an optimized production build in the `dist` directory.
+
+## 📚 Further Documentation
+
+* [Bingo element](docs/bingo.md) — data model, API and rendering behaviour.
 
 ## ❤️ Contributing
 

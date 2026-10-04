@@ -5,13 +5,15 @@ import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
 import Image from "./Image";
+import Bingo from "./Bingo";
 
 interface ElementDisplayProps {
   element: PrismaElement;
   elements: PrismaElement[];
+  isEditor?: boolean;
 }
 
-const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
+const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements, isEditor = false }) => {
   const { type, style, title, counter, timer } = element;
 
   const children = elements
@@ -34,12 +36,19 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         return (
           <Container style={(style || {}) as ContainerStyle}>
             {children.map((child) => (
-              <ElementDisplay key={child.id} element={child} elements={elements} />
+              <ElementDisplay
+                key={child.id}
+                element={child}
+                elements={elements}
+                isEditor={isEditor}
+              />
             ))}
           </Container>
         );
       case "IMAGE":
         return <Image element={element} />;
+      case "BINGO":
+        return <Bingo element={element} isEditor={isEditor} />;
       default:
         return null;
     }

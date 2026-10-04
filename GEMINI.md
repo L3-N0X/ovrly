@@ -59,3 +59,6 @@ bun run lint
 *   **Coding Style:** The project uses ESLint to enforce a consistent coding style. The configuration can be found in `eslint.config.js`.
 *   **Testing:** There are no testing practices evident in the project.
 *   **Commits:** There are no commit conventions evident in the project.
+*   **TS Config:** Verbatim TS is used, we need to import types with `import type {}` syntax to avoid runtime imports.
+*   **Backend Type Coverage:** `tsconfig.app.json` only includes `src` and `tsconfig.node.json` only `vite.config.ts`, so `bun run build` never typechecks the backend (`server.ts`, `routes/`, `middleware/`, `lib/`, `services/`). Backend type errors will not be caught by the build; typecheck those paths separately when changing them.
+*   **Prisma Client:** the generated client is not committed. Run `bunx prisma generate` after any `prisma/schema.prisma` change, otherwise queries against new models or relations fail at runtime. Docker does this automatically; local development must do it manually.

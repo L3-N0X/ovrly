@@ -1,15 +1,17 @@
 import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
-const getRecursiveElementInclude = (depth: number) => {
+export const getRecursiveElementInclude = (depth: number) => {
   if (depth <= 0) {
     return {
       title: true,
       counter: true,
       timer: true,
       image: true,
+      bingo: true,
     };
   }
   return {
@@ -17,6 +19,7 @@ const getRecursiveElementInclude = (depth: number) => {
     counter: true,
     timer: true,
     image: true,
+    bingo: true,
     children: {
       include: getRecursiveElementInclude(depth - 1),
     },
@@ -109,6 +112,8 @@ export const handleElementsRoutes = async (
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
+      } else if (type === "BINGO") {
+        elementCreateData.bingo = { create: createBingoState() };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
       } else {
@@ -281,7 +286,7 @@ export const handleElementsRoutes = async (
     const elementId = elementIdMatch[1];
     const element = await prisma.element.findUnique({
       where: { id: elementId },
-      include: { overlay: true },
+      include: { overlay: true, bingo: true },
     });
 
     if (!element) {
@@ -346,12 +351,40 @@ export const handleElementsRoutes = async (
               update: timerUpdateData,
             };
           }
+          if (element.type === "BINGO") {
+            if (!element.bingo) {
+              return new Response(JSON.stringify({ error: "Bingo data not found" }), {
+                status: 404,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            const currentState = normalizeBingoState({
+              size: element.bingo.size,
+              freeMiddle: element.bingo.freeMiddle,
+              fields: element.bingo.fields,
+              checked: element.bingo.checked,
+            });
+            const parsed = parseBingoUpdate(data, currentState);
+
+            if (!parsed.ok) {
+              return new Response(JSON.stringify({ error: parsed.error }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            const { size, freeMiddle, fields, checked } = parsed.value;
+            elementUpdateData.bingo = {
+              update: { size, freeMiddle, fields, checked },
+            };
+          }
         }
 
         const updatedElement = await prisma.element.update({
           where: { id: elementId },
           data: elementUpdateData,
-          include: { title: true, counter: true, timer: true, image: true, children: true },
+          include: { title: true, counter: true, timer: true, image: true, bingo: true, children: true },
         });
 
         const updatedOverlay = await prisma.overlay.findUnique({
@@ -399,6 +432,7 @@ export const handleElementsRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              bingo: true,
             },
           },
         },
