@@ -11,9 +11,8 @@ import {
   type PrismaOverlay,
 } from "@/lib/types";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { ChevronDown, ChevronRight, Pencil, Trash2 } from "lucide-react";
-import React, { useState } from "react";
-import { ChildList } from "./elementlist/ChildList";
+import { Pencil, Trash2 } from "lucide-react";
+import React from "react";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { RenameElementModal } from "./RenameElementModal";
 
@@ -63,124 +62,100 @@ export const GroupEditor: React.FC<{
   onOverlayChange: (newOverlay: PrismaOverlay) => void;
   onChange: (newStyle: GroupStyle) => void;
   onDelete?: () => void;
-  // Passed down so nested elements can be deleted too.
-  onDeleteElement?: (elementId: string) => void;
-}> = ({ element, onChange, overlay, onOverlayChange, onDelete, onDeleteElement }) => {
+}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
   const style = (element.style || {}) as GroupStyle;
   const updateStyle = (patch: Partial<GroupStyle>) => onChange({ ...style, ...patch });
 
-  const [editorExpanded, setEditorExpanded] = useState(false);
   const radiusSlider = useSliderValue(typeof style.radius === "number" ? style.radius : 0, {
     onCommit: (v) => updateStyle({ radius: v }),
   });
 
   return (
-    <div className="space-y-2 p-2 border rounded-lg">
-      <p className="text-sm text-muted-foreground px-1">
+    <div className="space-y-4 p-4 border rounded-lg">
+      <div className="flex justify-between items-center">
+        <h4 className="font-semibold">Edit: {element.name}</h4>
+        <div className="flex items-center">
+          <RenameElementModal
+            element={element}
+            overlay={overlay}
+            onOverlayChange={onOverlayChange}
+          >
+            <Button variant="ghost" size="icon-lg">
+              <Pencil />
+            </Button>
+          </RenameElementModal>
+          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
+            <Trash2 />
+          </Button>
+        </div>
+      </div>
+      <p className="text-sm text-muted-foreground">
         Elements in a group are placed freely. Turn on "Move elements" in the preview to drag
         them into position.
       </p>
-      <ChildList
-        element={element}
-        overlay={overlay}
-        onOverlayChange={onOverlayChange}
-        onDeleteElement={onDeleteElement}
-      />
-      <div
-        className="text-sm text-primary w-full text-center cursor-pointer select-none hover:bg-accent/50 p-2 rounded-lg"
-        onClick={() => setEditorExpanded(!editorExpanded)}
-      >
-        {editorExpanded ? "Hide" : "Show"} Group Settings
-        {editorExpanded ? (
-          <ChevronDown className="h-4 w-4 inline-block ml-1 mb-1" />
-        ) : (
-          <ChevronRight className="h-4 w-4 inline-block ml-1 mb-1" />
-        )}
+      <div className="grid grid-cols-2 gap-4">
+        <PixelInput
+          id={`${element.id}-width`}
+          label="Width"
+          min={1}
+          value={style.width ?? DEFAULT_GROUP_WIDTH}
+          onChange={(width) => updateStyle({ width })}
+        />
+        <PixelInput
+          id={`${element.id}-height`}
+          label="Height"
+          min={1}
+          value={style.height ?? DEFAULT_GROUP_HEIGHT}
+          onChange={(height) => updateStyle({ height })}
+        />
       </div>
-      {editorExpanded && (
-        <div className="p-2 mt-2 space-y-4">
-          <div className="flex justify-between items-center">
-            <h4 className="font-semibold">Edit: {element.name}</h4>
-            <div className="flex items-center">
-              <RenameElementModal
-                element={element}
-                overlay={overlay}
-                onOverlayChange={onOverlayChange}
-              >
-                <Button variant="ghost" size="icon-lg">
-                  <Pencil />
-                </Button>
-              </RenameElementModal>
-              <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-                <Trash2 />
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <PixelInput
-              id={`${element.id}-width`}
-              label="Width"
-              min={1}
-              value={style.width ?? DEFAULT_GROUP_WIDTH}
-              onChange={(width) => updateStyle({ width })}
-            />
-            <PixelInput
-              id={`${element.id}-height`}
-              label="Height"
-              min={1}
-              value={style.height ?? DEFAULT_GROUP_HEIGHT}
-              onChange={(height) => updateStyle({ height })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Background</Label>
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    className="w-full h-10 rounded-md border"
-                    style={{ backgroundColor: style.backgroundColor || "transparent" }}
-                  />
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <ColorPickerEditor
-                    value={style.backgroundColor || "#00000000"}
-                    onChange={(c) => updateStyle({ backgroundColor: c })}
-                  />
-                </PopoverContent>
-              </Popover>
-              {style.backgroundColor && (
-                // Style updates are merged on the server, so an omitted key wouldn't clear it.
-                <Button variant="outline" onClick={() => updateStyle({ backgroundColor: "" })}>
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Corner Radius</Label>
-            <div className="flex gap-4">
-              <Slider
-                value={[radiusSlider.value]}
-                onValueChange={([v]) => radiusSlider.onChange(v)}
-                onPointerDown={radiusSlider.onInteractionStart}
-                onValueCommit={radiusSlider.onInteractionEnd}
-                max={200}
-                min={0}
+      <div className="space-y-2">
+        <Label>Background</Label>
+        <div className="flex gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-full h-10 rounded-md border"
+                style={{ backgroundColor: style.backgroundColor || "transparent" }}
               />
-              <Input
-                value={radiusSlider.value}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  radiusSlider.onChange(isNaN(val) ? 0 : val);
-                }}
-                onBlur={() => radiusSlider.onInteractionEnd()}
-                className="h-10 w-20"
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <ColorPickerEditor
+                value={style.backgroundColor || "#00000000"}
+                onChange={(c) => updateStyle({ backgroundColor: c })}
               />
-            </div>
-          </div>
+            </PopoverContent>
+          </Popover>
+          {style.backgroundColor && (
+            // Style updates are merged on the server, so an omitted key wouldn't clear it.
+            <Button variant="outline" onClick={() => updateStyle({ backgroundColor: "" })}>
+              Clear
+            </Button>
+          )}
         </div>
-      )}
+      </div>
+      <div className="space-y-2">
+        <Label>Corner Radius</Label>
+        <div className="flex gap-4">
+          <Slider
+            value={[radiusSlider.value]}
+            onValueChange={([v]) => radiusSlider.onChange(v)}
+            onPointerDown={radiusSlider.onInteractionStart}
+            onValueCommit={radiusSlider.onInteractionEnd}
+            max={200}
+            min={0}
+          />
+          <Input
+            value={radiusSlider.value}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              radiusSlider.onChange(isNaN(val) ? 0 : val);
+            }}
+            onBlur={() => radiusSlider.onInteractionEnd()}
+            className="h-10 w-20"
+          />
+        </div>
+      </div>
     </div>
   );
 };

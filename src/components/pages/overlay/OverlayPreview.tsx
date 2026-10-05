@@ -2,15 +2,23 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { Move } from "lucide-react";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 import type { CanvasEditing } from "@/components/overlay/canvasEditing";
+import type { CanvasSelection } from "@/components/overlay/canvasSelection";
 import { Button } from "@/components/ui/button";
 import { ElementTypeEnum, type ElementStyle, type PrismaOverlay } from "@/lib/types";
 
 interface OverlayPreviewProps {
   overlay: PrismaOverlay;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  selectedId: string | null;
+  onSelect: (elementId: string | null) => void;
 }
 
-const OverlayPreview: React.FC<OverlayPreviewProps> = ({ overlay, onOverlayChange }) => {
+const OverlayPreview: React.FC<OverlayPreviewProps> = ({
+  overlay,
+  onOverlayChange,
+  selectedId,
+  onSelect,
+}) => {
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [moveMode, setMoveMode] = useState(false);
@@ -42,6 +50,11 @@ const OverlayPreview: React.FC<OverlayPreviewProps> = ({ overlay, onOverlayChang
     return { onMove: patchStyle, onResize: patchStyle };
   }, [moveMode, overlay, onOverlayChange]);
 
+  const selection = useMemo<CanvasSelection>(
+    () => ({ selectedId, onSelect }),
+    [selectedId, onSelect]
+  );
+
   return (
     <div
       ref={previewContainerRef}
@@ -68,12 +81,12 @@ const OverlayPreview: React.FC<OverlayPreviewProps> = ({ overlay, onOverlayChang
             transformOrigin: "center center",
           }}
         >
-          <OverlayCanvas overlay={overlay} editing={editing} />
+          <OverlayCanvas overlay={overlay} editing={editing} selection={selection} />
         </div>
       </div>
       <div className="py-2 px-4 text-sm text-muted-foreground mb-4 text-center">
         {!moveMode
-          ? "Live Preview (800x600)"
+          ? "Live Preview (800x600). Click an element to edit it."
           : hasGroups
             ? "Drag elements inside a group to place them. Arrow keys nudge, hold Shift for 10px steps. Drag the corner handle to resize a group."
             : "Add a Group element to place elements freely, then drag them here."}

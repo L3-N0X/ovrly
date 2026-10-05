@@ -6,6 +6,7 @@ import Container from "./Container";
 import Timer from "./Timer";
 import Image from "./Image";
 import Group from "./Group";
+import { CANVAS_ELEMENT_ATTRIBUTE, useCanvasSelection } from "./canvasSelection";
 
 interface ElementDisplayProps {
   element: PrismaElement;
@@ -14,6 +15,7 @@ interface ElementDisplayProps {
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
   const { type, style, title, counter, timer } = element;
+  const selection = useCanvasSelection();
 
   const children = elements
     .filter((e) => e.parentId === element.id)
@@ -54,7 +56,27 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
     }
   };
 
-  return <>{renderElement()}</>;
+  const content = renderElement();
+  if (!selection || !content) return content;
+
+  // `display: contents` keeps the wrapper out of the layout. Events still bubble through
+  // it, and stopping them here means the innermost element under the pointer wins.
+  return (
+    <div
+      {...{ [CANVAS_ELEMENT_ATTRIBUTE]: element.id }}
+      style={{ display: "contents" }}
+      onClick={(e) => {
+        e.stopPropagation();
+        selection.onSelect(element.id);
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        selection.onHover(element.id);
+      }}
+    >
+      {content}
+    </div>
+  );
 };
 
 export default ElementDisplay;

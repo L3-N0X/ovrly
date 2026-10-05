@@ -1,15 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type PrismaOverlay } from "@/lib/types";
 import React from "react";
 import { GlobalStyleEditor } from "./GlobalStyleEditor";
-import { ElementListEditor } from "./elementlist/ElementListEditor";
+import { ElementListEditor, type ElementListEditorProps } from "./elementlist/ElementListEditor";
 
-interface StyleEditorProps {
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
-}
+type StyleEditorProps = ElementListEditorProps;
 
-const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange }) => {
+const StyleEditor: React.FC<StyleEditorProps> = (props) => {
+  const { overlay, onOverlayChange } = props;
   return (
     <Card>
       <CardHeader>
@@ -19,7 +16,7 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange }) =
       <CardContent className="space-y-6">
         <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
         <hr />
-        <ElementListEditor overlay={overlay} onOverlayChange={onOverlayChange} />
+        <ElementListEditor {...props} />
       </CardContent>
     </Card>
   );

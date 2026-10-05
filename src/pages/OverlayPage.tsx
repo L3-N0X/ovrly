@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
@@ -29,6 +29,20 @@ const OverlayPage: React.FC = () => {
     setSelectedTimer,
   } = useOverlayData();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
+  // Shared by the preview and the element tree. Picking an element on the canvas also
+  // scrolls its settings into view, since they may be far below the preview.
+  const [selection, setSelection] = useState<{ id: string | null; fromCanvas: boolean }>({
+    id: null,
+    fromCanvas: false,
+  });
+  const selectFromCanvas = useCallback(
+    (id: string | null) => setSelection({ id, fromCanvas: true }),
+    []
+  );
+  const selectFromTree = useCallback(
+    (id: string | null) => setSelection({ id, fromCanvas: false }),
+    []
+  );
 
   const handleToggleShareModal = () => {
     setShareModalOpen(!isShareModalOpen);
@@ -79,7 +93,12 @@ const OverlayPage: React.FC = () => {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          <OverlayPreview overlay={overlay} onOverlayChange={handleOverlayChange} />
+          <OverlayPreview
+            overlay={overlay}
+            onOverlayChange={handleOverlayChange}
+            selectedId={selection.id}
+            onSelect={selectFromCanvas}
+          />
 
           <div className="space-y-8 pb-96">
             <DataControls
@@ -96,7 +115,13 @@ const OverlayPage: React.FC = () => {
               setSelectedTimer={setSelectedTimer}
             />
 
-            <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} />
+            <StyleEditor
+              overlay={overlay}
+              onOverlayChange={handleOverlayChange}
+              selectedId={selection.id}
+              onSelect={selectFromTree}
+              revealSelection={selection.fromCanvas}
+            />
 
             <OverlayAdditionalOptions handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
           </div>

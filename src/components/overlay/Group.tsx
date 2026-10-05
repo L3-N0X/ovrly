@@ -6,6 +6,7 @@ import {
   type PrismaElement,
 } from "@/lib/types";
 import { useCanvasEditing } from "./canvasEditing";
+import { useCanvasSelection } from "./canvasSelection";
 
 const MIN_GROUP_SIZE = 20;
 
@@ -38,6 +39,7 @@ const FreeItem: React.FC<{ element: PrismaElement; children: React.ReactNode }> 
   children,
 }) => {
   const editing = useCanvasEditing();
+  const selection = useCanvasSelection();
   const style = (element.style || {}) as GroupStyle;
   const x = toNumber(style.x, 0);
   const y = toNumber(style.y, 0);
@@ -69,6 +71,7 @@ const FreeItem: React.FC<{ element: PrismaElement; children: React.ReactNode }> 
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     el.focus();
+    selection?.onSelect(element.id);
     dragStart.current = {
       pointerX: e.clientX,
       pointerY: e.clientY,
@@ -132,6 +135,9 @@ const FreeItem: React.FC<{ element: PrismaElement; children: React.ReactNode }> 
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onKeyDown={handleKeyDown}
+      // Pointer capture sends the click to this wrapper instead of the element inside, so it
+      // would bubble up and select the group. The element was selected on pointer down.
+      onClick={(e) => e.stopPropagation()}
       // Images and selected text would otherwise start a native drag.
       onDragStart={(e) => e.preventDefault()}
     >
