@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -11,42 +13,53 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
         with:
-          bun-version: 1
-          bun-cache: true
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # The Prisma client is generated into src/generated (gitignored), so
+      # linting and typechecking both need it.
+      - name: Generate Prisma client
+        run: bunx prisma generate
 
       - name: Lint
         run: bun run lint
 
   build:
-    name: Build
+    name: Typecheck and build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun packages
+        uses: actions/cache@v6
         with:
-          bun-version: 1
-          bun-cache: true
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -60,20 +73,21 @@ jobs:
   docker:
     name: Docker build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Single platform for speed; the release workflow builds the multi-arch image.
       - name: Build Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
           push: false
-          build-args: |
-            VITE_GOOGLE_FONTS_API_KEY=
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
