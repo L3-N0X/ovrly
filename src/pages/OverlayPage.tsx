@@ -8,6 +8,7 @@ import OverlayPreview from "@/components/pages/overlay/OverlayPreview";
 import DataControls from "@/components/pages/overlay/DataControls";
 import OverlayAdditionalOptions from "@/components/pages/overlay/OverlayAdditionalOptions";
 import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
+import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ const OverlayPage: React.FC = () => {
     handleImmediateCounterChange,
     handleTitleChange,
     handleImageChange,
+    handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerUpdate,
@@ -68,7 +70,7 @@ const OverlayPage: React.FC = () => {
     return <div className="flex items-center justify-center min-h-screen">Overlay not found</div>;
 
   return (
-    <>
+    <BingoDataProvider onBingoDataChange={handleBingoDataChange}>
       {loadOverlayFonts(overlay)}
       <div className="container mx-auto">
         <OverlayHeader
@@ -89,6 +91,7 @@ const OverlayPage: React.FC = () => {
               handleImmediateCounterChange={handleImmediateCounterChange}
               handleTitleChange={handleTitleChange}
               handleImageChange={handleImageChange}
+              handleBingoDataChange={handleBingoDataChange}
               handleTimerToggle={handleTimerToggle}
               handleTimerReset={handleTimerReset}
               handleTimerUpdate={handleTimerUpdate}
@@ -97,7 +100,12 @@ const OverlayPage: React.FC = () => {
               setSelectedTimer={setSelectedTimer}
             />
 
-            <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} ws={ws} />
+            <StyleEditor
+              overlay={overlay}
+              onOverlayChange={handleOverlayChange}
+              onBingoDataChange={handleBingoDataChange}
+              ws={ws}
+            />
 
             <OverlayAdditionalOptions handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
           </div>
@@ -108,7 +116,7 @@ const OverlayPage: React.FC = () => {
         isOpen={isShareModalOpen}
         onClose={handleToggleShareModal}
       />
-    </>
+    </BingoDataProvider>
   );
 };
 

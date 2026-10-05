@@ -21,11 +21,8 @@ import { fetchAllFonts, loadFont } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Filter } from "lucide-react";
 import * as React from "react";
-import type { ComponentType } from "react";
-import { FixedSizeList as _FixedSizeList } from "react-window";
-import type { FixedSizeListProps } from "react-window";
-
-const FixedSizeList = _FixedSizeList as ComponentType<FixedSizeListProps>;
+import { List } from "react-window";
+import type { RowComponentProps } from "react-window";
 
 function FontListItem({
   font,
@@ -151,22 +148,46 @@ export function FontPicker({
     setIsOpen(open);
   }, []);
 
-  const Row = React.useCallback(
-    ({ index, style }: { index: number; style: React.CSSProperties }) => {
-      const font = filteredFonts[index];
-      return (
-        <div style={style}>
-          <FontListItem
-            font={font}
-            isSelected={selectedFont?.family === font.family}
-            onSelect={() => handleSelectFont(font)}
-            previewWord={previewWord}
-          />
-        </div>
-      );
-    },
-    [filteredFonts, selectedFont, handleSelectFont, previewWord]
-  );
+  interface FontRowProps {
+  fonts: Font[];
+  selectedFamily?: string;
+  onSelect: (font: Font) => void;
+  previewWord: string;
+}
+
+const Row = React.useCallback(
+  ({
+    index,
+    style,
+    fonts,
+    selectedFamily,
+    onSelect,
+    previewWord,
+  }: RowComponentProps<FontRowProps>) => {
+    const font = fonts[index];
+    return (
+      <div style={style}>
+        <FontListItem
+          font={font}
+          isSelected={selectedFamily === font.family}
+          onSelect={() => onSelect(font)}
+          previewWord={previewWord}
+        />
+      </div>
+    );
+  },
+  []
+);
+
+const rowProps = React.useMemo(
+  () => ({
+    fonts: filteredFonts,
+    selectedFamily: selectedFont?.family,
+    onSelect: handleSelectFont,
+    previewWord,
+  }),
+  [filteredFonts, selectedFont?.family, handleSelectFont, previewWord]
+);
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -242,15 +263,14 @@ export function FontPicker({
             <>
               <CommandEmpty>No fonts found.</CommandEmpty>
               <CommandGroup>
-                <div className={`h-[${height}px]`}>
-                  <FixedSizeList
-                    height={height}
-                    itemCount={filteredFonts.length}
-                    itemSize={55}
-                    width="100%"
-                  >
-                    {Row}
-                  </FixedSizeList>
+                <div style={{ height }}>
+                  <List
+                    style={{ height, width: "100%" }}
+                    rowComponent={Row}
+                    rowCount={filteredFonts.length}
+                    rowHeight={55}
+                    rowProps={rowProps}
+                  />
                 </div>
               </CommandGroup>
             </>

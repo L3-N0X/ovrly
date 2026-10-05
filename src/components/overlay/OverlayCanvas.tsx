@@ -4,9 +4,14 @@ import ElementDisplay from "./ElementDisplay";
 
 interface OverlayCanvasProps {
   overlay: PrismaOverlay;
+  /**
+   * Enables editor-only affordances (marking bingo cells). The public OBS
+   * overlay leaves this off so the canvas stays a pure read-only render.
+   */
+  isEditor?: boolean;
 }
 
-const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
+const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay, isEditor = false }) => {
   const { globalStyle, elements } = overlay;
 
   // For backward compatibility, we check for new property names first, then fallback to old ones
@@ -48,7 +53,7 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
     <div style={outerStyle}>
       <div style={innerStyle}>
         {rootElements.map((element) => (
-          <ElementDisplay key={element.id} element={element} elements={elements} />
+          <ElementDisplay key={element.id} element={element} elements={elements} isEditor={isEditor} />
         ))}
       </div>
     </div>

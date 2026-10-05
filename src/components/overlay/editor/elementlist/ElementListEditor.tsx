@@ -9,16 +9,19 @@ import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
 import React, { useEffect } from "react";
 import { AddElementModal } from "../AddElementModal";
 import { ElementListItem } from "./ElementListItem";
+import type { BingoDataUpdate } from "@/lib/bingo";
 
 export interface ElementListEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
   ws: WebSocket | null;
 }
 
 export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   overlay,
   onOverlayChange,
+  onBingoDataChange,
   ws,
 }) => {
   const rootElements = overlay.elements
@@ -240,6 +243,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             onOverlayChange={onOverlayChange}
             overlay={overlay}
             onDeleteElement={deleteElement}
+            onBingoDataChange={onBingoDataChange}
             className={element.type === ElementTypeEnum.CONTAINER ? "mb-3" : "mb-1"}
             ws={ws}
           />
