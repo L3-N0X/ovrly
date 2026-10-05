@@ -15,7 +15,7 @@ import {
   draggable,
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source";
+import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/utils/preserve-offset-on-source";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -26,11 +26,14 @@ import { TimerStyleEditor } from "../TimerEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import { DragPreview } from "./DragPreview";
+import { BingoEditor } from "../BingoEditor";
+import type { BingoDataUpdate } from "@/lib/bingo";
 export const ElementListItem = ({
   element,
   onOverlayChange,
   overlay,
   onDeleteElement,
+  onBingoDataChange,
   className = "",
   ws,
 }: {
@@ -38,6 +41,7 @@ export const ElementListItem = ({
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   overlay: PrismaOverlay;
   onDeleteElement?: (elementId: string) => void;
+  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
   className?: string;
   ws: WebSocket | null;
 }) => {
@@ -164,21 +168,14 @@ export const ElementListItem = ({
     );
   }, [element, overlay, expanded]);
 
-  const updateElementStyle = async (elementId: string, newStyle: ElementStyle) => {
+  const updateElementStyle = (elementId: string, newStyle: ElementStyle) => {
     const newOverlay = JSON.parse(JSON.stringify(overlay));
     const elementIndex = newOverlay.elements.findIndex((el: PrismaElement) => el.id === elementId);
     if (elementIndex > -1) {
       newOverlay.elements[elementIndex].style = newStyle;
+      // useOverlayData diffs the style against the server copy and persists the
+      // difference, so the local update is all that is needed here.
       onOverlayChange(newOverlay);
-
-      await fetch(`/api/elements/${elementId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ style: newStyle }),
-      }).catch(console.error);
     }
   };
 
@@ -272,6 +269,17 @@ export const ElementListItem = ({
               overlay={overlay}
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
+              ws={ws}
+            />
+          )}
+          {element.type === ElementTypeEnum.BINGO && (
+            <BingoEditor
+              element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
+              onChange={(style) => updateElementStyle(element.id, style)}
+              onDataChange={onBingoDataChange}
               onDelete={() => onDeleteElement?.(element.id)}
               ws={ws}
             />

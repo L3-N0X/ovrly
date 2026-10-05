@@ -14,6 +14,28 @@ interface TimerControlProps {
   setIsTimerModalOpen: (isOpen: boolean) => void;
 }
 
+const TimerRenderer: React.FC<{
+  timer: NonNullable<PrismaElement["timer"]>;
+  formatTime: (milliseconds: number) => string;
+}> = ({ timer, formatTime }) => {
+  const time = useTimer({
+    ...timer,
+    startedAt: timer.startedAt ? new Date(timer.startedAt) : null,
+    pausedAt: timer.pausedAt ? new Date(timer.pausedAt) : null,
+  });
+  return <>{formatTime(time)}</>;
+};
+
+const TimerDisplay: React.FC<{
+  timerElement: PrismaElement;
+  formatTime: (milliseconds: number) => string;
+}> = ({ timerElement, formatTime }) => {
+  if (!timerElement.timer) {
+    return <>{formatTime(0)}</>;
+  }
+  return <TimerRenderer timer={timerElement.timer} formatTime={formatTime} />;
+};
+
 const TimerControl: React.FC<TimerControlProps> = ({
   element,
   handleTimerToggle,
@@ -31,22 +53,6 @@ const TimerControl: React.FC<TimerControlProps> = ({
     [element.style]
   );
 
-  const TimerRenderer: React.FC<{ timer: NonNullable<PrismaElement["timer"]> }> = ({ timer }) => {
-    const time = useTimer({
-      ...timer,
-      startedAt: timer.startedAt ? new Date(timer.startedAt) : null,
-      pausedAt: timer.pausedAt ? new Date(timer.pausedAt) : null,
-    });
-    return <>{formatTime(time)}</>;
-  };
-
-  const TimerDisplay: React.FC<{ timerElement: PrismaElement }> = ({ timerElement }) => {
-    if (!timerElement.timer) {
-      return <>{formatTime(0)}</>;
-    }
-    return <TimerRenderer timer={timerElement.timer} />;
-  };
-
   return (
     <div className="space-y-2">
       <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
@@ -55,7 +61,7 @@ const TimerControl: React.FC<TimerControlProps> = ({
       </Label>
       <div className="flex items-center space-x-2">
         <div className="text-2xl font-mono bg-secondary h-14 flex items-center justify-center rounded-md px-4 flex-grow">
-          <TimerDisplay timerElement={element} />
+          <TimerDisplay timerElement={element} formatTime={formatTime} />
         </div>
         <Button
           onClick={() => {

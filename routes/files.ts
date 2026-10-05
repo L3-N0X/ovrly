@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../auth';
 import { fileStorage } from '../services/file-storage';
 import { authenticate } from '../middleware/authMiddleware';
 import { corsHeaders } from '../middleware/cors';
-
-const prisma = new PrismaClient();
 
 export const handleFilesRoutes = async (req: Request, path: string) => {
   // GET /api/files - Public endpoint to get all images

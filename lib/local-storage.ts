@@ -1,4 +1,4 @@
-import { FileStorage } from "../services/file-storage";
+import type { FileStorage } from "../services/file-storage";
 import {promises as fs} from 'fs';
 import path from 'path';
 

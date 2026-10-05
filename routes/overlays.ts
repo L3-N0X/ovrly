@@ -1,6 +1,7 @@
 import { prisma } from "../auth";
 import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { normalizeBingoState } from "../lib/bingo";
 
 async function createElementsRecursively(
   overlayId: string,
@@ -34,6 +35,11 @@ async function createElementsRecursively(
     }
     if (element.image) {
       elementData.image = { create: { src: element.image.src } };
+    }
+    if (element.bingo || element.type === "BINGO") {
+      // Presets and duplicates are user supplied data, so the bingo payload is
+      // normalised instead of being copied verbatim into the database.
+      elementData.bingo = { create: normalizeBingoState(element.bingo) };
     }
 
     const createdElement = await prisma.element.create({ data: elementData });
@@ -69,24 +75,28 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            bingo: true,
             children: {
               include: {
                 title: true,
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                       },
                     },
                   },
@@ -129,24 +139,28 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            bingo: true,
             children: {
               include: {
                 title: true,
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                       },
                     },
                   },
@@ -184,24 +198,28 @@ export const handleOverlaysRoutes = async (
             counter: true,
             timer: true,
             image: true,
+            bingo: true,
             children: {
               include: {
                 title: true,
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                       },
                     },
                   },
@@ -235,7 +253,11 @@ export const handleOverlaysRoutes = async (
 
     if (req.method === "PATCH") {
       try {
-        const body = await req.json();
+        const body = (await req.json()) as {
+          name?: string;
+          description?: string;
+          globalStyle?: object;
+        };
         console.log("[SERVER LOG] PATCH /api/overlays/:id body:", body);
         const { name, description, globalStyle } = body;
         const dataToUpdate: { name?: string; description?: string; globalStyle?: object } = {};
@@ -267,24 +289,28 @@ export const handleOverlaysRoutes = async (
                 counter: true,
                 timer: true,
                 image: true,
+                bingo: true,
                 children: {
                   include: {
                     title: true,
                     counter: true,
                     timer: true,
                     image: true,
+                    bingo: true,
                     children: {
                       include: {
                         title: true,
                         counter: true,
                         timer: true,
                         image: true,
+                        bingo: true,
                         children: {
                           include: {
                             title: true,
                             counter: true,
                             timer: true,
                             image: true,
+                            bingo: true,
                           },
                         },
                       },
@@ -348,24 +374,28 @@ export const handleOverlaysRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              bingo: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                         },
                       },
                     },
@@ -394,24 +424,28 @@ export const handleOverlaysRoutes = async (
               counter: true,
               timer: true,
               image: true,
+              bingo: true,
               children: {
                 include: {
                   title: true,
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                         },
                       },
                     },
@@ -430,7 +464,13 @@ export const handleOverlaysRoutes = async (
 
     if (req.method === "POST") {
       try {
-        const { name, description, type, elementName, presetId } = await req.json();
+        const { name, description, type, elementName, presetId } = (await req.json()) as {
+          name?: string;
+          description?: string;
+          type?: string;
+          elementName?: string;
+          presetId?: string;
+        };
 
         // If presetId is provided, create overlay based on preset
         if (presetId) {
@@ -450,7 +490,7 @@ export const handleOverlaysRoutes = async (
           // Create the overlay without elements
           const newOverlay = await prisma.overlay.create({
             data: {
-              name,
+              name: name ?? "Untitled Overlay",
               description,
               userId: session.user.id,
               globalStyle: selectedPreset.globalStyle || {},
@@ -470,24 +510,28 @@ export const handleOverlaysRoutes = async (
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                           children: {
                             include: {
                               title: true,
                               counter: true,
                               timer: true,
                               image: true,
+                              bingo: true,
                             },
                           },
                         },
@@ -546,24 +590,28 @@ export const handleOverlaysRoutes = async (
                   counter: true,
                   timer: true,
                   image: true,
+                  bingo: true,
                   children: {
                     include: {
                       title: true,
                       counter: true,
                       timer: true,
                       image: true,
+                      bingo: true,
                       children: {
                         include: {
                           title: true,
                           counter: true,
                           timer: true,
                           image: true,
+                          bingo: true,
                           children: {
                             include: {
                               title: true,
                               counter: true,
                               timer: true,
                               image: true,
+                              bingo: true,
                             },
                           },
                         },
