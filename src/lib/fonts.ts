@@ -70,7 +70,7 @@ export async function fetchCustomFonts(): Promise<CustomFont[]> {
     }
     const customFontsData = (await response.json()) as CustomFontSource[];
 
-    return customFontsData.map((font) => ({
+    return customFontsData.map((font: Pick<CustomFont, "family" | "category" | "variants" | "urls">) => ({
       family: font.family,
       category: font.category,
       variants: font.variants,

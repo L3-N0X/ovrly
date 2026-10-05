@@ -93,6 +93,62 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Free Layout",
+      "id": "free-layout",
+      "description": "Place elements anywhere by dragging them in the preview",
+      "icon": "overlay_free_layout.svg",
+      "globalStyle": {
+        "outerJustifyContent": "flex-start",
+        "outerAlignItems": "flex-start",
+        "flexDirection": "column",
+        "gap": 0,
+        "top": 0,
+        "left": 0,
+        "padding": 0
+      },
+      "elements": [
+        {
+          "name": "Canvas",
+          "type": "GROUP",
+          "style": {
+            "width": 800,
+            "height": 600
+          },
+          "children": [
+            {
+              "name": "Title",
+              "type": "TITLE",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 64,
+                "x": 40,
+                "y": 40
+              },
+              "title": {
+                "text": "My Stream"
+              }
+            },
+            {
+              "name": "Counter",
+              "type": "COUNTER",
+              "style": {
+                "fontFamily": "Roboto Mono",
+                "fontSize": 64,
+                "backgroundColor": "#ffffff44",
+                "padding": 16,
+                "radius": 16,
+                "x": 40,
+                "y": 140
+              },
+              "counter": {
+                "value": 0
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

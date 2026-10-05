@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import moment from "moment";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,26 +14,25 @@ interface TimerControlProps {
   setIsTimerModalOpen: (isOpen: boolean) => void;
 }
 
-const TimerRenderer: React.FC<{
-  timer: NonNullable<PrismaElement["timer"]>;
-  formatTime: (milliseconds: number) => string;
-}> = ({ timer, formatTime }) => {
-  const time = useTimer({
-    ...timer,
-    startedAt: timer.startedAt ? new Date(timer.startedAt) : null,
-    pausedAt: timer.pausedAt ? new Date(timer.pausedAt) : null,
-  });
-  return <>{formatTime(time)}</>;
+const formatTime = (milliseconds: number, format: string) => {
+  if (milliseconds < 0) milliseconds = 0;
+  const durationMoment = moment.duration(milliseconds);
+  return moment.utc(durationMoment.asMilliseconds()).format(format);
 };
 
-const TimerDisplay: React.FC<{
-  timerElement: PrismaElement;
-  formatTime: (milliseconds: number) => string;
-}> = ({ timerElement, formatTime }) => {
-  if (!timerElement.timer) {
-    return <>{formatTime(0)}</>;
-  }
-  return <TimerRenderer timer={timerElement.timer} formatTime={formatTime} />;
+// Declared at module level: a component defined inside another component's render is a new
+// type on every render, so React would remount it (and reset its timer) on each update.
+const TimerDisplay: React.FC<{ timer: PrismaElement["timer"]; format: string }> = ({
+  timer,
+  format,
+}) => {
+  const time = useTimer({
+    startedAt: timer?.startedAt ? new Date(timer.startedAt) : null,
+    pausedAt: timer?.pausedAt ? new Date(timer.pausedAt) : null,
+    duration: timer?.duration ?? null,
+    countDown: timer?.countDown ?? false,
+  });
+  return <>{formatTime(timer ? time : 0, format)}</>;
 };
 
 const TimerControl: React.FC<TimerControlProps> = ({
@@ -43,15 +42,7 @@ const TimerControl: React.FC<TimerControlProps> = ({
   setSelectedTimer,
   setIsTimerModalOpen,
 }) => {
-  const formatTime = useCallback(
-    (milliseconds: number) => {
-      if (milliseconds < 0) milliseconds = 0;
-      const durationMoment = moment.duration(milliseconds);
-      const format = (element.style as { format?: string })?.format || "HH:mm:ss";
-      return moment.utc(durationMoment.asMilliseconds()).format(format);
-    },
-    [element.style]
-  );
+  const format = (element.style as { format?: string })?.format || "HH:mm:ss";
 
   return (
     <div className="space-y-2">
@@ -61,7 +52,7 @@ const TimerControl: React.FC<TimerControlProps> = ({
       </Label>
       <div className="flex items-center space-x-2">
         <div className="text-2xl font-mono bg-secondary h-14 flex items-center justify-center rounded-md px-4 flex-grow">
-          <TimerDisplay timerElement={element} formatTime={formatTime} />
+          <TimerDisplay timer={element.timer} format={format} />
         </div>
         <Button
           onClick={() => {

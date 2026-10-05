@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
+import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
@@ -8,7 +9,6 @@ import OverlayPreview from "@/components/pages/overlay/OverlayPreview";
 import DataControls from "@/components/pages/overlay/DataControls";
 import OverlayAdditionalOptions from "@/components/pages/overlay/OverlayAdditionalOptions";
 import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
-import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -17,6 +17,7 @@ const OverlayPage: React.FC = () => {
     isLoading,
     error,
     handleOverlayChange,
+    handleStructureChange,
     handleCounterChange,
     handleImmediateCounterChange,
     handleTitleChange,
@@ -29,9 +30,22 @@ const OverlayPage: React.FC = () => {
     handleDeleteOverlay,
     selectedTimer,
     setSelectedTimer,
-    ws,
   } = useOverlayData();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
+  // Shared by the preview and the element tree. Picking an element on the canvas also
+  // scrolls its settings into view, since they may be far below the preview.
+  const [selection, setSelection] = useState<{ id: string | null; fromCanvas: boolean }>({
+    id: null,
+    fromCanvas: false,
+  });
+  const selectFromCanvas = useCallback(
+    (id: string | null) => setSelection({ id, fromCanvas: true }),
+    []
+  );
+  const selectFromTree = useCallback(
+    (id: string | null) => setSelection({ id, fromCanvas: false }),
+    []
+  );
 
   const handleToggleShareModal = () => {
     setShareModalOpen(!isShareModalOpen);
@@ -54,9 +68,9 @@ const OverlayPage: React.FC = () => {
       });
     }
 
-    return Array.from(fonts).map((fontString, index) => {
+    return Array.from(fonts).map((fontString) => {
       const [fontFamily, fontWeight] = fontString.split(":");
-      return <FontLoader key={index} fontFamily={fontFamily} fontWeight={fontWeight} />;
+      return <FontLoader key={fontString} fontFamily={fontFamily} fontWeight={fontWeight} />;
     });
   };
 
@@ -82,7 +96,12 @@ const OverlayPage: React.FC = () => {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          <OverlayPreview overlay={overlay} />
+          <OverlayPreview
+            overlay={overlay}
+            onOverlayChange={handleOverlayChange}
+            selectedId={selection.id}
+            onSelect={selectFromCanvas}
+          />
 
           <div className="space-y-8 pb-96">
             <DataControls
@@ -103,8 +122,11 @@ const OverlayPage: React.FC = () => {
             <StyleEditor
               overlay={overlay}
               onOverlayChange={handleOverlayChange}
+              onStructureChange={handleStructureChange}
               onBingoDataChange={handleBingoDataChange}
-              ws={ws}
+              selectedId={selection.id}
+              onSelect={selectFromTree}
+              revealSelection={selection.fromCanvas}
             />
 
             <OverlayAdditionalOptions handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />

@@ -4,14 +4,17 @@ import { handleAuthRoutes } from "./routes/auth";
 import { handlePresetsRoutes } from "./routes/presets";
 import { handlePublicOverlaysRoutes } from "./routes/publicOverlays";
 import { handleEditorsRoutes } from "./routes/editors";
-import { handleFilesRoutes } from "./routes/files";
+import { handleFilesRoutes, handleUploadsRoutes } from "./routes/files";
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
 import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
+import { authorizeWebSocket } from "./middleware/wsAuth";
+import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
 import type { WebSocketData } from "./types";
 import path from "path";
+import type { ServerWebSocket } from "bun";
 
 dotenv.config();
 
@@ -52,8 +55,16 @@ async function serveStaticFile(filePath: string): Promise<Response | null> {
   return null;
 }
 
+// Sent on an interval so reverse proxies (nginx closes idle upstream connections after 60s)
+// and the client's watchdog see traffic even when an overlay isn't changing.
+const HEARTBEAT_INTERVAL_MS = 20_000;
+const HEARTBEAT_MESSAGE = JSON.stringify({ type: "heartbeat" });
+const sockets = new Set<ServerWebSocket<WebSocketData>>();
+
 const server = Bun.serve<WebSocketData>({
   port: 3000,
+  // The multipart envelope adds a little on top of the file itself.
+  maxRequestBodySize: MAX_UPLOAD_BYTES + 1024 * 1024,
   async fetch(req, server) {
     const url = new URL(req.url);
     const reqPath = url.pathname;
@@ -66,18 +77,21 @@ const server = Bun.serve<WebSocketData>({
 
     // Handle WebSocket upgrade
     if (reqPath === "/ws") {
-      const url = new URL(req.url);
-      const overlayId = url.searchParams.get("overlayId");
-      if (overlayId) {
-        const upgraded = server.upgrade(req, {
-          data: { overlayId },
-        });
-        if (upgraded) {
-          console.log(`[SERVER LOG] WebSocket connection upgraded for overlay ${overlayId}`);
-          return new Response(null, { status: 101 });
-        }
+      const handshake = await authorizeWebSocket(req);
+      if (!handshake.ok) {
+        return new Response(handshake.message, { status: handshake.status });
+      }
+      if (server.upgrade(req, { data: handshake.data })) {
+        // Bun completes the handshake itself; returning nothing is the documented success path.
+        return;
       }
       return new Response("WebSocket upgrade failed", { status: 400 });
+    }
+
+    // Uploaded images, served out of S3
+    const uploadResponse = await handleUploadsRoutes(req, reqPath);
+    if (uploadResponse) {
+      return uploadResponse;
     }
 
     // API Routes
@@ -157,20 +171,40 @@ const server = Bun.serve<WebSocketData>({
     return new Response("Not Found", { status: 404 });
   },
   websocket: {
+    // Clients never send anything, so keep the frame limit tiny.
+    maxPayloadLength: 1024,
+    // Protocol-level pings are answered by the browser automatically; a peer that stops
+    // answering (half-open TCP connection) is dropped once it has been silent this long.
+    idleTimeout: 60,
     open(ws) {
       const { overlayId } = ws.data;
+      sockets.add(ws);
       ws.subscribe(`overlay-${overlayId}`);
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
     message() {
-      // Not used in this implementation, but good to have for future features
+      // Receive-only: overlay changes go through the HTTP API and are broadcast from there.
     },
     close(ws) {
-      const { overlayId } = ws.data;
-      console.log(`[SERVER LOG] WebSocket connection closed for overlay ${overlayId}`);
+      sockets.delete(ws);
+      console.log(`[SERVER LOG] WebSocket connection closed for overlay ${ws.data.overlayId}`);
     },
   },
 });
 
+setInterval(() => {
+  for (const ws of sockets) {
+    ws.ping();
+    ws.send(HEARTBEAT_MESSAGE);
+  }
+}, HEARTBEAT_INTERVAL_MS);
+
 console.log(`Server running on port ${server.port}`);
 console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);
+
+const missingS3Config = missingStorageConfig();
+if (missingS3Config.length > 0) {
+  console.warn(
+    `[SERVER WARNING] Image uploads are disabled, missing S3 configuration: ${missingS3Config.join(", ")}`
+  );
+}

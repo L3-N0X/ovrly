@@ -9,18 +9,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { type PrismaElement, type OnOverlayChange } from "@/lib/types";
 
 interface RenameElementModalProps {
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   children: React.ReactNode;
 }
 
 export const RenameElementModal: React.FC<RenameElementModalProps> = ({
   element,
-  overlay,
   onOverlayChange,
   children,
 }) => {
@@ -42,16 +40,19 @@ export const RenameElementModal: React.FC<RenameElementModalProps> = ({
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name: name.trim() }),
     });
 
     if (response.ok) {
       const updatedElement = await response.json();
 
-      const updatedElements = overlay.elements.map((el) =>
-        el.id === element.id ? { ...el, name: updatedElement.name } : el
-      );
-      onOverlayChange({ ...overlay, elements: updatedElements });
+      // Built from the latest state: `overlay` is from before the request and may be stale.
+      onOverlayChange((current) => ({
+        ...current,
+        elements: current.elements.map((el) =>
+          el.id === element.id ? { ...el, name: updatedElement.name } : el
+        ),
+      }));
 
       setIsOpen(false);
     }

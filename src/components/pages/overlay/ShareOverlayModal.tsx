@@ -29,63 +29,64 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
   const [globalEditorDisplays, setGlobalEditorDisplays] = useState<OverlayEditorDisplay[]>([]);
   const [twitchName, setTwitchName] = useState("");
 
+  const [canManage, setCanManage] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
   const fetchEditors = useCallback(async () => {
     if (!session) return;
 
-    // Fetch overlay-specific editors
-    const overlayEditorsResponse = await fetch(`/api/overlays/${overlayId}/editors`, {
+    // Returns the overlay's own editors and the owner's global editors (who can edit every
+    // overlay of the owner), plus whether the current user may change the list.
+    const response = await fetch(`/api/overlays/${overlayId}/editors`, {
       credentials: "include",
     });
-    if (overlayEditorsResponse.ok) {
-      // Backend returns an array of prisma.OverlayEditor objects, which include editorTwitchName
-      const data: { editorId: string | null; editorTwitchName: string }[] =
-        await overlayEditorsResponse.json();
-      setOverlayEditorDisplays(
-        data.map((oe) => ({
-          identifier: oe.editorTwitchName,
-          name: oe.editorTwitchName,
-          isGlobalEditor: false,
-        }))
-      );
-    }
-
-    // Fetch global editors
-    // Assuming the global editors endpoint returns objects with editorId and editorTwitchName
-    const globalEditorsResponse = await fetch("/api/editors", {
-      credentials: "include",
-    });
-    if (globalEditorsResponse.ok) {
-      const data: { editorId: string | null; editorTwitchName: string }[] =
-        await globalEditorsResponse.json();
-      setGlobalEditorDisplays(
-        data.map((editor) => ({
-          identifier: editor.editorTwitchName, // Use twitch name as identifier
-          name: editor.editorTwitchName,
-          isGlobalEditor: true,
-        }))
-      );
-    }
+    if (!response.ok) return;
+    const data: {
+      editors: { editorTwitchName: string }[];
+      globalEditors: { editorTwitchName: string }[];
+      canManage: boolean;
+    } = await response.json();
+    setOverlayEditorDisplays(
+      data.editors.map((oe) => ({
+        identifier: oe.editorTwitchName,
+        name: oe.editorTwitchName,
+        isGlobalEditor: false,
+      }))
+    );
+    setGlobalEditorDisplays(
+      data.globalEditors.map((editor) => ({
+        identifier: editor.editorTwitchName,
+        name: editor.editorTwitchName,
+        isGlobalEditor: true,
+      }))
+    );
+    setCanManage(data.canManage);
   }, [session, overlayId]);
 
   useEffect(() => {
     if (isOpen) {
+      setAddError(null);
       fetchEditors();
     }
   }, [isOpen, fetchEditors]);
 
   const handleAddEditor = async () => {
-    if (!session || !twitchName) return;
+    if (!session || !twitchName.trim()) return;
     const response = await fetch(`/api/overlays/${overlayId}/editors`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ twitchName }),
+      body: JSON.stringify({ twitchName: twitchName.trim() }),
       credentials: "include",
     });
     if (response.ok) {
       setTwitchName("");
+      setAddError(null);
       fetchEditors();
+    } else {
+      const data = await response.json().catch(() => ({}));
+      setAddError(data.error || "Failed to add editor");
     }
   };
 
@@ -103,10 +104,11 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
     }
   };
 
+  const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const allEditors = [
     ...overlayEditorDisplays,
     ...globalEditorDisplays.filter(
-      (ge) => !overlayEditorDisplays.some((oe) => oe.identifier === ge.identifier)
+      (ge) => !overlayEditorDisplays.some((oe) => sameName(oe.identifier, ge.identifier))
     ),
   ];
 
@@ -116,15 +118,20 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
         <DialogHeader>
           <DialogTitle>Share Overlay</DialogTitle>
         </DialogHeader>
-        <div className="flex gap-2 mb-4">
-          <Input
-            type="text"
-            placeholder="Enter Twitch name"
-            value={twitchName}
-            onChange={(e) => setTwitchName(e.target.value)}
-          />
-          <Button onClick={handleAddEditor}>Add Editor</Button>
-        </div>
+        {canManage && (
+          <div className="mb-4">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Enter Twitch name"
+                value={twitchName}
+                onChange={(e) => setTwitchName(e.target.value)}
+              />
+              <Button onClick={handleAddEditor}>Add Editor</Button>
+            </div>
+            {addError && <p className="text-sm text-destructive mt-2">{addError}</p>}
+          </div>
+        )}
         <div>
           <h3 className="font-semibold mb-2">Current Editors:</h3>
           <ul>
@@ -136,7 +143,7 @@ export function ShareOverlayModal({ overlayId, isOpen, onClose }: ShareOverlayMo
                     <em className="text-sm text-muted-foreground">(Global Editor)</em>
                   ) : null}
 
-                  {!editor.isGlobalEditor && ( // Only allow revoking for overlay-specific editors
+                  {canManage && !editor.isGlobalEditor && ( // Global editors are managed in Settings
                     <Button
                       variant="destructive"
                       onClick={() => handleRevokeAccess(editor.identifier)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { PrismaElement, ImageStyle, PrismaOverlay } from "@/lib/types";
+import type { PrismaElement, ImageStyle, OnOverlayChange } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -13,25 +13,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GalleryHorizontal, Grid2x2, Pencil, ScanEye, Square, Trash2 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
 interface ImageStyleEditorProps {
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (style: ImageStyle) => void;
   onDelete?: () => void;
-  ws: WebSocket | null;
 }
 
 const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
   element,
-  overlay,
   onOverlayChange,
   onChange,
   onDelete,
-  ws,
 }) => {
   const [style, setStyle] = useState<ImageStyle>((element.style as ImageStyle) || {});
 
@@ -48,32 +44,27 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
     onChange(newStyle);
   };
 
-  const widthSlider = useSyncedSlider(`${element.id}-width`, style.width || 100, ws);
-  const heightSlider = useSyncedSlider(`${element.id}-height`, style.height || 100, ws);
-  const borderRadiusSlider = useSyncedSlider(
-    `${element.id}-borderRadius`,
-    style.borderRadius || 0,
-    ws
-  );
-
-  useEffect(() => {
-    handleImmediateValueChange("width", widthSlider.value);
-  }, [widthSlider.value]);
-
-  useEffect(() => {
-    handleImmediateValueChange("height", heightSlider.value);
-  }, [heightSlider.value]);
-
-  useEffect(() => {
-    handleImmediateValueChange("borderRadius", borderRadiusSlider.value);
-  }, [borderRadiusSlider.value]);
+  // Committed when the slider is released or the input loses focus. Saving from an effect
+  // on the slider value instead would write on every mount and echo every remote change.
+  const commitIfChanged = (key: "width" | "height" | "borderRadius", value: number) => {
+    if (style[key] !== value) handleImmediateValueChange(key, value);
+  };
+  const widthSlider = useSliderValue(style.width || 100, {
+    onCommit: (v) => commitIfChanged("width", v),
+  });
+  const heightSlider = useSliderValue(style.height || 100, {
+    onCommit: (v) => commitIfChanged("height", v),
+  });
+  const borderRadiusSlider = useSliderValue(style.borderRadius || 0, {
+    onCommit: (v) => commitIfChanged("borderRadius", v),
+  });
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg">
               <Pencil />
             </Button>

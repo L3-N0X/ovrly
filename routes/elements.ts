@@ -1,30 +1,11 @@
 import { prisma } from "../auth";
-import { authenticate } from "../middleware/authMiddleware";
+import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { publishOverlay } from "../services/overlay-query";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
-export const getRecursiveElementInclude = (depth: number): Prisma.ElementInclude => {
-  if (depth <= 0) {
-    return {
-      title: true,
-      counter: true,
-      timer: true,
-      image: true,
-      bingo: true,
-    };
-  }
-  return {
-    title: true,
-    counter: true,
-    timer: true,
-    image: true,
-    bingo: true,
-    children: {
-      include: getRecursiveElementInclude(depth - 1),
-    },
-  };
-};
+const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
 
 async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
   const allIds = new Set<string>(initialIds);
@@ -62,20 +43,7 @@ export const handleElementsRoutes = async (
     }
 
     const overlayId = addElementMatch[1];
-    const overlay = await prisma.overlay.findUnique({ where: { id: overlayId } });
-
-    if (!overlay) {
-      return new Response(JSON.stringify({ error: "Overlay not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const isOwner = overlay.userId === session.user.id;
-    const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
-    const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-    if (!isOwner && !isEditor) {
+    if (!(await authorize(session.user, overlayId))) {
       return new Response(JSON.stringify({ error: "Overlay not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -83,16 +51,17 @@ export const handleElementsRoutes = async (
     }
 
     try {
-      const { name, type } = (await req.json()) as { name?: string; type?: string };
-      if (!name || !type) {
-        return new Response(JSON.stringify({ error: "Name and type are required" }), {
+      const { name, type } = (await req.json()) as { name?: unknown; type?: unknown };
+      if (typeof name !== "string" || !name.trim() || typeof type !== "string" || !ELEMENT_TYPES.includes(type)) {
+        return new Response(JSON.stringify({ error: "Name and a valid type are required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+      // New elements are appended to the root level.
       const maxPosition = await prisma.element.aggregate({
-        where: { overlayId: overlayId },
+        where: { overlayId: overlayId, parentId: null },
         _max: { position: true },
       });
 
@@ -116,6 +85,9 @@ export const handleElementsRoutes = async (
         elementCreateData.bingo = { create: createBingoState() };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
+      } else if (type === "GROUP") {
+        // Children are positioned freely inside it; it starts out covering the whole canvas.
+        elementCreateData.style = { width: 800, height: 600 };
       } else {
         return new Response(JSON.stringify({ error: "Invalid element type" }), {
           status: 400,
@@ -127,19 +99,7 @@ export const handleElementsRoutes = async (
         data: elementCreateData,
       });
 
-      const updatedOverlay = await prisma.overlay.findUnique({
-        where: { id: overlayId },
-        include: {
-          elements: {
-            orderBy: {
-              position: "asc",
-            },
-            include: getRecursiveElementInclude(5),
-          },
-        },
-      });
-
-      server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
+      const updatedOverlay = await publishOverlay(server, overlayId);
 
       return new Response(JSON.stringify(updatedOverlay), {
         status: 201,
@@ -165,8 +125,13 @@ export const handleElementsRoutes = async (
     }
 
     try {
-      const { ids } = (await req.json()) as { ids?: string[] };
-      if (!Array.isArray(ids) || ids.length === 0) {
+      const { ids } = (await req.json()) as { ids?: unknown };
+      if (
+        !Array.isArray(ids) ||
+        ids.length === 0 ||
+        ids.length > 1000 ||
+        !ids.every((id) => typeof id === "string")
+      ) {
         return new Response(JSON.stringify({ error: "Element IDs are required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -175,20 +140,13 @@ export const handleElementsRoutes = async (
 
       const firstElement = await prisma.element.findFirst({
         where: { id: { in: ids } },
-        include: { overlay: true },
       });
 
       if (!firstElement) {
         return new Response(null, { status: 204, headers: corsHeaders });
       }
 
-      const isOwner = firstElement.overlay.userId === session.user.id;
-      const editors = await prisma.editor.findMany({
-        where: { ownerId: firstElement.overlay.userId },
-      });
-      const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-      if (!isOwner && !isEditor) {
+      if (!(await authorize(session.user, firstElement.overlayId))) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -249,19 +207,7 @@ export const handleElementsRoutes = async (
         await prisma.element.deleteMany({ where: { id: { in: levelIds } } });
       }
 
-      const updatedOverlay = await prisma.overlay.findUnique({
-        where: { id: firstElement.overlayId },
-        include: {
-          elements: {
-            orderBy: {
-              position: "asc",
-            },
-            include: getRecursiveElementInclude(5),
-          },
-        },
-      });
-
-      server.publish(`overlay-${firstElement.overlayId}`, JSON.stringify(updatedOverlay));
+      await publishOverlay(server, firstElement.overlayId);
 
       return new Response(null, { status: 204, headers: corsHeaders });
     } catch (e) {
@@ -286,21 +232,10 @@ export const handleElementsRoutes = async (
     const elementId = elementIdMatch[1];
     const element = await prisma.element.findUnique({
       where: { id: elementId },
-      include: { overlay: true, bingo: true },
+      include: { bingo: true },
     });
 
-    if (!element) {
-      return new Response(JSON.stringify({ error: "Element not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const isOwner = element.overlay.userId === session.user.id;
-    const editors = await prisma.editor.findMany({ where: { ownerId: element.overlay.userId } });
-    const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-    if (!isOwner && !isEditor) {
+    if (!element || !(await authorize(session.user, element.overlayId))) {
       return new Response(JSON.stringify({ error: "Element not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -327,21 +262,50 @@ export const handleElementsRoutes = async (
         };
         const elementUpdateData: Prisma.ElementUncheckedUpdateInput =
           {} as Prisma.ElementUncheckedUpdateInput;
-        if (name) elementUpdateData.name = name;
-        if (style) {
+        if (typeof name === "string" && name.trim()) elementUpdateData.name = name.trim();
+        if (style && typeof style === "object" && !Array.isArray(style)) {
           const existingStyle = (element.style || {}) as Prisma.JsonObject;
           const newStyle = style as Prisma.JsonObject;
           const mergedStyle = { ...existingStyle, ...newStyle };
           elementUpdateData.style = mergedStyle;
         }
-        if (position) elementUpdateData.position = position;
-        if (parentId) elementUpdateData.parentId = parentId;
+        // Checked against undefined so that position 0 and moving back to the root (null) work.
+        if (typeof position === "number" && Number.isInteger(position)) {
+          elementUpdateData.position = position;
+        }
+        if (parentId === null) {
+          elementUpdateData.parentId = null;
+        } else if (parentId !== undefined) {
+          // The new parent must live in the same overlay (and must not be the element itself
+          // or one of its descendants), otherwise this could graft elements into another overlay.
+          // It must also be a type that renders its children.
+          const descendantIds =
+            typeof parentId === "string" ? await getAllDescendantIds(prisma, [elementId]) : [];
+          const parent =
+            typeof parentId === "string" && !descendantIds.includes(parentId)
+              ? await prisma.element.findFirst({
+                  where: {
+                    id: parentId,
+                    overlayId: element.overlayId,
+                    type: { in: ["CONTAINER", "GROUP"] },
+                  },
+                  select: { id: true },
+                })
+              : null;
+          if (!parent) {
+            return new Response(JSON.stringify({ error: "Invalid parent element" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          elementUpdateData.parentId = parentId;
+        }
 
         if (data) {
           if (element.type === "TITLE" && typeof data.text === "string") {
             elementUpdateData.title = { update: { text: data.text } };
           }
-          if (element.type === "COUNTER" && typeof data.value === "number") {
+          if (element.type === "COUNTER" && Number.isInteger(data.value)) {
             elementUpdateData.counter = { update: { value: data.value } };
           }
           if (element.type === "IMAGE" && typeof data.src === "string") {
@@ -399,21 +363,10 @@ export const handleElementsRoutes = async (
         const updatedElement = await prisma.element.update({
           where: { id: elementId },
           data: elementUpdateData,
-          include: { title: true, counter: true, timer: true, image: true, bingo: true, children: true },
+          include: { title: true, counter: true, timer: true, image: true, bingo: true },
         });
 
-        const updatedOverlay = await prisma.overlay.findUnique({
-          where: { id: element.overlayId },
-          include: {
-            elements: {
-              orderBy: {
-                position: "asc",
-              },
-              include: getRecursiveElementInclude(5),
-            },
-          },
-        });
-        server.publish(`overlay-${element.overlayId}`, JSON.stringify(updatedOverlay));
+        await publishOverlay(server, element.overlayId);
 
         return new Response(JSON.stringify(updatedElement), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -428,34 +381,17 @@ export const handleElementsRoutes = async (
     }
 
     if (req.method === "DELETE") {
-      console.log("Handling delete request for element:", elementId);
-      if (!isOwner && !isEditor) {
-        return new Response(JSON.stringify({ error: "Element not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      // const deletedElement =
+      // Children go with it through the parent relation's cascade.
       await prisma.element.delete({ where: { id: elementId } });
-
-      const updatedOverlay = await prisma.overlay.findUnique({
-        where: { id: element.overlayId },
-        include: {
-          elements: {
-            include: {
-              title: true,
-              counter: true,
-              timer: true,
-              image: true,
-              bingo: true,
-            },
-          },
-        },
-      });
-      server.publish(`overlay-${element.overlayId}`, JSON.stringify(updatedOverlay));
+      await publishOverlay(server, element.overlayId);
 
       return new Response(null, { status: 204, headers: corsHeaders });
     }
+
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   return null; // Return null if route doesn't match

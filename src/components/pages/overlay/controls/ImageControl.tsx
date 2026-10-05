@@ -61,7 +61,7 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
         )}
         <div className="flex flex-col flex-1 min-w-0 mr-0">
           <p className="text-sm text-muted-foreground mb-1 h-5 truncate overflow-hidden whitespace-nowrap">
-            {element.image?.src.replace(/^.*[\\/]/, "").substring(24) || "No image uploaded"}
+            {element.image?.src.replace(/^.*[\\/]/, "") || "No image uploaded"}
           </p>
           <Button onClick={handleButtonClick} variant="secondary" className="flex-grow">
             {element.image?.src ? "Change Image" : "Upload Image"}

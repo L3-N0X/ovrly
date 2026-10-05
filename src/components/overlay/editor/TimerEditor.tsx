@@ -3,26 +3,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type PrismaElement, type PrismaOverlay, type TimerStyle } from "@/lib/types";
-import { debounce } from "@/lib/utils";
+import { type PrismaElement, type TimerStyle, type OnOverlayChange } from "@/lib/types";
+import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { Info, Pencil, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { ColorPickerEditor } from "./ColorPickerEditor";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: TimerStyle) => void;
   onDelete?: () => void;
-  ws: WebSocket | null;
-}> = ({ element, overlay, onOverlayChange, onChange, onDelete, ws }) => {
+}> = ({ element, onOverlayChange, onChange, onDelete }) => {
   const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
 
-  const debouncedOnChange = debounce(onChange, 400);
+  const debouncedOnChange = useDebouncedCallback(onChange, 400);
 
   const [fgPopoverOpen, setFgPopoverOpen] = useState(false);
   const [bgPopoverOpen, setBgPopoverOpen] = useState(false);
@@ -39,31 +37,17 @@ export const TimerStyleEditor: React.FC<{
     debouncedOnChange(updatedStyle);
   };
 
-  // Synced sliders for responsive UI + websocket broadcasting
-  const syncedFontSize = useSyncedSlider(
-    `${element.id}.fontSize`,
-    typeof style?.fontSize === "number" ? style.fontSize : 128,
-    ws
-  );
-  const syncedPadding = useSyncedSlider(
-    `${element.id}.padding`,
-    typeof style?.padding === "number" ? style.padding : 0,
-    ws,
-    { ignoreWindowMs: 300 }
-  );
-  const syncedRadius = useSyncedSlider(
-    `${element.id}.radius`,
-    typeof style?.radius === "number" ? style.radius : 0,
-    ws,
-    { ignoreWindowMs: 300 }
-  );
+  // Local slider state keeps dragging responsive; the style is committed on release
+  const syncedFontSize = useSliderValue(typeof style?.fontSize === "number" ? style.fontSize : 128);
+  const syncedPadding = useSliderValue(typeof style?.padding === "number" ? style.padding : 0);
+  const syncedRadius = useSliderValue(typeof style?.radius === "number" ? style.radius : 0);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg">
               <Pencil />
             </Button>

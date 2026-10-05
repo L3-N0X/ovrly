@@ -1,23 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type PrismaOverlay } from "@/lib/types";
 import React from "react";
 import { GlobalStyleEditor } from "./GlobalStyleEditor";
-import { ElementListEditor } from "./elementlist/ElementListEditor";
-import type { BingoDataUpdate } from "@/lib/bingo";
+import { ElementListEditor, type ElementListEditorProps } from "./elementlist/ElementListEditor";
 
-interface StyleEditorProps {
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
-  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
-  ws: WebSocket | null;
-}
+type StyleEditorProps = ElementListEditorProps;
 
-const StyleEditor: React.FC<StyleEditorProps> = ({
-  overlay,
-  onOverlayChange,
-  onBingoDataChange,
-  ws,
-}) => {
+const StyleEditor: React.FC<StyleEditorProps> = (props) => {
+  const { overlay, onOverlayChange } = props;
   return (
     <Card>
       <CardHeader>
@@ -25,14 +14,9 @@ const StyleEditor: React.FC<StyleEditorProps> = ({
         <CardDescription>Customize the look and feel of your overlay.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} ws={ws} />
+        <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
         <hr />
-        <ElementListEditor
-        overlay={overlay}
-        onOverlayChange={onOverlayChange}
-        onBingoDataChange={onBingoDataChange}
-        ws={ws}
-      />
+        <ElementListEditor {...props} />
       </CardContent>
     </Card>
   );

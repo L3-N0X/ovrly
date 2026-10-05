@@ -99,11 +99,14 @@ const HomePage: React.FC = () => {
     }
   };
 
+  // Keyed on the user id: the session object is replaced whenever better-auth refetches it
+  // (e.g. on window focus), which would otherwise reload the list every time.
+  const userId = user?.user.id;
   useEffect(() => {
-    if (user) {
+    if (userId) {
       fetchOverlays();
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchPresets();

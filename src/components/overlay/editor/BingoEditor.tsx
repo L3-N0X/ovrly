@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { type BingoStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { type BingoStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Pencil, Trash2 } from "lucide-react";
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import {
   BINGO_BORDER_RADIUS_RANGE,
   BINGO_BORDER_WIDTH_RANGE,
@@ -33,26 +33,20 @@ import {
   type BingoDataUpdate,
 } from "@/lib/bingo";
 
-/**
- * Slider plus numeric input, mirrored across clients over the editor
- * WebSocket so dragging also updates the OBS preview.
- */
+/** Slider plus numeric input. The value is saved when the interaction ends. */
 const NumberControl: React.FC<{
   id: string;
   label: string;
   min: number;
   max: number;
   value: number;
-  ws: WebSocket | null;
   onChange: (value: number) => void;
-}> = ({ id, label, min, max, value, ws, onChange }) => {
-  const slider = useSyncedSlider(id, value, ws);
-
-  useEffect(() => {
-    if (slider.value !== value) {
-      onChange(slider.value);
-    }
-  }, [slider.value, value, onChange]);
+}> = ({ id, label, min, max, value, onChange }) => {
+  const slider = useSliderValue(value, {
+    onCommit: (next) => {
+      if (next !== value) onChange(next);
+    },
+  });
 
   const clamp = (raw: string): number | null => {
     if (raw.trim() === "") return null;
@@ -120,13 +114,11 @@ const ColorControl: React.FC<{
 
 export const BingoEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: BingoStyle) => void;
   onDataChange?: (elementId: string, data: BingoDataUpdate) => void;
   onDelete?: () => void;
-  ws: WebSocket | null;
-}> = ({ element, overlay, onOverlayChange, onChange, onDataChange, onDelete, ws }) => {
+}> = ({ element, onOverlayChange, onChange, onDataChange, onDelete }) => {
   const [isPickingColor, setIsPickingColor] = useState(false);
   // Optimistic value for the free-middle switch, cleared once the server state
   // for this element comes back through.
@@ -182,7 +174,7 @@ export const BingoEditor: React.FC<{
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg" aria-label="Rename element">
               <Pencil />
             </Button>
@@ -248,7 +240,6 @@ export const BingoEditor: React.FC<{
           min={BINGO_SIZE_RANGE.min}
           max={BINGO_SIZE_RANGE.max}
           value={style.width ?? 320}
-          ws={ws}
           onChange={(width) => handleStyleChange({ width })}
         />
         <NumberControl
@@ -257,7 +248,6 @@ export const BingoEditor: React.FC<{
           min={BINGO_SIZE_RANGE.min}
           max={BINGO_SIZE_RANGE.max}
           value={style.height ?? 320}
-          ws={ws}
           onChange={(height) => handleStyleChange({ height })}
         />
       </div>
@@ -276,7 +266,6 @@ export const BingoEditor: React.FC<{
         min={BINGO_FONT_SIZE_RANGE.min}
         max={BINGO_FONT_SIZE_RANGE.max}
         value={style.fontSize ?? 16}
-        ws={ws}
         onChange={(fontSize) => handleStyleChange({ fontSize })}
       />
       <p className="text-xs text-muted-foreground">
@@ -339,7 +328,6 @@ export const BingoEditor: React.FC<{
           min={BINGO_GAP_RANGE.min}
           max={BINGO_GAP_RANGE.max}
           value={style.gap ?? 4}
-          ws={ws}
           onChange={(gap) => handleStyleChange({ gap })}
         />
         <NumberControl
@@ -348,7 +336,6 @@ export const BingoEditor: React.FC<{
           min={BINGO_PADDING_RANGE.min}
           max={BINGO_PADDING_RANGE.max}
           value={style.padding ?? 4}
-          ws={ws}
           onChange={(padding) => handleStyleChange({ padding })}
         />
       </div>
@@ -359,7 +346,6 @@ export const BingoEditor: React.FC<{
           min={BINGO_BORDER_WIDTH_RANGE.min}
           max={BINGO_BORDER_WIDTH_RANGE.max}
           value={style.borderWidth ?? 1}
-          ws={ws}
           onChange={(borderWidth) => handleStyleChange({ borderWidth })}
         />
         <NumberControl
@@ -368,7 +354,6 @@ export const BingoEditor: React.FC<{
           min={BINGO_BORDER_RADIUS_RANGE.min}
           max={BINGO_BORDER_RADIUS_RANGE.max}
           value={style.borderRadius ?? 8}
-          ws={ws}
           onChange={(borderRadius) => handleStyleChange({ borderRadius })}
         />
       </div>
@@ -378,7 +363,6 @@ export const BingoEditor: React.FC<{
         min={BINGO_CROSS_WIDTH_RANGE.min}
         max={BINGO_CROSS_WIDTH_RANGE.max}
         value={style.crossWidth ?? 4}
-        ws={ws}
         onChange={(crossWidth) => handleStyleChange({ crossWidth })}
       />
 
