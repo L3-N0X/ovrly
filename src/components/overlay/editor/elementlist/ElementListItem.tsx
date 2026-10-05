@@ -44,6 +44,12 @@ export const ElementListItem = ({
   const dragHandleRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
+  // Read by the drag handlers at event time. Depending on `overlay` in the effect below
+  // would tear the draggable down on every live update, cancelling a drag in progress.
+  const overlayRef = useRef(overlay);
+  useEffect(() => {
+    overlayRef.current = overlay;
+  });
 
   useEffect(() => {
     const el = ref.current;
@@ -86,18 +92,17 @@ export const ElementListItem = ({
             return false;
           }
 
-          // Prevent dropping a parent into its own child
-          if (element.type === ElementTypeEnum.CONTAINER) {
-            const sourceId = source.data.id as string;
-            let currentParentId = element.parentId;
-
-            while (currentParentId) {
-              if (currentParentId === sourceId) {
-                return false;
-              }
-              const parent = overlay.elements.find((e) => e.id === currentParentId);
-              currentParentId = parent?.parentId || null;
+          // Prevent dropping a container into its own subtree. Dropping next to any
+          // descendant (not just onto a nested container) would make it its own ancestor.
+          const sourceId = source.data.id as string;
+          const elements = overlayRef.current.elements;
+          let currentParentId = element.parentId;
+          while (currentParentId) {
+            if (currentParentId === sourceId) {
+              return false;
             }
+            const parentId: string | null = currentParentId;
+            currentParentId = elements.find((e) => e.id === parentId)?.parentId || null;
           }
 
           return true;
@@ -133,7 +138,7 @@ export const ElementListItem = ({
 
           // Hide indicator for adjacent items in reorder scenarios
           if (source.data.parentId === element.parentId) {
-            const siblings = overlay.elements
+            const siblings = overlayRef.current.elements
               .filter((e) => e.parentId === element.parentId)
               .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
@@ -160,24 +165,14 @@ export const ElementListItem = ({
         },
       })
     );
-  }, [element, overlay, expanded]);
+  }, [element, expanded]);
 
-  const updateElementStyle = async (elementId: string, newStyle: ElementStyle) => {
-    const newOverlay = JSON.parse(JSON.stringify(overlay));
-    const elementIndex = newOverlay.elements.findIndex((el: PrismaElement) => el.id === elementId);
-    if (elementIndex > -1) {
-      newOverlay.elements[elementIndex].style = newStyle;
-      onOverlayChange(newOverlay);
-
-      await fetch(`/api/elements/${elementId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ style: newStyle }),
-      }).catch(console.error);
-    }
+  // onOverlayChange persists the style change itself (debounced per element).
+  const updateElementStyle = (elementId: string, newStyle: ElementStyle) => {
+    onOverlayChange({
+      ...overlay,
+      elements: overlay.elements.map((el) => (el.id === elementId ? { ...el, style: newStyle } : el)),
+    });
   };
 
   return (
@@ -277,6 +272,7 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
+              onDeleteElement={onDeleteElement}
             />
           )}
         </div>

@@ -9,17 +9,20 @@ interface UseTimerProps {
 
 export const useTimer = ({ startedAt, pausedAt, duration, countDown }: UseTimerProps): number => {
   const [displayTime, setDisplayTime] = useState(0);
+  // Callers create new Date objects on every render; depending on the timestamps instead
+  // keeps the interval from being torn down and restarted each time the parent re-renders.
+  const startedAtMs = startedAt ? startedAt.getTime() : null;
+  const pausedAtMs = pausedAt ? pausedAt.getTime() : null;
 
   useEffect(() => {
-    const getPausedDuration = () => (pausedAt ? new Date(pausedAt).getTime() : 0);
+    const getPausedDuration = () => pausedAtMs ?? 0;
 
     let intervalId: number | undefined;
 
     const calculateAndUpdate = () => {
       let newDisplayTime;
-      if (startedAt) {
-        const startTime = new Date(startedAt).getTime();
-        const elapsed = Date.now() - startTime;
+      if (startedAtMs !== null) {
+        const elapsed = Date.now() - startedAtMs;
         if (countDown) {
           newDisplayTime = (duration || 0) - (getPausedDuration() + elapsed);
         } else {
@@ -37,8 +40,10 @@ export const useTimer = ({ startedAt, pausedAt, duration, countDown }: UseTimerP
 
     calculateAndUpdate(); // Initial calculation
 
-    if (startedAt) {
-      intervalId = window.setInterval(calculateAndUpdate, 1000);
+    if (startedAtMs !== null) {
+      // Ticks more often than once per second so the display doesn't skip a second when
+      // the interval drifts.
+      intervalId = window.setInterval(calculateAndUpdate, 250);
     }
 
     return () => {
@@ -46,7 +51,7 @@ export const useTimer = ({ startedAt, pausedAt, duration, countDown }: UseTimerP
         clearInterval(intervalId);
       }
     };
-  }, [startedAt, pausedAt, duration, countDown]);
+  }, [startedAtMs, pausedAtMs, duration, countDown]);
 
   return displayTime;
 };

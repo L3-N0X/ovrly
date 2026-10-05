@@ -1,7 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../auth";
-import { authenticate, authorize } from "../middleware/authMiddleware";
+import { authenticate, getOverlayAccess, getSharedOverlayIds } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { findOverlayWithElements, overlayElementsInclude } from "../services/overlay-query";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ElementSeed = any;
@@ -55,6 +56,24 @@ async function createOverlayWithElements(
   });
 }
 
+// Turns the flat element list of an overlay back into a tree of seeds, whatever its depth.
+function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
+  elements: T[]
+): ElementSeed[] {
+  const ids = new Set(elements.map((e) => e.id));
+  const byParent = new Map<string | null, T[]>();
+  for (const element of elements) {
+    // Orphans (parent missing from the list) are kept as roots instead of being dropped.
+    const parentId = element.parentId && ids.has(element.parentId) ? element.parentId : null;
+    byParent.set(parentId, [...(byParent.get(parentId) ?? []), element]);
+  }
+  const build = (parentId: string | null): ElementSeed[] =>
+    (byParent.get(parentId) ?? [])
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((element, index) => ({ ...element, position: index, children: build(element.id) }));
+  return build(null);
+}
+
 export const handleOverlaysRoutes = async (
   req: Request,
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
@@ -71,46 +90,9 @@ export const handleOverlaysRoutes = async (
     }
 
     const overlayId = duplicateMatch[1];
-    const originalOverlay = await prisma.overlay.findUnique({
-      where: { id: overlayId },
-      include: {
-        elements: {
-          // `elements` is the flat list of every element in the overlay; only the roots are
-          // copied here, their children come along through the nested `children` include.
-          where: { parentId: null },
-          include: {
-            title: true,
-            counter: true,
-            timer: true,
-            image: true,
-            children: {
-              include: {
-                title: true,
-                counter: true,
-                timer: true,
-                image: true,
-                children: {
-                  include: {
-                    title: true,
-                    counter: true,
-                    timer: true,
-                    image: true,
-                    children: {
-                      include: {
-                        title: true,
-                        counter: true,
-                        timer: true,
-                        image: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    // Only someone who can open the overlay may copy it into their own account.
+    const access = await getOverlayAccess(session.user, overlayId);
+    const originalOverlay = access ? await findOverlayWithElements(overlayId) : null;
 
     if (!originalOverlay) {
       return new Response(JSON.stringify({ error: "Overlay not found" }), {
@@ -127,47 +109,10 @@ export const handleOverlaysRoutes = async (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         globalStyle: originalOverlay.globalStyle as any,
       },
-      originalOverlay.elements
+      toElementTree(originalOverlay.elements)
     );
 
-    // Fetch the complete overlay with elements
-    const overlayWithElements = await prisma.overlay.findUnique({
-      where: { id: newOverlay.id },
-      include: {
-        elements: {
-          include: {
-            title: true,
-            counter: true,
-            timer: true,
-            image: true,
-            children: {
-              include: {
-                title: true,
-                counter: true,
-                timer: true,
-                image: true,
-                children: {
-                  include: {
-                    title: true,
-                    counter: true,
-                    timer: true,
-                    image: true,
-                    children: {
-                      include: {
-                        title: true,
-                        counter: true,
-                        timer: true,
-                        image: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    const overlayWithElements = await findOverlayWithElements(newOverlay.id);
 
     return new Response(JSON.stringify(overlayWithElements), {
       status: 201,
@@ -186,59 +131,16 @@ export const handleOverlaysRoutes = async (
     }
 
     const overlayId = overlayIdMatch[1];
-    const overlay = await prisma.overlay.findUnique({
-      where: { id: overlayId },
-      include: {
-        elements: {
-          include: {
-            title: true,
-            counter: true,
-            timer: true,
-            image: true,
-            children: {
-              include: {
-                title: true,
-                counter: true,
-                timer: true,
-                image: true,
-                children: {
-                  include: {
-                    title: true,
-                    counter: true,
-                    timer: true,
-                    image: true,
-                    children: {
-                      include: {
-                        title: true,
-                        counter: true,
-                        timer: true,
-                        image: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!overlay) {
+    const access = await getOverlayAccess(session.user, overlayId);
+    if (!access) {
       return new Response(JSON.stringify({ error: "Overlay not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const isAuthorized = await authorize(session.user.id, overlayId);
-    if (!isAuthorized) {
-      return new Response(JSON.stringify({ error: "Overlay not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     if (req.method === "GET") {
+      const overlay = await findOverlayWithElements(overlayId);
       return new Response(JSON.stringify(overlay), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -247,17 +149,18 @@ export const handleOverlaysRoutes = async (
     if (req.method === "PATCH") {
       try {
         const body = await req.json();
-        console.log("[SERVER LOG] PATCH /api/overlays/:id body:", body);
-        const { name, description, globalStyle } = body;
-        const dataToUpdate: { name?: string; description?: string; globalStyle?: object } = {};
+        const { name, description, globalStyle } = body ?? {};
+        const dataToUpdate: { name?: string; description?: string | null; globalStyle?: object } =
+          {};
 
-        if (name) {
-          dataToUpdate.name = name;
+        if (typeof name === "string" && name.trim()) {
+          dataToUpdate.name = name.trim();
         }
-        if (description) {
-          dataToUpdate.description = description;
+        // An empty string or null clears the description.
+        if (description === null || typeof description === "string") {
+          dataToUpdate.description = description || null;
         }
-        if (globalStyle) {
+        if (globalStyle && typeof globalStyle === "object" && !Array.isArray(globalStyle)) {
           dataToUpdate.globalStyle = globalStyle;
         }
 
@@ -271,40 +174,7 @@ export const handleOverlaysRoutes = async (
         const updatedOverlay = await prisma.overlay.update({
           where: { id: overlayId },
           data: dataToUpdate,
-          include: {
-            elements: {
-              include: {
-                title: true,
-                counter: true,
-                timer: true,
-                image: true,
-                children: {
-                  include: {
-                    title: true,
-                    counter: true,
-                    timer: true,
-                    image: true,
-                    children: {
-                      include: {
-                        title: true,
-                        counter: true,
-                        timer: true,
-                        image: true,
-                        children: {
-                          include: {
-                            title: true,
-                            counter: true,
-                            timer: true,
-                            image: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          include: overlayElementsInclude,
         });
 
         server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
@@ -322,8 +192,8 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "DELETE") {
-      // For DELETE, we should still ensure only the owner can perform the action.
-      if (overlay.userId !== session.user.id) {
+      // Editors may change an overlay, but only its owner may delete it.
+      if (!access.isOwner) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -350,91 +220,15 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "GET") {
-      const userOverlays = await prisma.overlay.findMany({
-        where: { userId: session.user.id },
-        include: {
-          elements: {
-            include: {
-              title: true,
-              counter: true,
-              timer: true,
-              image: true,
-              children: {
-                include: {
-                  title: true,
-                  counter: true,
-                  timer: true,
-                  image: true,
-                  children: {
-                    include: {
-                      title: true,
-                      counter: true,
-                      timer: true,
-                      image: true,
-                      children: {
-                        include: {
-                          title: true,
-                          counter: true,
-                          timer: true,
-                          image: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      const sharedOverlayEditors = await prisma.overlayEditor.findMany({
-        where: { editorId: session.user.id },
-      });
-
-      const sharedOverlays = await prisma.overlay.findMany({
+      const sharedOverlayIds = await getSharedOverlayIds(session.user);
+      const overlays = await prisma.overlay.findMany({
         where: {
-          id: {
-            in: sharedOverlayEditors.map((v) => v.overlayId),
-          },
+          OR: [{ userId: session.user.id }, { id: { in: sharedOverlayIds } }],
         },
-        include: {
-          elements: {
-            include: {
-              title: true,
-              counter: true,
-              timer: true,
-              image: true,
-              children: {
-                include: {
-                  title: true,
-                  counter: true,
-                  timer: true,
-                  image: true,
-                  children: {
-                    include: {
-                      title: true,
-                      counter: true,
-                      timer: true,
-                      image: true,
-                      children: {
-                        include: {
-                          title: true,
-                          counter: true,
-                          timer: true,
-                          image: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        include: overlayElementsInclude,
       });
 
-      return new Response(JSON.stringify([...userOverlays, ...sharedOverlays]), {
+      return new Response(JSON.stringify(overlays), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -468,44 +262,7 @@ export const handleOverlaysRoutes = async (
             selectedPreset.elements
           );
 
-          // Fetch the complete overlay with elements
-          const overlayWithElements = await prisma.overlay.findUnique({
-            where: { id: newOverlay.id },
-            include: {
-              elements: {
-                include: {
-                  title: true,
-                  counter: true,
-                  timer: true,
-                  image: true,
-                  children: {
-                    include: {
-                      title: true,
-                      counter: true,
-                      timer: true,
-                      image: true,
-                      children: {
-                        include: {
-                          title: true,
-                          counter: true,
-                          timer: true,
-                          image: true,
-                          children: {
-                            include: {
-                              title: true,
-                              counter: true,
-                              timer: true,
-                              image: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          });
+          const overlayWithElements = await findOverlayWithElements(newOverlay.id);
 
           return new Response(JSON.stringify(overlayWithElements), {
             status: 201,
@@ -547,40 +304,7 @@ export const handleOverlaysRoutes = async (
                 create: [elementCreateData],
               },
             },
-            include: {
-              elements: {
-                include: {
-                  title: true,
-                  counter: true,
-                  timer: true,
-                  image: true,
-                  children: {
-                    include: {
-                      title: true,
-                      counter: true,
-                      timer: true,
-                      image: true,
-                      children: {
-                        include: {
-                          title: true,
-                          counter: true,
-                          timer: true,
-                          image: true,
-                          children: {
-                            include: {
-                              title: true,
-                              counter: true,
-                              timer: true,
-                              image: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
+            include: overlayElementsInclude,
           });
 
           return new Response(JSON.stringify(newOverlay), {

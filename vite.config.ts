@@ -21,6 +21,11 @@ export default defineConfig({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      // Uploaded images are served by the backend out of S3.
+      "/uploads": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
       "/ws": {
         target: "ws://localhost:3000",
         ws: true,

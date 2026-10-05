@@ -46,21 +46,20 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
     onChange(newStyle);
   };
 
-  const widthSlider = useSliderValue(style.width || 100);
-  const heightSlider = useSliderValue(style.height || 100);
-  const borderRadiusSlider = useSliderValue(style.borderRadius || 0);
-
-  useEffect(() => {
-    handleImmediateValueChange("width", widthSlider.value);
-  }, [widthSlider.value]);
-
-  useEffect(() => {
-    handleImmediateValueChange("height", heightSlider.value);
-  }, [heightSlider.value]);
-
-  useEffect(() => {
-    handleImmediateValueChange("borderRadius", borderRadiusSlider.value);
-  }, [borderRadiusSlider.value]);
+  // Committed when the slider is released or the input loses focus. Saving from an effect
+  // on the slider value instead would write on every mount and echo every remote change.
+  const commitIfChanged = (key: "width" | "height" | "borderRadius", value: number) => {
+    if (style[key] !== value) handleImmediateValueChange(key, value);
+  };
+  const widthSlider = useSliderValue(style.width || 100, {
+    onCommit: (v) => commitIfChanged("width", v),
+  });
+  const heightSlider = useSliderValue(style.height || 100, {
+    onCommit: (v) => commitIfChanged("height", v),
+  });
+  const borderRadiusSlider = useSliderValue(style.borderRadius || 0, {
+    onCommit: (v) => commitIfChanged("borderRadius", v),
+  });
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">

@@ -6,7 +6,7 @@ import {
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { AddElementModal } from "../AddElementModal";
 import { ElementListItem } from "./ElementListItem";
 
@@ -22,6 +22,13 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   const rootElements = overlay.elements
     .filter((element) => !element.parentId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+  // The drop monitor reads these at drop time instead of being re-registered on every
+  // render (which would happen on every live update, mid-drag included).
+  const latest = useRef({ overlay, onOverlayChange });
+  useEffect(() => {
+    latest.current = { overlay, onOverlayChange };
+  });
 
   // Function to delete an element and all its children recursively
   const deleteElement = async (elementId: string) => {
@@ -68,6 +75,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
+        const { overlay, onOverlayChange } = latest.current;
         const target = location.current.dropTargets[0];
 
         if (!target) {
@@ -82,14 +90,15 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           return;
         }
 
-        const newElements = [...overlay.elements];
+        // Copies, so positions can be rewritten without mutating the current React state.
+        const newElements = overlay.elements.map((e) => ({ ...e }));
         const sourceElement = newElements.find((e) => e.id === sourceData.id);
 
         if (!sourceElement) {
           return;
         }
 
-        const sourceParentId = sourceData.parentId as string | null;
+        const sourceParentId = sourceElement.parentId ?? null;
         const closestEdge = extractClosestEdge(targetData) as Edge | null;
 
         // Determine the target parent ID based on drop location
@@ -100,7 +109,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           // Check if we have a closest edge
           if (closestEdge) {
             // Dropped on the edge of a container - treat as sibling
-            targetParentId = targetData.parentId as string | null;
+            targetParentId = (targetData.parentId as string | null | undefined) ?? null;
           } else {
             // Dropped in the middle/on the container itself - drop inside
             targetParentId = targetData.id as string;
@@ -108,16 +117,25 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           }
         } else {
           // Dropped on a regular element - use its parent
-          targetParentId = targetData.parentId as string | null;
+          targetParentId = (targetData.parentId as string | null | undefined) ?? null;
+        }
+
+        // Never move an element into its own subtree; the server would reject it anyway.
+        for (
+          let currentId: string | null | undefined = targetParentId;
+          currentId;
+          currentId = newElements.find((e) => e.id === currentId)?.parentId
+        ) {
+          if (currentId === sourceElement.id) return;
         }
 
         // Get source and target lists
         const sourceList = newElements
-          .filter((e) => e.parentId === sourceParentId)
+          .filter((e) => (e.parentId ?? null) === sourceParentId)
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
         const targetList = newElements
-          .filter((e) => e.parentId === targetParentId)
+          .filter((e) => (e.parentId ?? null) === targetParentId)
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
         const startIndex = sourceList.findIndex((e) => e.id === sourceData.id);
@@ -216,13 +234,17 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           },
           credentials: "include",
           body: JSON.stringify({
-            elements: newElements,
+            elements: newElements.map(({ id, position, parentId }) => ({
+              id,
+              position,
+              parentId: parentId ?? null,
+            })),
             overlayId: overlay.id,
           }),
         }).catch(console.error);
       },
     });
-  }, [overlay, onOverlayChange]);
+  }, []);
 
   return (
     <div className="relative p-2 space-y-2">

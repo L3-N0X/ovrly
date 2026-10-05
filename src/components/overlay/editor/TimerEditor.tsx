@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { type PrismaElement, type PrismaOverlay, type TimerStyle } from "@/lib/types";
-import { debounce } from "@/lib/utils";
+import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { Info, Pencil, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
@@ -21,7 +21,7 @@ export const TimerStyleEditor: React.FC<{
 }> = ({ element, overlay, onOverlayChange, onChange, onDelete }) => {
   const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
 
-  const debouncedOnChange = debounce(onChange, 400);
+  const debouncedOnChange = useDebouncedCallback(onChange, 400);
 
   const [fgPopoverOpen, setFgPopoverOpen] = useState(false);
   const [bgPopoverOpen, setBgPopoverOpen] = useState(false);

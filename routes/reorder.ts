@@ -1,28 +1,9 @@
 import { prisma } from "../auth";
-import { authenticate } from "../middleware/authMiddleware";
+import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
+import { publishOverlay } from "../services/overlay-query";
 
 const MAX_REORDER_ELEMENTS = 1000;
-
-const getRecursiveElementInclude = (depth: number) => {
-  if (depth <= 0) {
-    return {
-      title: true,
-      counter: true,
-      timer: true,
-      image: true,
-    };
-  }
-  return {
-    title: true,
-    counter: true,
-    timer: true,
-    image: true,
-    children: {
-      include: getRecursiveElementInclude(depth - 1),
-    },
-  };
-};
 
 export const handleReorderRoutes = async (
   req: Request,
@@ -48,20 +29,7 @@ export const handleReorderRoutes = async (
         });
       }
 
-      const overlay = await prisma.overlay.findUnique({ where: { id: overlayId } });
-
-      if (!overlay) {
-        return new Response(JSON.stringify({ error: "Overlay not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const isOwner = overlay.userId === session.user.id;
-      const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
-      const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-      if (!isOwner && !isEditor) {
+      if (!(await authorize(session.user, overlayId))) {
         return new Response(JSON.stringify({ error: "Overlay not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -126,19 +94,7 @@ export const handleReorderRoutes = async (
         )
       );
 
-      const updatedOverlay = await prisma.overlay.findUnique({
-        where: { id: overlayId },
-        include: {
-          elements: {
-            orderBy: {
-              position: 'asc'
-            },
-            include: getRecursiveElementInclude(5),
-          },
-        },
-      });
-
-      server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
+      await publishOverlay(server, overlayId);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

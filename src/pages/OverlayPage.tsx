@@ -51,9 +51,9 @@ const OverlayPage: React.FC = () => {
       });
     }
 
-    return Array.from(fonts).map((fontString, index) => {
+    return Array.from(fonts).map((fontString) => {
       const [fontFamily, fontWeight] = fontString.split(":");
-      return <FontLoader key={index} fontFamily={fontFamily} fontWeight={fontWeight} />;
+      return <FontLoader key={fontString} fontFamily={fontFamily} fontWeight={fontWeight} />;
     });
   };
 

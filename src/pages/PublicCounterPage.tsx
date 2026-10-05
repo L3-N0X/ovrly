@@ -12,26 +12,41 @@ const PublicCounterPage = () => {
   useEffect(() => {
     if (!overlayId) return;
 
-    const fetchInitialData = async () => {
+    let disposed = false;
+    // Bumped by every broadcast: a fetch that started before one arrived holds older data
+    // and must not overwrite it.
+    let broadcastCount = 0;
+
+    const fetchOverlay = async () => {
+      const startedAt = broadcastCount;
       try {
         const response = await fetch(`/api/public/overlays/${overlayId}`);
         if (response.ok) {
           const data = await response.json();
-          setOverlay(data);
+          if (!disposed && startedAt === broadcastCount) setOverlay(data);
         }
       } catch (error) {
-        console.error("Failed to fetch initial overlay data:", error);
+        console.error("Failed to fetch overlay data:", error);
       }
     };
 
-    fetchInitialData();
+    // Fetched right away so the overlay shows up even if the WebSocket can't connect.
+    fetchOverlay();
 
-    // Reconnects on its own (an OBS source can't be reloaded by hand), and refetches after
-    // a drop to pick up whatever was broadcast while the connection was down.
-    return connectOverlaySocket(overlayId, {
-      onOverlay: setOverlay,
-      onReconnect: fetchInitialData,
+    // Reconnects on its own (an OBS source can't be reloaded by hand), and refetches whenever
+    // it (re)connects to pick up whatever was broadcast while it wasn't connected.
+    const disconnect = connectOverlaySocket(overlayId, {
+      onOverlay: (updated) => {
+        broadcastCount++;
+        setOverlay(updated);
+      },
+      onOpen: fetchOverlay,
     });
+
+    return () => {
+      disposed = true;
+      disconnect();
+    };
   }, [overlayId]);
 
   // Function to extract and load fonts from overlay data
@@ -58,9 +73,9 @@ const PublicCounterPage = () => {
     }
 
     // Render FontLoader for each unique font family and weight
-    return Array.from(fonts).map((fontString, index) => {
+    return Array.from(fonts).map((fontString) => {
       const [fontFamily, fontWeight] = fontString.split(":");
-      return <FontLoader key={index} fontFamily={fontFamily} fontWeight={fontWeight} />;
+      return <FontLoader key={fontString} fontFamily={fontFamily} fontWeight={fontWeight} />;
     });
   };
 

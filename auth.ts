@@ -28,7 +28,11 @@ export const auth = betterAuth({
               select: { id: true, name: true },
             });
             if (!user) return;
-            const where = { editorTwitchName: user.name, editorId: null };
+            // Twitch names are case-insensitive, invitations may be typed in any case.
+            const where = {
+              editorTwitchName: { equals: user.name, mode: "insensitive" as const },
+              editorId: null,
+            };
             const data = { editorId: user.id };
             await Promise.all([
               prisma.editor.updateMany({ where, data }),

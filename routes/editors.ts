@@ -32,7 +32,8 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
   // POST /api/editors - Add a new editor
   if (req.method === "POST" && !editorIdentifier) {
     try {
-      const { twitchName } = await req.json();
+      const body = await req.json();
+      const twitchName = typeof body?.twitchName === "string" ? body.twitchName.trim() : "";
       if (!twitchName) {
         return new Response(JSON.stringify({ error: "Twitch name is required" }), {
           status: 400,
@@ -44,7 +45,7 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
       const existingEditor = await prisma.editor.findFirst({
         where: {
           ownerId: session.user.id,
-          editorTwitchName: twitchName,
+          editorTwitchName: { equals: twitchName, mode: "insensitive" },
         },
       });
 
@@ -58,7 +59,9 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
         );
       }
 
-      const editorUser = await prisma.user.findFirst({ where: { name: twitchName } });
+      const editorUser = await prisma.user.findFirst({
+        where: { name: { equals: twitchName, mode: "insensitive" } },
+      });
 
       const newEditor = await prisma.editor.create({
         data: {
@@ -94,6 +97,7 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
           },
         },
       });
+      return new Response(null, { status: 204, headers: corsHeaders });
     } catch (e: unknown) {
       console.error(e);
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {

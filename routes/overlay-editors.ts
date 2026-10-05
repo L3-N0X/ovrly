@@ -1,9 +1,9 @@
 import { prisma } from "../auth";
-import { authenticate, authorize } from "../middleware/authMiddleware";
+import { authenticate, getOverlayAccess } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 
 export const handleOverlayEditorsRoutes = async (req: Request, path: string) => {
-  const overlayEditorRegex = /\/api\/overlays\/([^/]+)\/editors(?:\/([^/]+))?/;
+  const overlayEditorRegex = /^\/api\/overlays\/([a-zA-Z0-9_-]+)\/editors(?:\/([^/]+))?$/;
   const match = path.match(overlayEditorRegex);
 
   if (!match) {
@@ -20,8 +20,8 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
     });
   }
 
-  const authorized = await authorize(session.user.id, overlayId);
-  if (!authorized) {
+  const access = await getOverlayAccess(session.user, overlayId);
+  if (!access) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
       status: 403,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -29,18 +29,35 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
   }
 
   if (req.method === "GET") {
-    const editors = await prisma.overlayEditor.findMany({
-      where: { overlayId },
-      include: { editor: true },
+    // The owner's global editors can edit this overlay too, so they are listed alongside the
+    // overlay's own editors. `canManage` tells the client whether to offer add/revoke.
+    const [editors, globalEditors] = await Promise.all([
+      prisma.overlayEditor.findMany({
+        where: { overlayId },
+        select: { editorId: true, editorTwitchName: true },
+      }),
+      prisma.editor.findMany({
+        where: { ownerId: access.overlay.userId },
+        select: { editorId: true, editorTwitchName: true },
+      }),
+    ]);
+    return new Response(JSON.stringify({ editors, globalEditors, canManage: access.isOwner }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-    return new Response(JSON.stringify(editors), {
+  }
+
+  // Editors may change the overlay, but only its owner decides who else gets access.
+  if ((req.method === "POST" || req.method === "DELETE") && !access.isOwner) {
+    return new Response(JSON.stringify({ error: "Only the owner can manage editors" }), {
+      status: 403,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (req.method === "POST") {
     try {
-      const { twitchName } = await req.json();
+      const body = await req.json();
+      const twitchName = typeof body?.twitchName === "string" ? body.twitchName.trim() : "";
       if (!twitchName) {
         return new Response(JSON.stringify({ error: "Twitch name is required" }), {
           status: 400,
@@ -48,7 +65,20 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
         });
       }
 
-      const editorUser = await prisma.user.findFirst({ where: { name: twitchName } });
+      const existingEditor = await prisma.overlayEditor.findFirst({
+        where: { overlayId, editorTwitchName: { equals: twitchName, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (existingEditor) {
+        return new Response(JSON.stringify({ error: "Editor with this Twitch name already exists" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const editorUser = await prisma.user.findFirst({
+        where: { name: { equals: twitchName, mode: "insensitive" } },
+      });
 
       const newEditor = await prisma.overlayEditor.create({
         data: {

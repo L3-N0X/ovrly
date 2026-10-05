@@ -42,7 +42,9 @@ export const ContainerEditor: React.FC<{
   onOverlayChange: (newOverlay: PrismaOverlay) => void;
   onChange: (newStyle: ContainerStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
+  // Passed down so nested elements can be deleted too.
+  onDeleteElement?: (elementId: string) => void;
+}> = ({ element, onChange, overlay, onOverlayChange, onDelete, onDeleteElement }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
@@ -68,6 +70,10 @@ export const ContainerEditor: React.FC<{
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const elementsRef = useRef(overlay.elements);
+  useEffect(() => {
+    elementsRef.current = overlay.elements;
+  });
   const [isDraggedOver, setIsDraggedOver] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
 
@@ -79,8 +85,15 @@ export const ContainerEditor: React.FC<{
       dropTargetForElements({
         element: el,
         canDrop: ({ source }) => {
-          // Don't allow dropping the container on itself
-          return source.data.id !== element.id;
+          // Don't allow dropping a container into itself or anywhere inside its own subtree
+          for (
+            let currentId: string | null | undefined = element.id;
+            currentId;
+            currentId = elementsRef.current.find((e) => e.id === currentId)?.parentId
+          ) {
+            if (currentId === source.data.id) return false;
+          }
+          return true;
         },
         getData: () => {
           // No closest edge - this signals dropping INSIDE the container
@@ -122,6 +135,7 @@ export const ContainerEditor: React.FC<{
             element={child}
             overlay={overlay}
             onOverlayChange={onOverlayChange}
+            onDeleteElement={onDeleteElement}
           />
         ))}
       </div>

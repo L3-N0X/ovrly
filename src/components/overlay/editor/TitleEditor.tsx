@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
-import { debounce } from "@/lib/utils";
+import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
@@ -22,7 +22,7 @@ export const TitleStyleEditor: React.FC<{
   const [style, setStyle] = useState<BaseElementStyle>((element.style as BaseElementStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
-  const debouncedOnChange = debounce(onChange, 400);
+  const debouncedOnChange = useDebouncedCallback(onChange, 400);
 
   useEffect(() => {
     if (!isPickingColor) {
