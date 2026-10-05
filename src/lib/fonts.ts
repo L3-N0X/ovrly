@@ -66,9 +66,9 @@ export async function fetchCustomFonts(): Promise<CustomFont[]> {
       console.error("Failed to fetch custom fonts, status:", response.status);
       return [];
     }
-    const customFontsData: CustomFont[] = await response.json();
+    const customFontsData = await response.json();
 
-    return customFontsData.map((font) => ({
+    return customFontsData.map((font: Pick<CustomFont, "family" | "category" | "variants" | "urls">) => ({
       family: font.family,
       category: font.category,
       variants: font.variants,

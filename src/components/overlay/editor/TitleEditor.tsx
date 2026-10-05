@@ -1,29 +1,27 @@
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type BaseElementStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { type BaseElementStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
-import { debounce } from "@/lib/utils";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
 export const TitleStyleEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: BaseElementStyle) => void;
   onDelete?: () => void;
-  ws?: WebSocket | null;
-}> = ({ element, overlay, onOverlayChange, onChange, onDelete, ws = null }) => {
+}> = ({ element, onOverlayChange, onChange, onDelete }) => {
   const [style, setStyle] = useState<BaseElementStyle>((element.style as BaseElementStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
-  const debouncedOnChange = debounce(onChange, 400);
+  const debouncedOnChange = useDebouncedCallback(onChange, 400);
 
   useEffect(() => {
     if (!isPickingColor) {
@@ -37,19 +35,15 @@ export const TitleStyleEditor: React.FC<{
     debouncedOnChange(updatedStyle);
   };
 
-  // responsive local slider + debounced websocket sync
-  const syncedFontSize = useSyncedSlider(
-    `${element.id}.fontSize`,
-    typeof style?.fontSize === "number" ? style.fontSize : 36,
-    ws ?? null
-  );
+  // responsive local slider
+  const syncedFontSize = useSliderValue(typeof style?.fontSize === "number" ? style.fontSize : 36);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg">
               <Pencil />
             </Button>

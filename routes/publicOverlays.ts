@@ -1,24 +1,11 @@
-import { prisma } from "../auth";
 import { corsHeaders } from "../middleware/cors";
+import { findOverlayWithElements } from "../services/overlay-query";
 
 export const handlePublicOverlaysRoutes = async (req: Request, path: string) => {
   const publicOverlayIdMatch = path.match(/^\/api\/public\/overlays\/([a-zA-Z0-9_-]+)$/);
   if (publicOverlayIdMatch) {
     const overlayId = publicOverlayIdMatch[1];
-    const overlay = await prisma.overlay.findUnique({
-      where: { id: overlayId },
-      include: {
-        elements: {
-          include: {
-            title: true,
-            counter: true,
-            timer: true,
-            image: true,
-            bingo: true,
-          },
-        },
-      },
-    });
+    const overlay = await findOverlayWithElements(overlayId);
 
     if (!overlay) {
       return new Response(JSON.stringify({ error: "Overlay not found" }), {

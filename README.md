@@ -55,7 +55,27 @@ Ovrly comes with a `docker-compose.yml` file for easy deployment.
     docker-compose up -d
     ```
 
-This will build the application and start the app and a PostgreSQL database. The application will be available at `http://localhost:3000`.
+This will build the application and start the app, a PostgreSQL database and a small S3-compatible object store ([RustFS](https://github.com/rustfs/rustfs)) that holds uploaded images. The application will be available at `http://localhost:3000`.
+
+### 🖼️ Image storage (S3)
+
+Uploaded images are stored in any S3-compatible service and served through the app itself (`/uploads/...`), so the storage service never has to be publicly reachable. The compose file bundles RustFS; to use something else (MinIO, Garage, SeaweedFS, AWS S3, Cloudflare R2, ...) remove the `s3` and `s3-init` services and point the `S3_*` variables at it. The bucket must already exist.
+
+### 🔌 Reverse proxy
+
+Live updates use a WebSocket on `/ws`, so your proxy has to forward upgrade requests. For nginx:
+
+```nginx
+location / {
+    proxy_pass http://localhost:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+}
+```
+
+The server sends a heartbeat every 20 seconds and clients reconnect automatically, so the default 60 second `proxy_read_timeout` is fine.
 
 ## 🔒 Environment Variables
 
@@ -68,6 +88,13 @@ You need to set the following environment variables in a `.env` file in the root
 | `AUTH_SECRET`          | A secret key for signing authentication tokens.                             | `a-very-secret-key`                   |
 | `AUTH_TWITCH_ID`       | Your Twitch application's Client ID.                                        | `your-twitch-client-id`               |
 | `AUTH_TWITCH_SECRET`   | Your Twitch application's Client Secret.                                    | `your-twitch-client-secret`           |
+| `S3_ENDPOINT`          | Endpoint of your S3-compatible storage (path-style addressing is used).     | `http://s3:9000`                      |
+| `S3_BUCKET`            | Bucket for uploaded images. It must already exist.                          | `ovrly`                               |
+| `S3_ACCESS_KEY_ID`     | Access key for the bucket.                                                  | `ovrly`                               |
+| `S3_SECRET_ACCESS_KEY` | Secret key for the bucket.                                                  | `change-me-please`                    |
+| `S3_REGION`            | Optional. Region used for request signing.                                  | `us-east-1` (default)                 |
+| `MAX_UPLOAD_BYTES`     | Optional. Maximum image size in bytes.                                      | `10485760` (default, 10 MB)           |
+| `WS_ALLOWED_ORIGINS`   | Optional. Extra comma-separated origins allowed to open the live-update WebSocket (`APP_BASE_URL` is always allowed). | `https://overlays.example.com` |
 | `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
 
 > [!NOTE]

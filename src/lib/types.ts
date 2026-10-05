@@ -5,7 +5,12 @@ export const ElementTypeEnum = {
   TIMER: "TIMER",
   IMAGE: "IMAGE",
   BINGO: "BINGO",
+  GROUP: "GROUP",
 } as const;
+
+// Element types that hold other elements.
+export const isParentType = (type: ElementType) =>
+  type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
@@ -46,6 +51,9 @@ export interface BaseElementStyle {
   fontFamily?: string;
   fontSize?: number;
   color?: string;
+  // Offset from the top left corner of the parent, used when the parent is a GROUP.
+  x?: number;
+  y?: number;
 }
 
 // Specific style for a Counter element
@@ -88,6 +96,18 @@ export interface ContainerStyle extends BaseElementStyle {
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
 }
 
+// Groups start out covering the whole 800x600 canvas.
+export const DEFAULT_GROUP_WIDTH = 800;
+export const DEFAULT_GROUP_HEIGHT = 600;
+
+// Specific style for a Group element: a fixed-size area whose children are placed freely
+export interface GroupStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  backgroundColor?: string;
+  radius?: number;
+}
+
 // Specific style for a Bingo element
 export interface BingoStyle extends BaseElementStyle {
   /** Card size in pixels. Both are required for a predictable grid, so the
@@ -116,7 +136,8 @@ export type ElementStyle =
   | ContainerStyle
   | TimerStyle
   | ImageStyle
-  | BingoStyle;
+  | BingoStyle
+  | GroupStyle;
 
 // The generic Element object from the backend
 export interface PrismaElement {
@@ -154,3 +175,9 @@ export interface PrismaOverlay {
   elements: PrismaElement[];
   userId: string;
 }
+
+// What onOverlayChange accepts: the next overlay, or a function that derives it from the
+// latest state. Use the function form after an `await`, where a captured overlay may be
+// stale and would write older styles back over newer ones.
+export type OverlayChange = PrismaOverlay | ((current: PrismaOverlay) => PrismaOverlay);
+export type OnOverlayChange = (change: OverlayChange) => void;

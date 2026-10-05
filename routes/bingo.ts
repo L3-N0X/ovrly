@@ -1,5 +1,5 @@
 import { prisma } from "../auth";
-import { authenticate } from "../middleware/authMiddleware";
+import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 import {
   bingoMiddleIndex,
@@ -7,7 +7,7 @@ import {
   shuffleBingoFields,
   type BingoState,
 } from "../lib/bingo";
-import { getRecursiveElementInclude } from "./elements";
+import { publishOverlay } from "../services/overlay-query";
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -40,18 +40,14 @@ const resolveBingoElement = async (
 
   const element = await prisma.element.findUnique({
     where: { id: elementId },
-    include: { overlay: true, bingo: true },
+    include: { bingo: true },
   });
 
   if (!element || !element.bingo) {
     return { error: jsonResponse({ error: "Bingo element not found" }, 404) };
   }
 
-  const isOwner = element.overlay.userId === session.user.id;
-  const editors = await prisma.editor.findMany({ where: { ownerId: element.overlay.userId } });
-  const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-  if (!isOwner && !isEditor) {
+  if (!(await authorize(session.user, element.overlayId))) {
     return { error: jsonResponse({ error: "Bingo element not found" }, 404) };
   }
 
@@ -67,28 +63,6 @@ const resolveBingoElement = async (
       }),
     },
   };
-};
-
-/** Re-reads the overlay and pushes it to every subscriber of its channel. */
-const publishOverlay = async (
-  server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
-  overlayId: string
-) => {
-  const updatedOverlay = await prisma.overlay.findUnique({
-    where: { id: overlayId },
-    include: {
-      elements: {
-        orderBy: {
-          position: "asc",
-        },
-        include: getRecursiveElementInclude(5),
-      },
-    },
-  });
-
-  server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
-
-  return updatedOverlay;
 };
 
 export const handleBingoRoutes = async (

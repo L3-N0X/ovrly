@@ -1,7 +1,11 @@
 import { prisma } from "../auth";
-import { authenticate } from "../middleware/authMiddleware";
+import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
-import { getRecursiveElementInclude } from "./elements";
+import { publishOverlay } from "../services/overlay-query";
+
+const MAX_REORDER_ELEMENTS = 1000;
+// Only these render their children; anything placed under another type would vanish.
+const PARENT_TYPES = new Set(["CONTAINER", "GROUP"]);
 
 export const handleReorderRoutes = async (
   req: Request,
@@ -20,71 +24,103 @@ export const handleReorderRoutes = async (
 
     try {
       const { elements, overlayId } = (await req.json()) as {
-        elements?: { id: string; parentId?: string | null; position?: number | null }[];
-        overlayId?: string;
+        elements?: unknown;
+        overlayId?: unknown;
       };
-      if (!elements || !Array.isArray(elements) || !overlayId) {
+      if (!Array.isArray(elements) || elements.length > MAX_REORDER_ELEMENTS || typeof overlayId !== "string" || !overlayId) {
         return new Response(JSON.stringify({ error: "Invalid request body" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const overlay = await prisma.overlay.findUnique({ where: { id: overlayId } });
-
-      if (!overlay) {
+      if (!(await authorize(session.user, overlayId))) {
         return new Response(JSON.stringify({ error: "Overlay not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const isOwner = overlay.userId === session.user.id;
-      const editors = await prisma.editor.findMany({ where: { ownerId: overlay.userId } });
-      const isEditor = editors.some((editor) => editor.editorTwitchName === session.user.name);
-
-      if (!isOwner && !isEditor) {
-        return new Response(JSON.stringify({ error: "Overlay not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      console.log("--- DEBUG: /api/elements/reorder ---");
-      console.log("Received elements:", JSON.stringify(elements, null, 2));
-
+      // Every element being moved, and every parent it is moved under, must belong to the
+      // overlay the caller was authorized for. Otherwise an editor of one overlay could
+      // rewrite the element tree of any other overlay by id.
+      const moves = new Map<string, { position?: number | null; parentId?: string | null }>();
       for (const element of elements) {
-        console.log(`Updating element with id: ${element.id}`);
-        await prisma.element.update({
-          where: { id: element.id },
-          data: {
-            position: element.position,
-            parentId: element.parentId,
-          },
-        });
+        const { id, position, parentId } = element ?? {};
+        const validPosition =
+          position === undefined || position === null || Number.isInteger(position);
+        const validParent = parentId === undefined || parentId === null || typeof parentId === "string";
+        if (typeof id !== "string" || !validPosition || !validParent || moves.has(id)) {
+          return new Response(JSON.stringify({ error: "Invalid request body" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        moves.set(id, { position, parentId });
       }
 
-      const updatedOverlay = await prisma.overlay.findUnique({
-        where: { id: overlayId },
-        include: {
-          elements: {
-            orderBy: {
-              position: 'asc'
-            },
-            include: getRecursiveElementInclude(5),
-          },
-        },
+      const overlayElements = await prisma.element.findMany({
+        where: { overlayId },
+        select: { id: true, parentId: true, type: true },
       });
+      const parentOf = new Map(overlayElements.map((e) => [e.id, e.parentId]));
+      const typeOf = new Map(overlayElements.map((e) => [e.id, e.type]));
 
-      server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
+      for (const [id, { parentId }] of moves) {
+        if (!parentOf.has(id) || (parentId && !parentOf.has(parentId))) {
+          return new Response(JSON.stringify({ error: "Element not found in overlay" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (parentId && !PARENT_TYPES.has(typeOf.get(parentId)!)) {
+          return new Response(JSON.stringify({ error: "Parent element can't hold children" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (parentId !== undefined) parentOf.set(id, parentId);
+      }
+
+      // Reject moves that would put an element underneath itself.
+      for (const id of moves.keys()) {
+        const seen = new Set<string>();
+        for (let cur: string | null | undefined = id; cur; cur = parentOf.get(cur)) {
+          if (seen.has(cur)) {
+            return new Response(JSON.stringify({ error: "Invalid element hierarchy" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          seen.add(cur);
+        }
+      }
+
+      // All-or-nothing: a failure part-way through must not leave a half-reordered tree.
+      await prisma.$transaction(
+        [...moves].map(([id, { position, parentId }]) =>
+          prisma.element.update({
+            where: { id },
+            data: { position, parentId },
+          })
+        )
+      );
+
+      await publishOverlay(server, overlayId);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (e) {
       console.error(e);
-      return new Response(JSON.stringify({ error: "Invalid request body" }), {
-        status: 400,
+      if (e instanceof SyntaxError) {
+        return new Response(JSON.stringify({ error: "Invalid request body" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ error: "Failed to reorder elements" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

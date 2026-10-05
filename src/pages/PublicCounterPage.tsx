@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import OverlayCanvas from "../components/overlay/OverlayCanvas";
 import FontLoader from "../components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
+import { connectOverlaySocket } from "@/lib/overlaySocket";
 
 const PublicCounterPage = () => {
   const { overlayId } = useParams();
@@ -11,39 +12,40 @@ const PublicCounterPage = () => {
   useEffect(() => {
     if (!overlayId) return;
 
-    const fetchInitialData = async () => {
+    let disposed = false;
+    // Bumped by every broadcast: a fetch that started before one arrived holds older data
+    // and must not overwrite it.
+    let broadcastCount = 0;
+
+    const fetchOverlay = async () => {
+      const startedAt = broadcastCount;
       try {
         const response = await fetch(`/api/public/overlays/${overlayId}`);
         if (response.ok) {
           const data = await response.json();
-          setOverlay(data);
+          if (!disposed && startedAt === broadcastCount) setOverlay(data);
         }
       } catch (error) {
-        console.error("Failed to fetch initial overlay data:", error);
+        console.error("Failed to fetch overlay data:", error);
       }
     };
 
-    fetchInitialData();
+    // Fetched right away so the overlay shows up even if the WebSocket can't connect.
+    fetchOverlay();
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws?overlayId=${overlayId}`);
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setOverlay(data);
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket connection closed. Reconnecting...");
-      // Implement reconnection logic here if needed
-    };
+    // Reconnects on its own (an OBS source can't be reloaded by hand), and refetches whenever
+    // it (re)connects to pick up whatever was broadcast while it wasn't connected.
+    const disconnect = connectOverlaySocket(overlayId, {
+      onOverlay: (updated) => {
+        broadcastCount++;
+        setOverlay(updated);
+      },
+      onOpen: fetchOverlay,
+    });
 
     return () => {
-      ws.close();
+      disposed = true;
+      disconnect();
     };
   }, [overlayId]);
 
@@ -71,9 +73,9 @@ const PublicCounterPage = () => {
     }
 
     // Render FontLoader for each unique font family and weight
-    return Array.from(fonts).map((fontString, index) => {
+    return Array.from(fonts).map((fontString) => {
       const [fontFamily, fontWeight] = fontString.split(":");
-      return <FontLoader key={index} fontFamily={fontFamily} fontWeight={fontWeight} />;
+      return <FontLoader key={fontString} fontFamily={fontFamily} fontWeight={fontWeight} />;
     });
   };
 
