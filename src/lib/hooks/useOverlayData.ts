@@ -113,27 +113,29 @@ export const useOverlayData = () => {
       }
 
       write.inFlight = true;
-      write.resend = false;
-      const { url, method = "PATCH", body, version } = write;
-      let failed = false;
-      try {
-        const response = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          credentials: "include",
-        });
-        if (!response.ok) throw new Error(`Failed to update (${response.status})`);
-      } catch (err) {
-        console.error(err);
-        failed = true;
-      }
+      let failed: boolean;
+      let version: number;
+      // Loop (rather than recurse) so a resend queued mid-flight goes out after this request.
+      do {
+        write.resend = false;
+        const { url, method = "PATCH", body } = write;
+        version = write.version;
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            credentials: "include",
+          });
+          if (!response.ok) throw new Error(`Failed to update (${response.status})`);
+          failed = false;
+        } catch (err) {
+          console.error(err);
+          failed = true;
+        }
+      } while (write.resend);
       write.inFlight = false;
 
-      if (write.resend) {
-        sendWrite(key);
-        return;
-      }
       if (write.version === version && !write.timer) {
         pendingWrites.current.delete(key);
       }
