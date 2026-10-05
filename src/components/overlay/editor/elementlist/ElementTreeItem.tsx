@@ -27,6 +27,7 @@ export const ElementTreeItem = ({
   row,
   collapsed,
   selected,
+  tabbable,
   getElements,
   onSelect,
   onToggleCollapsed,
@@ -36,6 +37,8 @@ export const ElementTreeItem = ({
   row: FlatRow;
   collapsed: boolean;
   selected: boolean;
+  // The one row reachable with Tab (roving tabindex); the arrow keys move between rows.
+  tabbable: boolean;
   getElements: () => PrismaElement[];
   onSelect: () => void;
   onToggleCollapsed: () => void;
@@ -144,7 +147,7 @@ export const ElementTreeItem = ({
       aria-selected={selected}
       aria-expanded={isParent ? !collapsed : undefined}
       aria-level={depth + 1}
-      tabIndex={selected ? 0 : -1}
+      tabIndex={tabbable ? 0 : -1}
       data-tree-item-id={element.id}
       onClick={onSelect}
       onKeyDown={onKeyDown}

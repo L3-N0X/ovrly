@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type PrismaOverlay } from "@/lib/types";
+import { type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 import {
   AlignHorizontalJustifyCenter,
   AlignHorizontalJustifyEnd,
@@ -25,7 +25,7 @@ import { useSliderValue } from "@/lib/hooks/useSliderValue";
 
 interface GlobalStyleEditorProps {
   overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
 }
 
 export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({

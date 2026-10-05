@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { PrismaElement, ImageStyle, PrismaOverlay } from "@/lib/types";
+import type { PrismaElement, ImageStyle, OnOverlayChange } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -18,15 +18,13 @@ import { RenameElementModal } from "./RenameElementModal";
 
 interface ImageStyleEditorProps {
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (style: ImageStyle) => void;
   onDelete?: () => void;
 }
 
 const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
   element,
-  overlay,
   onOverlayChange,
   onChange,
   onDelete,
@@ -66,7 +64,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg">
               <Pencil />
             </Button>

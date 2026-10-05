@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type ContainerStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { type ContainerStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
 import {
   AlignHorizontalDistributeCenter,
   AlignHorizontalJustifyCenter,
@@ -33,11 +33,10 @@ import { RenameElementModal } from "./RenameElementModal";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (newOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: ContainerStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
+}> = ({ element, onChange, onOverlayChange, onDelete }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
@@ -66,7 +65,6 @@ export const ContainerEditor: React.FC<{
         <div className="flex items-center">
           <RenameElementModal
             element={element}
-            overlay={overlay}
             onOverlayChange={onOverlayChange}
           >
             <Button variant="ghost" size="icon-lg">

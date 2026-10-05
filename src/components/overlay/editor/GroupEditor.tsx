@@ -8,7 +8,7 @@ import {
   DEFAULT_GROUP_WIDTH,
   type GroupStyle,
   type PrismaElement,
-  type PrismaOverlay,
+  type OnOverlayChange
 } from "@/lib/types";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { Pencil, Trash2 } from "lucide-react";
@@ -58,11 +58,10 @@ export const GroupPositionEditor: React.FC<{
 
 export const GroupEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (newOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: GroupStyle) => void;
   onDelete?: () => void;
-}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
+}> = ({ element, onChange, onOverlayChange, onDelete }) => {
   const style = (element.style || {}) as GroupStyle;
   const updateStyle = (patch: Partial<GroupStyle>) => onChange({ ...style, ...patch });
 
@@ -77,7 +76,6 @@ export const GroupEditor: React.FC<{
         <div className="flex items-center">
           <RenameElementModal
             element={element}
-            overlay={overlay}
             onOverlayChange={onOverlayChange}
           >
             <Button variant="ghost" size="icon-lg">

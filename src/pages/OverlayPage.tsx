@@ -16,6 +16,7 @@ const OverlayPage: React.FC = () => {
     isLoading,
     error,
     handleOverlayChange,
+    handleStructureChange,
     handleCounterChange,
     handleImmediateCounterChange,
     handleTitleChange,
@@ -118,6 +119,7 @@ const OverlayPage: React.FC = () => {
             <StyleEditor
               overlay={overlay}
               onOverlayChange={handleOverlayChange}
+              onStructureChange={handleStructureChange}
               selectedId={selection.id}
               onSelect={selectFromTree}
               revealSelection={selection.fromCanvas}

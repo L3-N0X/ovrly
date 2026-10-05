@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type BaseElementStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
+import { type BaseElementStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,10 @@ import { RenameElementModal } from "./RenameElementModal";
 
 export const TitleStyleEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: BaseElementStyle) => void;
   onDelete?: () => void;
-}> = ({ element, overlay, onOverlayChange, onChange, onDelete }) => {
+}> = ({ element, onOverlayChange, onChange, onDelete }) => {
   const [style, setStyle] = useState<BaseElementStyle>((element.style as BaseElementStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
@@ -44,7 +43,7 @@ export const TitleStyleEditor: React.FC<{
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg">
               <Pencil />
             </Button>

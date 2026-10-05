@@ -255,12 +255,17 @@ export const handleElementsRoutes = async (
         } else if (parentId !== undefined) {
           // The new parent must live in the same overlay (and must not be the element itself
           // or one of its descendants), otherwise this could graft elements into another overlay.
+          // It must also be a type that renders its children.
           const descendantIds =
             typeof parentId === "string" ? await getAllDescendantIds(prisma, [elementId]) : [];
           const parent =
             typeof parentId === "string" && !descendantIds.includes(parentId)
               ? await prisma.element.findFirst({
-                  where: { id: parentId, overlayId: element.overlayId },
+                  where: {
+                    id: parentId,
+                    overlayId: element.overlayId,
+                    type: { in: ["CONTAINER", "GROUP"] },
+                  },
                   select: { id: true },
                 })
               : null;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { PrismaElement, PrismaOverlay } from "@/lib/types";
+import type { OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 
 const DEBOUNCE_MS = 500;
@@ -10,9 +10,13 @@ type TimerState = NonNullable<PrismaElement["timer"]>;
 // One queued write per field (an element's style, a counter's value, ...). Writes to the same
 // field are coalesced and sent one at a time, so the latest value always lands last; writes
 // to different fields don't interfere with each other.
-interface PendingWrite {
+interface WriteRequest {
   url: string;
+  method?: "PATCH" | "POST" | "DELETE";
   body: object;
+}
+
+interface PendingWrite extends WriteRequest {
   // Re-applies the local value on top of server state that doesn't include it yet.
   apply: (overlay: PrismaOverlay) => void;
   version: number;
@@ -23,6 +27,9 @@ interface PendingWrite {
 
 const findElement = (overlay: PrismaOverlay, elementId: string) =>
   overlay.elements.find((el) => el.id === elementId);
+
+const resolveChange = (change: OverlayChange, current: PrismaOverlay) =>
+  typeof change === "function" ? change(current) : change;
 
 const isEqual = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -106,11 +113,11 @@ export const useOverlayData = () => {
 
       write.inFlight = true;
       write.resend = false;
-      const { url, body, version } = write;
+      const { url, method = "PATCH", body, version } = write;
       let failed = false;
       try {
         const response = await fetch(url, {
-          method: "PATCH",
+          method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
           credentials: "include",
@@ -138,20 +145,18 @@ export const useOverlayData = () => {
   const queueWrite = useCallback(
     (
       key: string,
-      url: string,
-      body: object,
+      request: WriteRequest,
       apply: (overlay: PrismaOverlay) => void,
       delay = 0
     ) => {
       const write: PendingWrite = pendingWrites.current.get(key) ?? {
-        url,
-        body,
+        ...request,
         apply,
         version: 0,
         inFlight: false,
         resend: false,
       };
-      Object.assign(write, { url, body, apply, version: ++writeVersion.current });
+      Object.assign(write, { method: undefined, ...request, apply, version: ++writeVersion.current });
       pendingWrites.current.set(key, write);
       clearTimeout(write.timer);
       write.timer = undefined;
@@ -182,7 +187,7 @@ export const useOverlayData = () => {
       const next: PrismaOverlay = structuredClone(current);
       apply(next);
       setOverlay(next);
-      queueWrite(`${elementId}:${field}`, `/api/elements/${elementId}`, body, apply, delay);
+      queueWrite(`${elementId}:${field}`, { url: `/api/elements/${elementId}`, body }, apply, delay);
     },
     [queueWrite, setOverlay]
   );
@@ -227,7 +232,7 @@ export const useOverlayData = () => {
         if (!write.timer && !write.resend) return;
         clearTimeout(write.timer);
         fetch(write.url, {
-          method: "PATCH",
+          method: write.method ?? "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(write.body),
           credentials: "include",
@@ -239,19 +244,35 @@ export const useOverlayData = () => {
     };
   }, [id, fetchOverlayData, applyServerOverlay, refreshOverlay, setOverlay]);
 
-  // Persists whatever changed between the current overlay and `updatedOverlay` (global
-  // style and element styles) and adopts `updatedOverlay` as the new local state.
+  // Elements that are gone locally must not receive their queued writes any more (they
+  // would only fail with a 404 once the delete has gone through).
+  const dropWritesForRemoved = useCallback((current: PrismaOverlay, next: PrismaOverlay) => {
+    const remaining = new Set(next.elements.map((el) => el.id));
+    for (const el of current.elements) {
+      if (remaining.has(el.id)) continue;
+      for (const [key, write] of pendingWrites.current) {
+        if (key.startsWith(`${el.id}:`) && !write.inFlight) {
+          clearTimeout(write.timer);
+          pendingWrites.current.delete(key);
+        }
+      }
+    }
+  }, []);
+
+  // Persists whatever changed between the current overlay and the new one (global style and
+  // element styles) and adopts the new one as local state. Structure (adding, deleting,
+  // moving elements) is persisted by the caller or through handleStructureChange.
   const handleOverlayChange = useCallback(
-    (updatedOverlay: PrismaOverlay) => {
+    (change: OverlayChange) => {
       const current = overlayRef.current;
       if (!current) return;
+      const updatedOverlay = resolveChange(change, current);
 
       if (!isEqual(updatedOverlay.globalStyle, current.globalStyle)) {
         const globalStyle = updatedOverlay.globalStyle;
         queueWrite(
           "overlay:globalStyle",
-          `/api/overlays/${current.id}`,
-          { globalStyle },
+          { url: `/api/overlays/${current.id}`, body: { globalStyle } },
           (target) => {
             target.globalStyle = globalStyle;
           },
@@ -267,8 +288,7 @@ export const useOverlayData = () => {
         const style = element.style;
         queueWrite(
           `${element.id}:style`,
-          `/api/elements/${element.id}`,
-          { style },
+          { url: `/api/elements/${element.id}`, body: { style } },
           (target) => {
             const el = findElement(target, element.id);
             if (el) el.style = style;
@@ -277,9 +297,40 @@ export const useOverlayData = () => {
         );
       }
 
+      dropWritesForRemoved(current, updatedOverlay);
       setOverlay(updatedOverlay);
     },
-    [queueWrite, setOverlay]
+    [queueWrite, setOverlay, dropWritesForRemoved]
+  );
+
+  // Moving or deleting elements: applied locally right away and persisted with `request`.
+  // Until the server confirms it, the new tree is laid over incoming broadcasts (which
+  // would otherwise put moved elements back for a moment), and a failure resyncs the UI.
+  const handleStructureChange = useCallback(
+    (change: OverlayChange, key: string, request: WriteRequest) => {
+      const current = overlayRef.current;
+      if (!current) return;
+      const next = resolveChange(change, current);
+
+      const placement = new Map(
+        next.elements.map((el) => [el.id, { parentId: el.parentId ?? null, position: el.position }])
+      );
+      const removed = new Set(
+        current.elements.filter((el) => !placement.has(el.id)).map((el) => el.id)
+      );
+      const apply = (target: PrismaOverlay) => {
+        target.elements = target.elements.filter((el) => !removed.has(el.id));
+        for (const el of target.elements) {
+          const place = placement.get(el.id);
+          if (place) Object.assign(el, place);
+        }
+      };
+
+      dropWritesForRemoved(current, next);
+      setOverlay(next);
+      queueWrite(`structure:${key}`, request, apply);
+    },
+    [queueWrite, setOverlay, dropWritesForRemoved]
   );
 
   const handleCounterChange = useCallback(
@@ -440,6 +491,7 @@ export const useOverlayData = () => {
     isLoading,
     error,
     handleOverlayChange,
+    handleStructureChange,
     handleCounterChange,
     handleImmediateCounterChange,
     handleTitleChange,

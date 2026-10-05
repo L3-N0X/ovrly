@@ -4,11 +4,11 @@ import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 import type { CanvasEditing } from "@/components/overlay/canvasEditing";
 import type { CanvasSelection } from "@/components/overlay/canvasSelection";
 import { Button } from "@/components/ui/button";
-import { ElementTypeEnum, type ElementStyle, type PrismaOverlay } from "@/lib/types";
+import { ElementTypeEnum, type ElementStyle, type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 
 interface OverlayPreviewProps {
   overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   selectedId: string | null;
   onSelect: (elementId: string | null) => void;
 }

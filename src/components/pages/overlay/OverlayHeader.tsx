@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import type { PrismaOverlay } from "@/lib/types";
+import type { PrismaOverlay, OnOverlayChange } from "@/lib/types";
 import { Check, ChevronLeft, Copy, Edit, Share2 } from "lucide-react";
 import { useState } from "react";
 import EditOverlayModal from "./EditOverlayModal";
@@ -9,7 +9,7 @@ interface OverlayHeaderProps {
   id: string;
   onShare: () => void;
   onBack: () => void;
-  onOverlayUpdate?: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayUpdate?: OnOverlayChange;
 }
 
 const OverlayHeader: React.FC<OverlayHeaderProps> = ({
@@ -37,12 +37,6 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
 
     setIsSaving(true);
     try {
-      const updatedOverlay = {
-        ...overlay,
-        name,
-        description: description || null,
-      };
-
       // Update the overlay via API
       const response = await fetch(`/api/overlays/${id}`, {
         method: "PATCH",
@@ -60,8 +54,8 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
         throw new Error("Failed to update overlay");
       }
 
-      // Update the local state immediately for better UX
-      onOverlayUpdate(updatedOverlay);
+      // Built from the latest state: `overlay` is from before the request and may be stale.
+      onOverlayUpdate((current) => ({ ...current, name, description: description || null }));
     } catch (error) {
       console.error("Failed to update overlay:", error);
       throw error;

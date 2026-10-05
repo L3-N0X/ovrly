@@ -4,6 +4,8 @@ import { corsHeaders } from "../middleware/cors";
 import { publishOverlay } from "../services/overlay-query";
 
 const MAX_REORDER_ELEMENTS = 1000;
+// Only these render their children; anything placed under another type would vanish.
+const PARENT_TYPES = new Set(["CONTAINER", "GROUP"]);
 
 export const handleReorderRoutes = async (
   req: Request,
@@ -56,14 +58,21 @@ export const handleReorderRoutes = async (
 
       const overlayElements = await prisma.element.findMany({
         where: { overlayId },
-        select: { id: true, parentId: true },
+        select: { id: true, parentId: true, type: true },
       });
       const parentOf = new Map(overlayElements.map((e) => [e.id, e.parentId]));
+      const typeOf = new Map(overlayElements.map((e) => [e.id, e.type]));
 
       for (const [id, { parentId }] of moves) {
         if (!parentOf.has(id) || (parentId && !parentOf.has(parentId))) {
           return new Response(JSON.stringify({ error: "Element not found in overlay" }), {
             status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (parentId && !PARENT_TYPES.has(typeOf.get(parentId)!)) {
+          return new Response(JSON.stringify({ error: "Parent element can't hold children" }), {
+            status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }

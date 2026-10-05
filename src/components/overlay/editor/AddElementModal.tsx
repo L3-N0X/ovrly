@@ -16,12 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ElementTypeEnum, type ElementType, type PrismaOverlay } from "@/lib/types";
+import { ElementTypeEnum, type ElementType, type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 import { Plus } from "lucide-react";
 
 interface AddElementModalProps {
   overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
 }
 
 export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOverlayChange }) => {
@@ -37,14 +37,21 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
       },
       credentials: "include",
       body: JSON.stringify({
-        name: name || `${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Element`,
+        name:
+          name.trim() || `${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Element`,
         type,
       }),
     });
 
     if (response.ok) {
-      const updatedOverlay = await response.json();
-      onOverlayChange(updatedOverlay);
+      // Only the new element is taken from the response. Adopting the whole response would
+      // revert local edits that haven't been saved yet (and save the older values again).
+      const updatedOverlay: PrismaOverlay = await response.json();
+      onOverlayChange((current) => {
+        const known = new Set(current.elements.map((el) => el.id));
+        const added = updatedOverlay.elements.filter((el) => !known.has(el.id));
+        return { ...current, elements: [...current.elements, ...added] };
+      });
       setIsOpen(false);
       setName("");
     }

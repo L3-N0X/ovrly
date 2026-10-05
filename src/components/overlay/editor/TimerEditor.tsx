@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type PrismaElement, type PrismaOverlay, type TimerStyle } from "@/lib/types";
+import { type PrismaElement, type TimerStyle, type OnOverlayChange } from "@/lib/types";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { Info, Pencil, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -14,11 +14,10 @@ import { RenameElementModal } from "./RenameElementModal";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: TimerStyle) => void;
   onDelete?: () => void;
-}> = ({ element, overlay, onOverlayChange, onChange, onDelete }) => {
+}> = ({ element, onOverlayChange, onChange, onDelete }) => {
   const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
 
   const debouncedOnChange = useDebouncedCallback(onChange, 400);
@@ -48,7 +47,7 @@ export const TimerStyleEditor: React.FC<{
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Edit: {element.name}</h4>
         <div className="flex items-center">
-          <RenameElementModal element={element} overlay={overlay} onOverlayChange={onOverlayChange}>
+          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
             <Button variant="ghost" size="icon-lg">
               <Pencil />
             </Button>

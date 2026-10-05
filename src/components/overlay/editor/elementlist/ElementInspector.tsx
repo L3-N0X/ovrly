@@ -3,6 +3,7 @@ import {
   type ElementStyle,
   type PrismaElement,
   type PrismaOverlay,
+  type OnOverlayChange
 } from "@/lib/types";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
@@ -20,7 +21,7 @@ export const ElementInspector = ({
 }: {
   element: PrismaElement;
   overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
   onDelete: () => void;
 }) => {
   const isInGroup =
@@ -36,7 +37,7 @@ export const ElementInspector = ({
     });
   };
 
-  const editorProps = { element, overlay, onOverlayChange, onChange: updateStyle, onDelete };
+  const editorProps = { element, onOverlayChange, onChange: updateStyle, onDelete };
 
   return (
     // Keyed so local editor state (sliders, pickers) doesn't leak between elements.

@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isParentType, type PrismaOverlay } from "@/lib/types";
+import {
+  isParentType,
+  type OnOverlayChange,
+  type OverlayChange,
+  type PrismaOverlay,
+} from "@/lib/types";
 import {
   dropTargetForElements,
   monitorForElements,
@@ -20,9 +25,17 @@ import {
   type DropTarget,
 } from "./tree";
 
+// Applies a move or delete locally and persists it with `request` (see useOverlayData).
+export type OnStructureChange = (
+  change: OverlayChange,
+  key: string,
+  request: { url: string; method: "POST" | "DELETE"; body: object }
+) => void;
+
 export interface ElementListEditorProps {
   overlay: PrismaOverlay;
-  onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
+  onOverlayChange: OnOverlayChange;
+  onStructureChange: OnStructureChange;
   selectedId: string | null;
   onSelect: (elementId: string | null) => void;
   // Scroll the settings into view when the selection changes (e.g. picked on the canvas).
@@ -43,6 +56,7 @@ const loadCollapsed = (overlayId: string) => {
 export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   overlay,
   onOverlayChange,
+  onStructureChange,
   selectedId,
   onSelect: setSelectedId,
   revealSelection = false,
@@ -61,12 +75,17 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     [overlay.elements, collapsed]
   );
   const selected = overlay.elements.find((e) => e.id === selectedId) ?? null;
+  // Without a visible selected row, the first row takes the Tab stop so the tree stays
+  // reachable from the keyboard.
+  const tabbableId = rows.some((r) => r.element.id === selectedId)
+    ? selectedId
+    : (rows[0]?.element.id ?? null);
 
   // The drag handlers read these at event time instead of being re-registered on every
   // render (which would happen on every live update, mid-drag included).
-  const latest = useRef({ overlay, onOverlayChange });
+  const latest = useRef({ overlay, onStructureChange });
   useEffect(() => {
-    latest.current = { overlay, onOverlayChange };
+    latest.current = { overlay, onStructureChange };
   });
   const getElements = useCallback(() => latest.current.overlay.elements, []);
 
@@ -110,8 +129,8 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   const parentIds = overlay.elements.filter((e) => isParentType(e.type)).map((e) => e.id);
   const allCollapsed = parentIds.length > 0 && parentIds.every((id) => collapsed.has(id));
 
-  // Function to delete an element and all its children recursively
-  const deleteElement = async (elementId: string) => {
+  // Deletes an element together with everything nested inside it.
+  const deleteElement = (elementId: string) => {
     const findChildren = (parentId: string): string[] =>
       overlay.elements
         .filter((e) => e.parentId === parentId)
@@ -119,22 +138,14 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     const allIdsToDelete = [elementId, ...findChildren(elementId)];
 
     if (selectedId && allIdsToDelete.includes(selectedId)) setSelectedId(null);
-    onOverlayChange({
-      ...overlay,
-      elements: overlay.elements.filter((e) => !allIdsToDelete.includes(e.id)),
-    });
-
-    // Persist to backend
-    await fetch(`/api/elements/delete`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        ids: allIdsToDelete,
+    onStructureChange(
+      (current) => ({
+        ...current,
+        elements: current.elements.filter((e) => !allIdsToDelete.includes(e.id)),
       }),
-    }).catch(console.error);
+      `delete:${elementId}`,
+      { url: "/api/elements/delete", method: "DELETE", body: { ids: allIdsToDelete } }
+    );
   };
 
   useEffect(() => {
@@ -142,7 +153,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
       onDragStart: () => setIsDragging(true),
       onDrop({ source, location }) {
         setIsDragging(false);
-        const { overlay, onOverlayChange } = latest.current;
+        const { overlay, onStructureChange } = latest.current;
         const target = location.current.dropTargets[0];
         if (!target) return;
 
@@ -161,26 +172,23 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         if (!placement || isCurrentPlacement(overlay.elements, sourceId, placement)) return;
 
         const newElements = applyPlacement(overlay.elements, sourceId, placement);
-        onOverlayChange({ ...overlay, elements: newElements });
         // Make sure the moved element stays visible
         if (placement.parentId) setCollapsedFor(placement.parentId, false);
 
-        // Persist to backend
-        fetch(`/api/elements/reorder`, {
+        // Sends the complete layout, so a newer move can safely replace an older one that
+        // hasn't been sent yet.
+        onStructureChange({ ...overlay, elements: newElements }, "reorder", {
+          url: "/api/elements/reorder",
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
+          body: {
             elements: newElements.map(({ id, position, parentId }) => ({
               id,
               position,
               parentId: parentId ?? null,
             })),
             overlayId: overlay.id,
-          }),
-        }).catch(console.error);
+          },
+        });
       },
     });
   }, []);
@@ -268,6 +276,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
                     row={row}
                     collapsed={collapsed.has(element.id)}
                     selected={element.id === selectedId}
+                    tabbable={element.id === tabbableId}
                     getElements={getElements}
                     onSelect={() => setSelectedId(element.id === selectedId ? null : element.id)}
                     onToggleCollapsed={() =>

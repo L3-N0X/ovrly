@@ -145,3 +145,9 @@ export interface PrismaOverlay {
   elements: PrismaElement[];
   userId: string;
 }
+
+// What onOverlayChange accepts: the next overlay, or a function that derives it from the
+// latest state. Use the function form after an `await`, where a captured overlay may be
+// stale and would write older styles back over newer ones.
+export type OverlayChange = PrismaOverlay | ((current: PrismaOverlay) => PrismaOverlay);
+export type OnOverlayChange = (change: OverlayChange) => void;
