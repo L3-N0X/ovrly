@@ -5,6 +5,8 @@ import {
   type PrismaOverlay,
   type OnOverlayChange
 } from "@/lib/types";
+import { BingoEditor } from "../BingoEditor";
+import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
 import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
@@ -17,11 +19,13 @@ export const ElementInspector = ({
   element,
   overlay,
   onOverlayChange,
+  onBingoDataChange,
   onDelete,
 }: {
   element: PrismaElement;
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
+  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
   onDelete: () => void;
 }) => {
   const isInGroup =
@@ -52,6 +56,9 @@ export const ElementInspector = ({
       {element.type === ElementTypeEnum.COUNTER && <CounterStyleEditor {...editorProps} />}
       {element.type === ElementTypeEnum.TIMER && <TimerStyleEditor {...editorProps} />}
       {element.type === ElementTypeEnum.IMAGE && <ImageStyleEditor {...editorProps} />}
+      {element.type === ElementTypeEnum.BINGO && (
+        <BingoEditor {...editorProps} onDataChange={onBingoDataChange} />
+      )}
       {element.type === ElementTypeEnum.CONTAINER && <ContainerEditor {...editorProps} />}
       {element.type === ElementTypeEnum.GROUP && <GroupEditor {...editorProps} />}
     </div>

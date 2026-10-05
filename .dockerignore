@@ -5,6 +5,9 @@ node_modules
 # Bun
 .bun
 
+# Prisma generated client (rebuilt inside the image)
+src/generated
+
 # Misc
 .env
 .env.*

@@ -5,6 +5,7 @@ import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
 import Image from "./Image";
+import Bingo from "./Bingo";
 import Group from "./Group";
 import { CANVAS_ELEMENT_ATTRIBUTE, useCanvasSelection } from "./canvasSelection";
 
@@ -43,6 +44,9 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         );
       case "IMAGE":
         return <Image element={element} />;
+      case "BINGO":
+        // Only the editor preview provides a selection context; the public overlay is read only.
+        return <Bingo element={element} isEditor={selection !== null} />;
       case "GROUP":
         return (
           <Group

@@ -1,5 +1,5 @@
 import { ElementTypeEnum, type ContainerStyle, type PrismaElement } from "@/lib/types";
-import { Columns3, Frame, Hash, Image, Rows3, Timer, Type } from "lucide-react";
+import { Columns3, Frame, Grid3x3, Hash, Image, Rows3, Timer, Type } from "lucide-react";
 
 export const ElementTypeIcon = ({
   element,
@@ -17,6 +17,8 @@ export const ElementTypeIcon = ({
       return <Timer className={className} />;
     case ElementTypeEnum.IMAGE:
       return <Image className={className} />;
+    case ElementTypeEnum.BINGO:
+      return <Grid3x3 className={className} />;
     case ElementTypeEnum.GROUP:
       return <Frame className={className} />;
     case ElementTypeEnum.CONTAINER: {

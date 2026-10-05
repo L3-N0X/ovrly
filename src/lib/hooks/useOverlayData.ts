@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
+import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 
 const DEBOUNCE_MS = 500;
 
@@ -381,6 +382,22 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Single mutation path for bingo data: applied locally first so the editor and preview
+  // stay in step, then persisted.
+  const handleBingoDataChange = useCallback(
+    (elementId: string, data: BingoDataUpdate) => {
+      updateElement(elementId, "bingo", { data }, (el) => {
+        if (!el.bingo) return;
+        const next = applyBingoDataUpdate(normalizeBingoData(el.bingo), data);
+        el.bingo.size = next.size;
+        el.bingo.freeMiddle = next.freeMiddle;
+        el.bingo.fields = next.fields;
+        el.bingo.checked = next.checked;
+      });
+    },
+    [updateElement]
+  );
+
   // Timer writes always carry the complete timer state, so coalescing them can't lose a
   // field that only an earlier write contained.
   const writeTimer = useCallback(
@@ -496,6 +513,7 @@ export const useOverlayData = () => {
     handleImmediateCounterChange,
     handleTitleChange,
     handleImageChange,
+    handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerUpdate,

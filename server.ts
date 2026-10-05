@@ -8,6 +8,7 @@ import { handleFilesRoutes, handleUploadsRoutes } from "./routes/files";
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
+import { handleBingoRoutes } from "./routes/bingo";
 import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
@@ -111,6 +112,12 @@ const server = Bun.serve<WebSocketData>({
       const elementResponse = await handleElementsRoutes(req, server, reqPath);
       if (elementResponse) {
         return elementResponse;
+      }
+
+      // Handle bingo routes
+      const bingoResponse = await handleBingoRoutes(req, server, reqPath);
+      if (bingoResponse) {
+        return bingoResponse;
       }
 
       // Handle reorder routes

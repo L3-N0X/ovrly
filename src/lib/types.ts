@@ -4,6 +4,7 @@ export const ElementTypeEnum = {
   CONTAINER: "CONTAINER",
   TIMER: "TIMER",
   IMAGE: "IMAGE",
+  BINGO: "BINGO",
   GROUP: "GROUP",
 } as const;
 
@@ -107,6 +108,27 @@ export interface GroupStyle extends BaseElementStyle {
   radius?: number;
 }
 
+// Specific style for a Bingo element
+export interface BingoStyle extends BaseElementStyle {
+  /** Card size in pixels. Both are required for a predictable grid, so the
+   * editor exposes sliders rather than letting the card fill its parent. */
+  width?: number;
+  height?: number;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  padding?: number;
+  gap?: number;
+  checkedBackgroundColor?: string;
+  checkedColor?: string;
+  /** Colour of the cross drawn over a marked cell. Kept separate from
+   * `checkedColor` so the mark stays legible against the cell background. */
+  checkedCrossColor?: string;
+  /** Cross thickness in pixels. */
+  crossWidth?: number;
+}
+
 // A union of all possible element style types
 export type ElementStyle =
   | BaseElementStyle
@@ -114,6 +136,7 @@ export type ElementStyle =
   | ContainerStyle
   | TimerStyle
   | ImageStyle
+  | BingoStyle
   | GroupStyle;
 
 // The generic Element object from the backend
@@ -127,6 +150,13 @@ export interface PrismaElement {
   counter?: { id: string; value: number } | null;
   timer?: { id: string; startedAt: string | null; pausedAt: string | null; duration: number | null; countDown: boolean; } | null;
   image?: { id: string; src: string } | null;
+  bingo?: {
+    id: string;
+    size: number;
+    freeMiddle: boolean;
+    fields: string[];
+    checked: boolean[];
+  } | null;
   parentId?: string | null;
   children?: PrismaElement[];
 }

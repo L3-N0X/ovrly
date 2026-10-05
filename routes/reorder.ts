@@ -23,7 +23,10 @@ export const handleReorderRoutes = async (
     }
 
     try {
-      const { elements, overlayId } = await req.json();
+      const { elements, overlayId } = (await req.json()) as {
+        elements?: unknown;
+        overlayId?: unknown;
+      };
       if (!Array.isArray(elements) || elements.length > MAX_REORDER_ELEMENTS || typeof overlayId !== "string" || !overlayId) {
         return new Response(JSON.stringify({ error: "Invalid request body" }), {
           status: 400,

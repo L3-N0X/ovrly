@@ -2,9 +2,10 @@ import { prisma } from "../auth";
 import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 import { publishOverlay } from "../services/overlay-query";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
+import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
-const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "CONTAINER", "GROUP"];
+const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
 
 async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
   const allIds = new Set<string>(initialIds);
@@ -50,8 +51,8 @@ export const handleElementsRoutes = async (
     }
 
     try {
-      const { name, type } = await req.json();
-      if (typeof name !== "string" || !name.trim() || !ELEMENT_TYPES.includes(type)) {
+      const { name, type } = (await req.json()) as { name?: unknown; type?: unknown };
+      if (typeof name !== "string" || !name.trim() || typeof type !== "string" || !ELEMENT_TYPES.includes(type)) {
         return new Response(JSON.stringify({ error: "Name and a valid type are required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -80,6 +81,8 @@ export const handleElementsRoutes = async (
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
+      } else if (type === "BINGO") {
+        elementCreateData.bingo = { create: createBingoState() };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
       } else if (type === "GROUP") {
@@ -122,7 +125,7 @@ export const handleElementsRoutes = async (
     }
 
     try {
-      const { ids } = await req.json();
+      const { ids } = (await req.json()) as { ids?: unknown };
       if (
         !Array.isArray(ids) ||
         ids.length === 0 ||
@@ -227,7 +230,10 @@ export const handleElementsRoutes = async (
     }
 
     const elementId = elementIdMatch[1];
-    const element = await prisma.element.findUnique({ where: { id: elementId } });
+    const element = await prisma.element.findUnique({
+      where: { id: elementId },
+      include: { bingo: true },
+    });
 
     if (!element || !(await authorize(session.user, element.overlayId))) {
       return new Response(JSON.stringify({ error: "Element not found" }), {
@@ -238,7 +244,22 @@ export const handleElementsRoutes = async (
 
     if (req.method === "PATCH") {
       try {
-        const { name, style, data, position, parentId } = await req.json();
+        const { name, style, data, position, parentId } = (await req.json()) as {
+          name?: string;
+          style?: unknown;
+          data?: {
+            text?: string;
+            value?: number;
+            src?: string;
+            startedAt?: string | null;
+            pausedAt?: string | null;
+            duration?: number;
+            countDown?: boolean;
+            [key: string]: unknown;
+          };
+          position?: unknown;
+          parentId?: string | null;
+        };
         const elementUpdateData: Prisma.ElementUncheckedUpdateInput =
           {} as Prisma.ElementUncheckedUpdateInput;
         if (typeof name === "string" && name.trim()) elementUpdateData.name = name.trim();
@@ -249,7 +270,9 @@ export const handleElementsRoutes = async (
           elementUpdateData.style = mergedStyle;
         }
         // Checked against undefined so that position 0 and moving back to the root (null) work.
-        if (Number.isInteger(position)) elementUpdateData.position = position;
+        if (typeof position === "number" && Number.isInteger(position)) {
+          elementUpdateData.position = position;
+        }
         if (parentId === null) {
           elementUpdateData.parentId = null;
         } else if (parentId !== undefined) {
@@ -307,12 +330,40 @@ export const handleElementsRoutes = async (
               update: timerUpdateData,
             };
           }
+          if (element.type === "BINGO") {
+            if (!element.bingo) {
+              return new Response(JSON.stringify({ error: "Bingo data not found" }), {
+                status: 404,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            const currentState = normalizeBingoState({
+              size: element.bingo.size,
+              freeMiddle: element.bingo.freeMiddle,
+              fields: element.bingo.fields,
+              checked: element.bingo.checked,
+            });
+            const parsed = parseBingoUpdate(data, currentState);
+
+            if (!parsed.ok) {
+              return new Response(JSON.stringify({ error: parsed.error }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            const { size, freeMiddle, fields, checked } = parsed.value;
+            elementUpdateData.bingo = {
+              update: { size, freeMiddle, fields, checked },
+            };
+          }
         }
 
         const updatedElement = await prisma.element.update({
           where: { id: elementId },
           data: elementUpdateData,
-          include: { title: true, counter: true, timer: true, image: true },
+          include: { title: true, counter: true, timer: true, image: true, bingo: true },
         });
 
         await publishOverlay(server, element.overlayId);

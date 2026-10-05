@@ -1,4 +1,5 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../src/generated/prisma/client";
+import { normalizeBingoState } from "../lib/bingo";
 import { prisma } from "../auth";
 import { authenticate, getOverlayAccess, getSharedOverlayIds } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
@@ -33,6 +34,11 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };
+    }
+    if (element.bingo || element.type === "BINGO") {
+      // Presets and duplicates are user supplied data, so the bingo payload is
+      // normalised instead of being copied verbatim into the database.
+      data.bingo = { create: normalizeBingoState(element.bingo) };
     }
     if (element.children && element.children.length > 0) {
       data.children = { create: buildElementCreates(overlayId, element.children) };
@@ -148,7 +154,11 @@ export const handleOverlaysRoutes = async (
 
     if (req.method === "PATCH") {
       try {
-        const body = await req.json();
+        const body = (await req.json()) as {
+          name?: unknown;
+          description?: unknown;
+          globalStyle?: unknown;
+        } | null;
         const { name, description, globalStyle } = body ?? {};
         const dataToUpdate: { name?: string; description?: string | null; globalStyle?: object } =
           {};
@@ -235,7 +245,13 @@ export const handleOverlaysRoutes = async (
 
     if (req.method === "POST") {
       try {
-        const { name, description, type, elementName, presetId } = await req.json();
+        const { name, description, type, elementName, presetId } = (await req.json()) as {
+          name?: string;
+          description?: string;
+          type?: string;
+          elementName?: string;
+          presetId?: string;
+        };
 
         // If presetId is provided, create overlay based on preset
         if (presetId) {
@@ -247,6 +263,13 @@ export const handleOverlaysRoutes = async (
           const selectedPreset = presets.presets.find((p: { id: string }) => p.id === presetId);
           if (!selectedPreset) {
             return new Response(JSON.stringify({ error: "Invalid preset ID" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          if (!name) {
+            return new Response(JSON.stringify({ error: "Name is required" }), {
               status: 400,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });

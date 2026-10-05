@@ -11,6 +11,7 @@ export const overlayElementsInclude = {
       counter: true,
       timer: true,
       image: true,
+      bingo: true,
     },
   },
 };

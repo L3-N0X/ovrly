@@ -13,6 +13,7 @@ import {
 import { extractInstruction } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 import { ChevronsDownUp, ChevronsUpDown, Layers } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { BingoDataUpdate } from "@/lib/bingo";
 import { AddElementModal } from "../AddElementModal";
 import { ElementInspector } from "./ElementInspector";
 import { DropLine, ElementTreeItem, INDENT } from "./ElementTreeItem";
@@ -36,6 +37,7 @@ export interface ElementListEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
   onStructureChange: OnStructureChange;
+  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
   selectedId: string | null;
   onSelect: (elementId: string | null) => void;
   // Scroll the settings into view when the selection changes (e.g. picked on the canvas).
@@ -57,6 +59,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   overlay,
   onOverlayChange,
   onStructureChange,
+  onBingoDataChange,
   selectedId,
   onSelect: setSelectedId,
   revealSelection = false,
@@ -312,6 +315,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             element={selected}
             overlay={overlay}
             onOverlayChange={onOverlayChange}
+            onBingoDataChange={onBingoDataChange}
             onDelete={() => deleteElement(selected.id)}
           />
         </div>

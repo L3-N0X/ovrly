@@ -26,6 +26,7 @@ All Elements are editable to change their content.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
 * **Timer:** Count up or down for speedruns, events, or breaks.
 * **Image:** Add player photos, logos, or more.
+* **Bingo:** A 3x3 to 7x7 card. Mark cells as the game is called, with an optional free middle and a shuffle button.
 * **Container:** Group and organize elements within your overlay.
 
 ## 📺 Usage in OBS
@@ -94,6 +95,12 @@ You need to set the following environment variables in a `.env` file in the root
 | `S3_REGION`            | Optional. Region used for request signing.                                  | `us-east-1` (default)                 |
 | `MAX_UPLOAD_BYTES`     | Optional. Maximum image size in bytes.                                      | `10485760` (default, 10 MB)           |
 | `WS_ALLOWED_ORIGINS`   | Optional. Extra comma-separated origins allowed to open the live-update WebSocket (`APP_BASE_URL` is always allowed). | `https://overlays.example.com` |
+| `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
+
+> [!NOTE]
+> The Google Fonts API key is compiled into the frontend bundle at build time.
+> Without it the app still runs, but the font picker shows only the bundled
+> Minecraft fonts and logs `Google Fonts API key is not configured`.
 
 ## ⚙️ Getting Started
 
@@ -110,6 +117,10 @@ You need to set the following environment variables in a `.env` file in the root
     bun install
     ```
 
+    This also generates the Prisma client into `src/generated/prisma`
+    (git-ignored). Prisma 7 no longer does this automatically, so a
+    `postinstall` hook runs `prisma generate` for you.
+
 3. Create a `.env` file based on the environment variables below.
 4. Run the development server:
 
@@ -119,6 +130,27 @@ You need to set the following environment variables in a `.env` file in the root
 
     This will start the frontend at `http://localhost:5173` and the backend at `http://localhost:3000`.
 
+5. Apply database migrations:
+
+    ```bash
+    bunx prisma migrate deploy
+    ```
+
+    The generated client is not committed to the repository. If you pull a change
+    that touches `prisma/schema.prisma`, re-run `bunx prisma generate` — a client
+    built from an older schema will not know about new models or relations.
+
+### Type Checking
+
+```bash
+bun run typecheck
+```
+
+This checks the frontend, the Vite config, and the backend (`server.ts`,
+`routes/`, `middleware/`, `lib/`, `services/`, `types/`). The backend is covered
+by `tsconfig.server.json`; the generated Prisma client in `src/generated` is
+excluded because it is machine-written.
+
 ### Building for Production
 
 ```bash
@@ -126,6 +158,10 @@ bun run build
 ```
 
 This will create an optimized production build in the `dist` directory.
+
+## 📚 Further Documentation
+
+* [Bingo element](docs/bingo.md) — data model, API and rendering behaviour.
 
 ## ❤️ Contributing
 

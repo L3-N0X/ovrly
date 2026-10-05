@@ -10,6 +10,12 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ovrly"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
 
   # Self-hosted S3-compatible object storage for uploaded images (RustFS).
@@ -67,7 +73,7 @@ services:
       - "3000:3000"
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       s3-init:
         condition: service_completed_successfully
     # IMPORTANT: Update these environment variables as needed

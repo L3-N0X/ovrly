@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
@@ -21,6 +22,7 @@ const OverlayPage: React.FC = () => {
     handleImmediateCounterChange,
     handleTitleChange,
     handleImageChange,
+    handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerUpdate,
@@ -82,7 +84,7 @@ const OverlayPage: React.FC = () => {
     return <div className="flex items-center justify-center min-h-screen">Overlay not found</div>;
 
   return (
-    <>
+    <BingoDataProvider onBingoDataChange={handleBingoDataChange}>
       {loadOverlayFonts(overlay)}
       <div className="container mx-auto">
         <OverlayHeader
@@ -108,6 +110,7 @@ const OverlayPage: React.FC = () => {
               handleImmediateCounterChange={handleImmediateCounterChange}
               handleTitleChange={handleTitleChange}
               handleImageChange={handleImageChange}
+              handleBingoDataChange={handleBingoDataChange}
               handleTimerToggle={handleTimerToggle}
               handleTimerReset={handleTimerReset}
               handleTimerUpdate={handleTimerUpdate}
@@ -120,6 +123,7 @@ const OverlayPage: React.FC = () => {
               overlay={overlay}
               onOverlayChange={handleOverlayChange}
               onStructureChange={handleStructureChange}
+              onBingoDataChange={handleBingoDataChange}
               selectedId={selection.id}
               onSelect={selectFromTree}
               revealSelection={selection.fromCanvas}
@@ -134,7 +138,7 @@ const OverlayPage: React.FC = () => {
         isOpen={isShareModalOpen}
         onClose={handleToggleShareModal}
       />
-    </>
+    </BingoDataProvider>
   );
 };
 

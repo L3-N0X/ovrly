@@ -1,11 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -97,6 +96,7 @@ model Element {
   counter   Counter?
   timer     Timer?
   image     ImageElement?
+  bingo     Bingo?
 
   // Self-relation for grouping
   parentId  String?
@@ -114,6 +114,7 @@ enum ElementType {
   CONTAINER
   IMAGE
   GROUP
+  BINGO
 }
 
 model Title {
@@ -145,6 +146,16 @@ model ImageElement {
   src       String
   elementId String  @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+model Bingo {
+  id         String  @id @default(cuid())
+  size       Int     @default(5)
+  freeMiddle Boolean @default(false)
+  fields     Json
+  checked    Json
+  elementId  String  @unique
+  element    Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model Account {
