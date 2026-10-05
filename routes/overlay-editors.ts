@@ -40,7 +40,7 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
 
   if (req.method === "POST") {
     try {
-      const { twitchName } = await req.json();
+      const { twitchName } = (await req.json()) as { twitchName?: string };
       if (!twitchName) {
         return new Response(JSON.stringify({ error: "Twitch name is required" }), {
           status: 400,

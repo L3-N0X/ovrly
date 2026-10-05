@@ -2,9 +2,9 @@ import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
-export const getRecursiveElementInclude = (depth: number) => {
+export const getRecursiveElementInclude = (depth: number): Prisma.ElementInclude => {
   if (depth <= 0) {
     return {
       title: true,
@@ -83,7 +83,7 @@ export const handleElementsRoutes = async (
     }
 
     try {
-      const { name, type } = await req.json();
+      const { name, type } = (await req.json()) as { name?: string; type?: string };
       if (!name || !type) {
         return new Response(JSON.stringify({ error: "Name and type are required" }), {
           status: 400,
@@ -165,7 +165,7 @@ export const handleElementsRoutes = async (
     }
 
     try {
-      const { ids } = await req.json();
+      const { ids } = (await req.json()) as { ids?: string[] };
       if (!Array.isArray(ids) || ids.length === 0) {
         return new Response(JSON.stringify({ error: "Element IDs are required" }), {
           status: 400,
@@ -309,7 +309,22 @@ export const handleElementsRoutes = async (
 
     if (req.method === "PATCH") {
       try {
-        const { name, style, data, position, parentId } = await req.json();
+        const { name, style, data, position, parentId } = (await req.json()) as {
+          name?: string;
+          style?: unknown;
+          data?: {
+            text?: string;
+            value?: number;
+            src?: string;
+            startedAt?: string | null;
+            pausedAt?: string | null;
+            duration?: number;
+            countDown?: boolean;
+            [key: string]: unknown;
+          };
+          position?: unknown;
+          parentId?: string | null;
+        };
         const elementUpdateData: Prisma.ElementUncheckedUpdateInput =
           {} as Prisma.ElementUncheckedUpdateInput;
         if (name) elementUpdateData.name = name;

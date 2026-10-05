@@ -68,6 +68,12 @@ You need to set the following environment variables in a `.env` file in the root
 | `AUTH_SECRET`          | A secret key for signing authentication tokens.                             | `a-very-secret-key`                   |
 | `AUTH_TWITCH_ID`       | Your Twitch application's Client ID.                                        | `your-twitch-client-id`               |
 | `AUTH_TWITCH_SECRET`   | Your Twitch application's Client Secret.                                    | `your-twitch-client-secret`           |
+| `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
+
+> [!NOTE]
+> The Google Fonts API key is compiled into the frontend bundle at build time.
+> Without it the app still runs, but the font picker shows only the bundled
+> Minecraft fonts and logs `Google Fonts API key is not configured`.
 
 ## ⚙️ Getting Started
 
@@ -84,6 +90,10 @@ You need to set the following environment variables in a `.env` file in the root
     bun install
     ```
 
+    This also generates the Prisma client into `src/generated/prisma`
+    (git-ignored). Prisma 7 no longer does this automatically, so a
+    `postinstall` hook runs `prisma generate` for you.
+
 3. Create a `.env` file based on the environment variables below.
 4. Run the development server:
 
@@ -93,16 +103,26 @@ You need to set the following environment variables in a `.env` file in the root
 
     This will start the frontend at `http://localhost:5173` and the backend at `http://localhost:3000`.
 
-5. Apply database migrations and regenerate the Prisma client:
+5. Apply database migrations:
 
     ```bash
     bunx prisma migrate deploy
-    bunx prisma generate
     ```
 
     The generated client is not committed to the repository. If you pull a change
-    that touches `prisma/schema.prisma`, re-run `prisma generate` — a client built
-    from an older schema will not know about new models or relations.
+    that touches `prisma/schema.prisma`, re-run `bunx prisma generate` — a client
+    built from an older schema will not know about new models or relations.
+
+### Type Checking
+
+```bash
+bun run typecheck
+```
+
+This checks the frontend, the Vite config, and the backend (`server.ts`,
+`routes/`, `middleware/`, `lib/`, `services/`, `types/`). The backend is covered
+by `tsconfig.server.json`; the generated Prisma client in `src/generated` is
+excluded because it is machine-written.
 
 ### Building for Production
 

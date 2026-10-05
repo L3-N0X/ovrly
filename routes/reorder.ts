@@ -1,26 +1,7 @@
 import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
-
-const getRecursiveElementInclude = (depth: number) => {
-  if (depth <= 0) {
-    return {
-      title: true,
-      counter: true,
-      timer: true,
-      image: true,
-    };
-  }
-  return {
-    title: true,
-    counter: true,
-    timer: true,
-    image: true,
-    children: {
-      include: getRecursiveElementInclude(depth - 1),
-    },
-  };
-};
+import { getRecursiveElementInclude } from "./elements";
 
 export const handleReorderRoutes = async (
   req: Request,
@@ -38,7 +19,10 @@ export const handleReorderRoutes = async (
     }
 
     try {
-      const { elements, overlayId } = await req.json();
+      const { elements, overlayId } = (await req.json()) as {
+        elements?: { id: string; parentId?: string | null; position?: number | null }[];
+        overlayId?: string;
+      };
       if (!elements || !Array.isArray(elements) || !overlayId) {
         return new Response(JSON.stringify({ error: "Invalid request body" }), {
           status: 400,

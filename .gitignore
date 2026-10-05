@@ -25,7 +25,7 @@ dist-ssr
 *.sln
 *.sw?
 
-/generated/prisma
+/src/generated/prisma
 
 prisma/dev.db
 /uploads

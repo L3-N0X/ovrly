@@ -1,7 +1,7 @@
 import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../src/generated/prisma/client";
 
 export const handleEditorsRoutes = async (req: Request, path: string) => {
   const editorRouteRegex = /^\/api\/editors(?:\/([^/]+))?$/;
@@ -32,7 +32,7 @@ export const handleEditorsRoutes = async (req: Request, path: string) => {
   // POST /api/editors - Add a new editor
   if (req.method === "POST" && !editorIdentifier) {
     try {
-      const { twitchName } = await req.json();
+      const { twitchName } = (await req.json()) as { twitchName?: string };
       if (!twitchName) {
         return new Response(JSON.stringify({ error: "Twitch name is required" }), {
           status: 400,

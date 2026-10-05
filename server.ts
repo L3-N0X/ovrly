@@ -10,7 +10,7 @@ import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
 import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
-import { WebSocketData } from "./types";
+import type { WebSocketData } from "./types";
 import path from "path";
 
 dotenv.config();
@@ -52,7 +52,7 @@ async function serveStaticFile(filePath: string): Promise<Response | null> {
   return null;
 }
 
-const server = Bun.serve({
+const server = Bun.serve<WebSocketData>({
   port: 3000,
   async fetch(req, server) {
     const url = new URL(req.url);
@@ -158,7 +158,7 @@ const server = Bun.serve({
   },
   websocket: {
     open(ws) {
-      const { overlayId } = ws.data as WebSocketData;
+      const { overlayId } = ws.data;
       ws.subscribe(`overlay-${overlayId}`);
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
@@ -166,7 +166,7 @@ const server = Bun.serve({
       // Not used in this implementation, but good to have for future features
     },
     close(ws) {
-      const { overlayId } = ws.data as WebSocketData;
+      const { overlayId } = ws.data;
       console.log(`[SERVER LOG] WebSocket connection closed for overlay ${overlayId}`);
     },
   },
