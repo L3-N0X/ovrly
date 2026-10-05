@@ -1,4 +1,4 @@
-import { ElementTypeEnum, type PrismaOverlay } from "@/lib/types";
+import { isParentType, type ElementType, type PrismaOverlay } from "@/lib/types";
 import {
   extractClosestEdge,
   type Edge,
@@ -105,7 +105,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         let targetParentId: string | null;
         let isDroppedInsideContainer = false;
 
-        if (targetData.type === ElementTypeEnum.CONTAINER) {
+        if (isParentType(targetData.type as ElementType)) {
           // Check if we have a closest edge
           if (closestEdge) {
             // Dropped on the edge of a container - treat as sibling
@@ -260,7 +260,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
             onOverlayChange={onOverlayChange}
             overlay={overlay}
             onDeleteElement={deleteElement}
-            className={element.type === ElementTypeEnum.CONTAINER ? "mb-3" : "mb-1"}
+            className={isParentType(element.type) ? "mb-3" : "mb-1"}
           />
         ))}
       </div>

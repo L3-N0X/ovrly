@@ -5,6 +5,7 @@ import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
 import Image from "./Image";
+import Group from "./Group";
 
 interface ElementDisplayProps {
   element: PrismaElement;
@@ -40,6 +41,14 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         );
       case "IMAGE":
         return <Image element={element} />;
+      case "GROUP":
+        return (
+          <Group
+            element={element}
+            childElements={children}
+            renderChild={(child) => <ElementDisplay element={child} elements={elements} />}
+          />
+        );
       default:
         return null;
     }

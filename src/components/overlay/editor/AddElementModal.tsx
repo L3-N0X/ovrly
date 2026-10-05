@@ -84,6 +84,7 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
                 <SelectItem value={ElementTypeEnum.TIMER}>Timer</SelectItem>
                 <SelectItem value={ElementTypeEnum.IMAGE}>Image</SelectItem>
                 <SelectItem value={ElementTypeEnum.CONTAINER}>Container</SelectItem>
+                <SelectItem value={ElementTypeEnum.GROUP}>Group (free positioning)</SelectItem>
               </SelectContent>
             </Select>
           </div>

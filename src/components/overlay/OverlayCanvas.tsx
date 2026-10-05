@@ -1,12 +1,15 @@
 import React from "react";
 import type { PrismaOverlay } from "@/lib/types";
 import ElementDisplay from "./ElementDisplay";
+import { CanvasEditingContext, type CanvasEditing } from "./canvasEditing";
 
 interface OverlayCanvasProps {
   overlay: PrismaOverlay;
+  // Makes elements inside groups movable. Left out on the public page.
+  editing?: CanvasEditing | null;
 }
 
-const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
+const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay, editing = null }) => {
   const { globalStyle, elements } = overlay;
 
   // For backward compatibility, we check for new property names first, then fallback to old ones
@@ -45,13 +48,15 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ overlay }) => {
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   return (
-    <div style={outerStyle}>
-      <div style={innerStyle}>
-        {rootElements.map((element) => (
-          <ElementDisplay key={element.id} element={element} elements={elements} />
-        ))}
+    <CanvasEditingContext.Provider value={editing}>
+      <div style={outerStyle}>
+        <div style={innerStyle}>
+          {rootElements.map((element) => (
+            <ElementDisplay key={element.id} element={element} elements={elements} />
+          ))}
+        </div>
       </div>
-    </div>
+    </CanvasEditingContext.Provider>
   );
 };
 

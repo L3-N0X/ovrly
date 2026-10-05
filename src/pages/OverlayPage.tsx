@@ -79,7 +79,7 @@ const OverlayPage: React.FC = () => {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          <OverlayPreview overlay={overlay} />
+          <OverlayPreview overlay={overlay} onOverlayChange={handleOverlayChange} />
 
           <div className="space-y-8 pb-96">
             <DataControls

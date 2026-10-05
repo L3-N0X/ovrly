@@ -4,7 +4,12 @@ export const ElementTypeEnum = {
   CONTAINER: "CONTAINER",
   TIMER: "TIMER",
   IMAGE: "IMAGE",
+  GROUP: "GROUP",
 } as const;
+
+// Element types that hold other elements.
+export const isParentType = (type: ElementType) =>
+  type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
@@ -45,6 +50,9 @@ export interface BaseElementStyle {
   fontFamily?: string;
   fontSize?: number;
   color?: string;
+  // Offset from the top left corner of the parent, used when the parent is a GROUP.
+  x?: number;
+  y?: number;
 }
 
 // Specific style for a Counter element
@@ -87,8 +95,26 @@ export interface ContainerStyle extends BaseElementStyle {
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
 }
 
+// Groups start out covering the whole 800x600 canvas.
+export const DEFAULT_GROUP_WIDTH = 800;
+export const DEFAULT_GROUP_HEIGHT = 600;
+
+// Specific style for a Group element: a fixed-size area whose children are placed freely
+export interface GroupStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  backgroundColor?: string;
+  radius?: number;
+}
+
 // A union of all possible element style types
-export type ElementStyle = BaseElementStyle | CounterStyle | ContainerStyle | TimerStyle | ImageStyle;
+export type ElementStyle =
+  | BaseElementStyle
+  | CounterStyle
+  | ContainerStyle
+  | TimerStyle
+  | ImageStyle
+  | GroupStyle;
 
 // The generic Element object from the backend
 export interface PrismaElement {

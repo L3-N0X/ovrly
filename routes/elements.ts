@@ -4,7 +4,7 @@ import { corsHeaders } from "../middleware/cors";
 import { publishOverlay } from "../services/overlay-query";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
-const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "CONTAINER"];
+const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "CONTAINER", "GROUP"];
 
 async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
   const allIds = new Set<string>(initialIds);
@@ -82,6 +82,9 @@ export const handleElementsRoutes = async (
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
+      } else if (type === "GROUP") {
+        // Children are positioned freely inside it; it starts out covering the whole canvas.
+        elementCreateData.style = { width: 800, height: 600 };
       } else {
         return new Response(JSON.stringify({ error: "Invalid element type" }), {
           status: 400,

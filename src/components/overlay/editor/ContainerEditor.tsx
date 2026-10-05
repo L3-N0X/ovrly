@@ -11,8 +11,6 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { type ContainerStyle, type PrismaElement, type PrismaOverlay } from "@/lib/types";
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import {
   AlignHorizontalDistributeCenter,
   AlignHorizontalJustifyCenter,
@@ -30,8 +28,8 @@ import {
   StretchHorizontal,
   Trash2,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { ElementListItem } from "./elementlist/ElementListItem";
+import React, { useState } from "react";
+import { ChildList } from "./elementlist/ChildList";
 import { handleValueChange } from "./helper";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
@@ -51,10 +49,6 @@ export const ContainerEditor: React.FC<{
   };
 
   const style = (element.style || {}) as ContainerStyle;
-  const children = overlay.elements
-    .filter((e) => e.parentId === element.id)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-
   // Local slider state keeps dragging responsive; the style is committed on release
   const gapSlider = useSliderValue(
     typeof style?.gap === "number" ? style.gap : 0,
@@ -69,76 +63,16 @@ export const ContainerEditor: React.FC<{
     { onCommit: (v) => updateStyle("paddingY", v) }
   );
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const elementsRef = useRef(overlay.elements);
-  useEffect(() => {
-    elementsRef.current = overlay.elements;
-  });
-  const [isDraggedOver, setIsDraggedOver] = useState(false);
   const [editorExpanded, setEditorExpanded] = useState(false);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    return combine(
-      dropTargetForElements({
-        element: el,
-        canDrop: ({ source }) => {
-          // Don't allow dropping a container into itself or anywhere inside its own subtree
-          for (
-            let currentId: string | null | undefined = element.id;
-            currentId;
-            currentId = elementsRef.current.find((e) => e.id === currentId)?.parentId
-          ) {
-            if (currentId === source.data.id) return false;
-          }
-          return true;
-        },
-        getData: () => {
-          // No closest edge - this signals dropping INSIDE the container
-          return {
-            id: element.id,
-            type: element.type,
-            parentId: element.parentId,
-          };
-        },
-        onDragEnter: () => {
-          setIsDraggedOver(true);
-        },
-        onDragLeave: () => {
-          setIsDraggedOver(false);
-        },
-        onDrop: () => {
-          setIsDraggedOver(false);
-        },
-      })
-    );
-  }, [element.id, element.type, element.parentId]);
 
   return (
     <div className="space-y-2 p-2 border rounded-lg">
-      <div
-        ref={containerRef}
-        className={`p-2 rounded-lg space-y-2 min-h-[80px] relative transition-colors ${
-          isDraggedOver ? "bg-chart-1/20 border-2 border-chart-1 border-dashed" : "bg-muted/50"
-        }`}
-      >
-        {children.length === 0 && (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm py-6">
-            Drop elements here
-          </div>
-        )}
-        {children.map((child) => (
-          <ElementListItem
-            key={child.id}
-            element={child}
-            overlay={overlay}
-            onOverlayChange={onOverlayChange}
-            onDeleteElement={onDeleteElement}
-          />
-        ))}
-      </div>
+      <ChildList
+        element={element}
+        overlay={overlay}
+        onOverlayChange={onOverlayChange}
+        onDeleteElement={onDeleteElement}
+      />
       <div
         className="text-sm text-primary w-full text-center cursor-pointer select-none hover:bg-accent/50 p-2 rounded-lg"
         onClick={() => setEditorExpanded(!editorExpanded)}

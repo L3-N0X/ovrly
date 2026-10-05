@@ -1,6 +1,7 @@
 import { Chip } from "@/components/ui/Chip";
 import {
   ElementTypeEnum,
+  isParentType,
   type ElementStyle,
   type PrismaElement,
   type PrismaOverlay,
@@ -22,6 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
+import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TitleStyleEditor } from "../TitleEditor";
@@ -167,6 +169,9 @@ export const ElementListItem = ({
     );
   }, [element, expanded]);
 
+  const isInGroup =
+    overlay.elements.find((e) => e.id === element.parentId)?.type === ElementTypeEnum.GROUP;
+
   // onOverlayChange persists the style change itself (debounced per element).
   const updateElementStyle = (elementId: string, newStyle: ElementStyle) => {
     onOverlayChange({
@@ -213,7 +218,7 @@ export const ElementListItem = ({
           <Chip
             className={
               "ml-1 text-xs" +
-              (element.type === ElementTypeEnum.CONTAINER
+              (isParentType(element.type)
                 ? " bg-chart-1/30 text-white border-chart-1"
                 : " bg-secondary-foreground/10 text-foreground border-secondary-foreground/10")
             }
@@ -229,6 +234,14 @@ export const ElementListItem = ({
       </div>
       {expanded && (
         <div className="animate-fadeIn overflow-hidden mt-2">
+          {isInGroup && (
+            <GroupPositionEditor
+              element={element}
+              onChange={(position) =>
+                updateElementStyle(element.id, { ...(element.style || {}), ...position })
+              }
+            />
+          )}
           {element.type === ElementTypeEnum.TITLE && (
             <TitleStyleEditor
               element={element}
@@ -267,6 +280,16 @@ export const ElementListItem = ({
           )}
           {element.type === ElementTypeEnum.CONTAINER && (
             <ContainerEditor
+              element={element}
+              overlay={overlay}
+              onOverlayChange={onOverlayChange}
+              onChange={(style) => updateElementStyle(element.id, style)}
+              onDelete={() => onDeleteElement?.(element.id)}
+              onDeleteElement={onDeleteElement}
+            />
+          )}
+          {element.type === ElementTypeEnum.GROUP && (
+            <GroupEditor
               element={element}
               overlay={overlay}
               onOverlayChange={onOverlayChange}
