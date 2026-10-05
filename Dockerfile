@@ -40,21 +40,27 @@ WORKDIR /app
 # Install openssl for the Prisma schema engine and ca-certificates for TLS
 RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY package.json bun.lock ./
-COPY prisma.config.ts ./
-
-# Copy built artifacts and necessary source from the builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/src/generated ./src/generated
-COPY --from=builder /app/server.ts ./server.ts
-COPY --from=builder /app/auth.ts ./auth.ts
-COPY --from=builder /app/middleware ./middleware
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/routes ./routes
-COPY --from=builder /app/services ./services
-COPY --from=builder /app/types ./types
+# Copy the whole builder tree in one step.
+#
+# This deliberately does NOT enumerate the directories the server needs
+# (routes/, lib/, services/, middleware/, types/, auth.ts, ...). An allowlist
+# has to be edited by hand whenever server code is added or moved, and when it
+# is forgotten the image still builds and then dies on startup with
+# "Cannot find module" (which is exactly how lib/ went missing once already).
+# Listing what to exclude instead means new server code is included by default.
+#
+# .dockerignore applies to the `COPY . .` in the builder stage, so the build
+# context never carries .git or .env* into this image. node_modules and dist
+# come from the builder's `bun install` and `bun run build` rather than the
+# context, and src/generated is the copy that `prisma generate` wrote above --
+# so everything the server actually imports at runtime lands in /app.
+#
+# The trade-off is that the frontend source ships too, measured at ~727 KB on an
+# image of ~1.07 GB. Not worth trading for a list that has to be kept in sync.
+#
+# node_modules comes along from the builder's `bun install`, which keeps the
+# Prisma CLI available for `migrate deploy` in the CMD below.
+COPY --from=builder /app ./
 
 # Expose the port the server will run on
 EXPOSE 3000
