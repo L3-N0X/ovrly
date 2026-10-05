@@ -23,6 +23,8 @@ export interface CustomFont {
 
 export type Font = GoogleFont | CustomFont;
 
+type CustomFontSource = Pick<CustomFont, "family" | "category" | "variants" | "urls">;
+
 const API_KEY = import.meta.env.VITE_GOOGLE_FONTS_API_KEY;
 const API_URL = "https://www.googleapis.com/webfonts/v1/webfonts";
 
@@ -66,9 +68,9 @@ export async function fetchCustomFonts(): Promise<CustomFont[]> {
       console.error("Failed to fetch custom fonts, status:", response.status);
       return [];
     }
-    const customFontsData = await response.json();
+    const customFontsData = (await response.json()) as CustomFontSource[];
 
-    return customFontsData.map((font: any) => ({
+    return customFontsData.map((font) => ({
       family: font.family,
       category: font.category,
       variants: font.variants,
