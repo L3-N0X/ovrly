@@ -27,7 +27,6 @@ const OverlayPage: React.FC = () => {
     handleDeleteOverlay,
     selectedTimer,
     setSelectedTimer,
-    ws,
   } = useOverlayData();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
 
@@ -97,7 +96,7 @@ const OverlayPage: React.FC = () => {
               setSelectedTimer={setSelectedTimer}
             />
 
-            <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} ws={ws} />
+            <StyleEditor overlay={overlay} onOverlayChange={handleOverlayChange} />
 
             <OverlayAdditionalOptions handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
           </div>

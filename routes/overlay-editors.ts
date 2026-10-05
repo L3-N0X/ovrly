@@ -3,14 +3,6 @@ import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 
 export const handleOverlayEditorsRoutes = async (req: Request, path: string) => {
-  const session = await authenticate(req);
-  if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const overlayEditorRegex = /\/api\/overlays\/([^/]+)\/editors(?:\/([^/]+))?/;
   const match = path.match(overlayEditorRegex);
 
@@ -19,6 +11,14 @@ export const handleOverlayEditorsRoutes = async (req: Request, path: string) => 
   }
 
   const [, overlayId, editorIdentifier] = match;
+
+  const session = await authenticate(req);
+  if (!session) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const authorized = await authorize(session.user.id, overlayId);
   if (!authorized) {

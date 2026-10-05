@@ -21,18 +21,16 @@ import {
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { handleValueChange } from "./helper";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 
 interface GlobalStyleEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
-  ws?: WebSocket | null;
 }
 
 export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
   overlay,
   onOverlayChange,
-  ws = null,
 }) => {
   const updateGlobalStyle = (path: string, value: string | number) => {
     const newOverlay = JSON.parse(JSON.stringify(overlay));
@@ -56,17 +54,12 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
     onOverlayChange(newOverlay);
   };
 
-  // Synced sliders for improved responsiveness and websocket broadcasts.
-  const syncedGap = useSyncedSlider(
-    "global.gap",
-    typeof overlay.globalStyle?.gap === "number" ? overlay.globalStyle.gap : 16,
-    ws ?? null
+  // Local slider state keeps dragging responsive; the style is committed on release.
+  const syncedGap = useSliderValue(
+    typeof overlay.globalStyle?.gap === "number" ? overlay.globalStyle.gap : 16
   );
-  const syncedPadding = useSyncedSlider(
-    "global.padding",
-    typeof overlay.globalStyle?.padding === "number" ? overlay.globalStyle.padding : 0,
-    ws ?? null,
-    { ignoreWindowMs: 300 }
+  const syncedPadding = useSliderValue(
+    typeof overlay.globalStyle?.padding === "number" ? overlay.globalStyle.padding : 0
   );
 
   return (

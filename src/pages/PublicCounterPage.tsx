@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import OverlayCanvas from "../components/overlay/OverlayCanvas";
 import FontLoader from "../components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
+import { connectOverlaySocket } from "@/lib/overlaySocket";
 
 const PublicCounterPage = () => {
   const { overlayId } = useParams();
@@ -25,26 +26,12 @@ const PublicCounterPage = () => {
 
     fetchInitialData();
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws?overlayId=${overlayId}`);
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setOverlay(data);
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket connection closed. Reconnecting...");
-      // Implement reconnection logic here if needed
-    };
-
-    return () => {
-      ws.close();
-    };
+    // Reconnects on its own (an OBS source can't be reloaded by hand), and refetches after
+    // a drop to pick up whatever was broadcast while the connection was down.
+    return connectOverlaySocket(overlayId, {
+      onOverlay: setOverlay,
+      onReconnect: fetchInitialData,
+    });
   }, [overlayId]);
 
   // Function to extract and load fonts from overlay data

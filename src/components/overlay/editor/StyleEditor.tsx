@@ -7,10 +7,9 @@ import { ElementListEditor } from "./elementlist/ElementListEditor";
 interface StyleEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
-  ws: WebSocket | null;
 }
 
-const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange, ws }) => {
+const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange }) => {
   return (
     <Card>
       <CardHeader>
@@ -18,9 +17,9 @@ const StyleEditor: React.FC<StyleEditorProps> = ({ overlay, onOverlayChange, ws 
         <CardDescription>Customize the look and feel of your overlay.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} ws={ws} />
+        <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
         <hr />
-        <ElementListEditor overlay={overlay} onOverlayChange={onOverlayChange} ws={ws} />
+        <ElementListEditor overlay={overlay} onOverlayChange={onOverlayChange} />
       </CardContent>
     </Card>
   );

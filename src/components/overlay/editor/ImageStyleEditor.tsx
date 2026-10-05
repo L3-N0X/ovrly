@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GalleryHorizontal, Grid2x2, Pencil, ScanEye, Square, Trash2 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
 interface ImageStyleEditorProps {
@@ -22,7 +22,6 @@ interface ImageStyleEditorProps {
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   onChange: (style: ImageStyle) => void;
   onDelete?: () => void;
-  ws: WebSocket | null;
 }
 
 const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
@@ -31,7 +30,6 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
   onOverlayChange,
   onChange,
   onDelete,
-  ws,
 }) => {
   const [style, setStyle] = useState<ImageStyle>((element.style as ImageStyle) || {});
 
@@ -48,13 +46,9 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
     onChange(newStyle);
   };
 
-  const widthSlider = useSyncedSlider(`${element.id}-width`, style.width || 100, ws);
-  const heightSlider = useSyncedSlider(`${element.id}-height`, style.height || 100, ws);
-  const borderRadiusSlider = useSyncedSlider(
-    `${element.id}-borderRadius`,
-    style.borderRadius || 0,
-    ws
-  );
+  const widthSlider = useSliderValue(style.width || 100);
+  const heightSlider = useSliderValue(style.height || 100);
+  const borderRadiusSlider = useSliderValue(style.borderRadius || 0);
 
   useEffect(() => {
     handleImmediateValueChange("width", widthSlider.value);

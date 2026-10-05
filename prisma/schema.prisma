@@ -34,6 +34,8 @@ model Image {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Editor {
@@ -47,6 +49,9 @@ model Editor {
   updatedAt        DateTime @updatedAt
 
   @@unique([ownerId, editorTwitchName])
+
+  @@index([editorId])
+  @@index([editorTwitchName])
 }
 
 model Overlay {
@@ -60,6 +65,8 @@ model Overlay {
   editors     OverlayEditor[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
 }
 
 model OverlayEditor {
@@ -71,6 +78,9 @@ model OverlayEditor {
   editor           User?    @relation(fields: [editorId], references: [id], onDelete: Cascade)
 
   @@unique([overlayId, editorTwitchName])
+
+  @@index([editorId])
+  @@index([editorTwitchName])
 }
 
 model Element {
@@ -92,6 +102,9 @@ model Element {
   parentId  String?
   parent    Element?    @relation("ElementChildren", fields: [parentId], references: [id], onDelete: Cascade)
   children  Element[]   @relation("ElementChildren")
+
+  @@index([overlayId, position])
+  @@index([parentId])
 }
 
 enum ElementType {
@@ -149,6 +162,9 @@ model Account {
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
   scope                 String?
+
+  @@index([userId])
+  @@index([providerId, accountId])
 }
 
 model Session {
@@ -161,6 +177,8 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Verification {
@@ -170,4 +188,6 @@ model Verification {
   expiresAt  DateTime
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
 }

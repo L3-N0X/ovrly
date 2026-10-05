@@ -33,7 +33,7 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { ElementListItem } from "./elementlist/ElementListItem";
 import { handleValueChange } from "./helper";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
 export const ContainerEditor: React.FC<{
@@ -42,8 +42,7 @@ export const ContainerEditor: React.FC<{
   onOverlayChange: (newOverlay: PrismaOverlay) => void;
   onChange: (newStyle: ContainerStyle) => void;
   onDelete?: () => void;
-  ws: WebSocket | null;
-}> = ({ element, onChange, overlay, onOverlayChange, onDelete, ws }) => {
+}> = ({ element, onChange, overlay, onOverlayChange, onDelete }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
@@ -54,23 +53,17 @@ export const ContainerEditor: React.FC<{
     .filter((e) => e.parentId === element.id)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  // Synced sliders for responsive UI + websocket broadcasts
-  const gapSlider = useSyncedSlider(
-    `${element.id}-gap`,
+  // Local slider state keeps dragging responsive; the style is committed on release
+  const gapSlider = useSliderValue(
     typeof style?.gap === "number" ? style.gap : 0,
-    ws,
     { onCommit: (v) => updateStyle("gap", v) }
   );
-  const paddingXSlider = useSyncedSlider(
-    `${element.id}-paddingX`,
+  const paddingXSlider = useSliderValue(
     typeof style?.paddingX === "number" ? style.paddingX : 0,
-    ws,
     { onCommit: (v) => updateStyle("paddingX", v) }
   );
-  const paddingYSlider = useSyncedSlider(
-    `${element.id}-paddingY`,
+  const paddingYSlider = useSliderValue(
     typeof style?.paddingY === "number" ? style.paddingY : 0,
-    ws,
     { onCommit: (v) => updateStyle("paddingY", v) }
   );
 
@@ -129,7 +122,6 @@ export const ContainerEditor: React.FC<{
             element={child}
             overlay={overlay}
             onOverlayChange={onOverlayChange}
-            ws={ws}
           />
         ))}
       </div>

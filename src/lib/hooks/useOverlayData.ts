@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { PrismaElement, PrismaOverlay } from "@/lib/types";
+import { connectOverlaySocket } from "@/lib/overlaySocket";
 
 export const useOverlayData = () => {
   const { id } = useParams<{ id: string }>();
@@ -10,7 +11,18 @@ export const useOverlayData = () => {
   const [error, setError] = useState<string | null>(null);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTimer, setSelectedTimer] = useState<PrismaElement | null>(null);
-  const [ws, setWs] = useState<WebSocket | null>(null);
+
+  // Quiet refetch used after the live connection drops and comes back.
+  const refreshOverlay = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/overlays/${id}`, { credentials: "include" });
+      if (response.ok) {
+        setOverlay(await response.json());
+      }
+    } catch (err) {
+      console.error("Failed to refresh overlay", err);
+    }
+  }, [id]);
 
   const fetchOverlay = useCallback(async () => {
     setIsLoading(true);
@@ -40,30 +52,20 @@ export const useOverlayData = () => {
   useEffect(() => {
     if (!id) return;
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsInstance = new WebSocket(`${wsProtocol}//${window.location.host}/ws?overlayId=${id}`);
-    setWs(wsInstance);
-
-    wsInstance.onmessage = (event) => {
-      try {
-        const updatedOverlay: PrismaOverlay = JSON.parse(event.data);
+    // Only `id` may restart the socket: reconnecting on every state change would drop
+    // broadcasts that arrive in between.
+    return connectOverlaySocket(id, {
+      onOverlay: (updatedOverlay) => {
         setOverlay(updatedOverlay);
-
-        if (selectedTimer) {
-          const newSelectedTimer = updatedOverlay.elements.find((el) => el.id === selectedTimer.id);
-          if (newSelectedTimer) {
-            setSelectedTimer(newSelectedTimer);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
-      }
-    };
-
-    return () => {
-      wsInstance.close();
-    };
-  }, [id, selectedTimer]);
+        setSelectedTimer((current) =>
+          current
+            ? (updatedOverlay.elements.find((el) => el.id === current.id) ?? current)
+            : current
+        );
+      },
+      onReconnect: refreshOverlay,
+    });
+  }, [id, refreshOverlay]);
 
   const debouncedUpdate = useCallback((url: string, body: object) => {
     if (debounceTimeout.current) {
@@ -391,6 +393,5 @@ export const useOverlayData = () => {
     handleDeleteOverlay,
     selectedTimer,
     setSelectedTimer,
-    ws,
   };
 };

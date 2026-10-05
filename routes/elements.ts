@@ -315,7 +315,26 @@ export const handleElementsRoutes = async (
           elementUpdateData.style = mergedStyle;
         }
         if (position) elementUpdateData.position = position;
-        if (parentId) elementUpdateData.parentId = parentId;
+        if (parentId) {
+          // The new parent must live in the same overlay (and must not be the element itself
+          // or one of its descendants), otherwise this could graft elements into another overlay.
+          const descendantIds =
+            typeof parentId === "string" ? await getAllDescendantIds(prisma, [elementId]) : [];
+          const parent =
+            typeof parentId === "string" && !descendantIds.includes(parentId)
+              ? await prisma.element.findFirst({
+                  where: { id: parentId, overlayId: element.overlayId },
+                  select: { id: true },
+                })
+              : null;
+          if (!parent) {
+            return new Response(JSON.stringify({ error: "Invalid parent element" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          elementUpdateData.parentId = parentId;
+        }
 
         if (data) {
           if (element.type === "TITLE" && typeof data.text === "string") {

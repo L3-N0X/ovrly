@@ -9,7 +9,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { debounce } from "@/lib/utils";
-import { useSyncedSlider } from "@/lib/hooks/useSyncedSlider";
+import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { RenameElementModal } from "./RenameElementModal";
 
 export const TitleStyleEditor: React.FC<{
@@ -18,8 +18,7 @@ export const TitleStyleEditor: React.FC<{
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   onChange: (newStyle: BaseElementStyle) => void;
   onDelete?: () => void;
-  ws?: WebSocket | null;
-}> = ({ element, overlay, onOverlayChange, onChange, onDelete, ws = null }) => {
+}> = ({ element, overlay, onOverlayChange, onChange, onDelete }) => {
   const [style, setStyle] = useState<BaseElementStyle>((element.style as BaseElementStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
@@ -37,12 +36,8 @@ export const TitleStyleEditor: React.FC<{
     debouncedOnChange(updatedStyle);
   };
 
-  // responsive local slider + debounced websocket sync
-  const syncedFontSize = useSyncedSlider(
-    `${element.id}.fontSize`,
-    typeof style?.fontSize === "number" ? style.fontSize : 36,
-    ws ?? null
-  );
+  // responsive local slider
+  const syncedFontSize = useSliderValue(typeof style?.fontSize === "number" ? style.fontSize : 36);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg">

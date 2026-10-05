@@ -32,14 +32,12 @@ export const ElementListItem = ({
   overlay,
   onDeleteElement,
   className = "",
-  ws,
 }: {
   element: PrismaElement;
   onOverlayChange: (updatedOverlay: PrismaOverlay) => void;
   overlay: PrismaOverlay;
   onDeleteElement?: (elementId: string) => void;
   className?: string;
-  ws: WebSocket | null;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -243,7 +241,6 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
-              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.COUNTER && (
@@ -253,7 +250,6 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
-              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.TIMER && (
@@ -263,7 +259,6 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
-              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.IMAGE && (
@@ -273,7 +268,6 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
-              ws={ws}
             />
           )}
           {element.type === ElementTypeEnum.CONTAINER && (
@@ -283,7 +277,6 @@ export const ElementListItem = ({
               onOverlayChange={onOverlayChange}
               onChange={(style) => updateElementStyle(element.id, style)}
               onDelete={() => onDeleteElement?.(element.id)}
-              ws={ws}
             />
           )}
         </div>

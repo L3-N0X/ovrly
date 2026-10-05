@@ -1,20 +1,18 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../auth";
 import { authenticate, authorize } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 
-async function createElementsRecursively(
-  overlayId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  elements: any[],
-  parentId: string | null = null,
-  startPosition = 0
-) {
-  let position = startPosition;
-  for (const element of elements) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const elementData: any = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ElementSeed = any;
+
+// Builds the nested create input for a sibling list. Children are created through Prisma's
+// nested writes, so each root element and its whole subtree go in with a single statement.
+function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
+  let position = 0;
+  return elements.map((element): Prisma.ElementUncheckedCreateWithoutParentInput => {
+    const data: Prisma.ElementUncheckedCreateWithoutParentInput = {
       overlayId,
-      parentId,
       name: element.name,
       type: element.type,
       style: element.style || {},
@@ -22,26 +20,39 @@ async function createElementsRecursively(
     };
 
     if (element.title) {
-      elementData.title = { create: { text: element.title.text } };
+      data.title = { create: { text: element.title.text } };
     }
     if (element.counter) {
-      elementData.counter = { create: { value: element.counter.value } };
+      data.counter = { create: { value: element.counter.value } };
     }
     if (element.timer) {
-      elementData.timer = {
+      data.timer = {
         create: { duration: element.timer.duration, countDown: element.timer.countDown },
       };
     }
     if (element.image) {
-      elementData.image = { create: { src: element.image.src } };
+      data.image = { create: { src: element.image.src } };
     }
-
-    const createdElement = await prisma.element.create({ data: elementData });
-
     if (element.children && element.children.length > 0) {
-      await createElementsRecursively(overlayId, element.children, createdElement.id, 0);
+      data.children = { create: buildElementCreates(overlayId, element.children) };
     }
-  }
+    return data;
+  });
+}
+
+// Creates the overlay and its element tree atomically: if any element fails to insert, the
+// overlay is rolled back too instead of being left behind empty or half-populated.
+async function createOverlayWithElements(
+  data: Prisma.OverlayUncheckedCreateInput,
+  elements: ElementSeed[]
+) {
+  return prisma.$transaction(async (tx) => {
+    const overlay = await tx.overlay.create({ data });
+    for (const element of buildElementCreates(overlay.id, elements)) {
+      await tx.element.create({ data: element });
+    }
+    return overlay;
+  });
 }
 
 export const handleOverlaysRoutes = async (
@@ -64,6 +75,9 @@ export const handleOverlaysRoutes = async (
       where: { id: overlayId },
       include: {
         elements: {
+          // `elements` is the flat list of every element in the overlay; only the roots are
+          // copied here, their children come along through the nested `children` include.
+          where: { parentId: null },
           include: {
             title: true,
             counter: true,
@@ -105,19 +119,16 @@ export const handleOverlaysRoutes = async (
       });
     }
 
-    // Create the overlay without elements
-    const newOverlay = await prisma.overlay.create({
-      data: {
+    const newOverlay = await createOverlayWithElements(
+      {
         name: `Copy of ${originalOverlay.name}`,
         description: originalOverlay.description,
         userId: session.user.id,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         globalStyle: originalOverlay.globalStyle as any,
       },
-    });
-
-    // Create elements recursively
-    await createElementsRecursively(newOverlay.id, originalOverlay.elements);
+      originalOverlay.elements
+    );
 
     // Fetch the complete overlay with elements
     const overlayWithElements = await prisma.overlay.findUnique({
@@ -447,18 +458,15 @@ export const handleOverlaysRoutes = async (
             });
           }
 
-          // Create the overlay without elements
-          const newOverlay = await prisma.overlay.create({
-            data: {
+          const newOverlay = await createOverlayWithElements(
+            {
               name,
               description,
               userId: session.user.id,
               globalStyle: selectedPreset.globalStyle || {},
             },
-          });
-
-          // Create elements recursively
-          await createElementsRecursively(newOverlay.id, selectedPreset.elements);
+            selectedPreset.elements
+          );
 
           // Fetch the complete overlay with elements
           const overlayWithElements = await prisma.overlay.findUnique({
