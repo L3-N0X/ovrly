@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { PrismaElement } from "@/lib/types";
-import React, { useState, useEffect } from "react";
+import React, { useMemo } from "react";
 import { Minus, Plus } from "lucide-react";
 import { NumberInputWithControls } from "@/components/ui/number-input-with-controls";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 interface TimerEditModalProps {
   element: PrismaElement;
@@ -28,22 +29,17 @@ export const TimerEditModal: React.FC<TimerEditModalProps> = ({
   onUpdate,
   onAddTime,
 }) => {
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
-  const [seconds, setSeconds] = useState(0);
-
-  useEffect(() => {
-    if (isOpen) {
-      setHours(0);
-      setMinutes(0);
-      setSeconds(0);
-    }
-  }, [isOpen]);
+  // A new open/closed session starts with empty fields; edits remain local within that session.
+  const initialTime = useMemo(
+    () => ({ isOpen, hours: 0, minutes: 0, seconds: 0 }),
+    [isOpen]
+  );
+  const { value: time, setValue: setTime } = useLocalCopy(initialTime);
 
   if (!element.timer) return null;
 
   const handleAddTime = (multiplier: 1 | -1) => {
-    const timeInMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
+    const timeInMs = (time.hours * 3600 + time.minutes * 60 + time.seconds) * 1000;
     onAddTime(element.id, timeInMs * multiplier);
   };
 
@@ -58,26 +54,36 @@ export const TimerEditModal: React.FC<TimerEditModalProps> = ({
             <NumberInputWithControls
               id="hours"
               label="Hours"
-              value={hours}
-              onChange={setHours}
-              onIncrement={() => setHours((prev) => prev + 1)}
-              onDecrement={() => setHours((prev) => Math.max(0, prev - 1))}
+              value={time.hours}
+              onChange={(hours) => setTime((current) => ({ ...current, hours }))}
+              onIncrement={() => setTime((current) => ({ ...current, hours: current.hours + 1 }))}
+              onDecrement={() =>
+                setTime((current) => ({ ...current, hours: Math.max(0, current.hours - 1) }))
+              }
             />
             <NumberInputWithControls
               id="minutes"
               label="Minutes"
-              value={minutes}
-              onChange={setMinutes}
-              onIncrement={() => setMinutes((prev) => prev + 1)}
-              onDecrement={() => setMinutes((prev) => Math.max(0, prev - 1))}
+              value={time.minutes}
+              onChange={(minutes) => setTime((current) => ({ ...current, minutes }))}
+              onIncrement={() =>
+                setTime((current) => ({ ...current, minutes: current.minutes + 1 }))
+              }
+              onDecrement={() =>
+                setTime((current) => ({ ...current, minutes: Math.max(0, current.minutes - 1) }))
+              }
             />
             <NumberInputWithControls
               id="seconds"
               label="Seconds"
-              value={seconds}
-              onChange={setSeconds}
-              onIncrement={() => setSeconds((prev) => prev + 1)}
-              onDecrement={() => setSeconds((prev) => Math.max(0, prev - 1))}
+              value={time.seconds}
+              onChange={(seconds) => setTime((current) => ({ ...current, seconds }))}
+              onIncrement={() =>
+                setTime((current) => ({ ...current, seconds: current.seconds + 1 }))
+              }
+              onDecrement={() =>
+                setTime((current) => ({ ...current, seconds: Math.max(0, current.seconds - 1) }))
+              }
             />
           </div>
           <div className="flex justify-center gap-2">

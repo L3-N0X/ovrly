@@ -2,24 +2,24 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { type CounterStyle, type PrismaElement } from "@/lib/types";
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: CounterStyle) => void;
 }> = ({ element, onChange }) => {
-  const [style, setStyle] = useState<CounterStyle>((element.style as CounterStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
-  useEffect(() => {
-    if (!isPickingColor) {
-      setStyle((element.style as CounterStyle) || {});
-    }
-  }, [element.style, isPickingColor]);
+  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
+  // new value to mean the server sent a new one.
+  const serverStyle = useMemo(() => (element.style as CounterStyle) || {}, [element.style]);
+  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
+  const { value: style, setValue: setStyle } = useLocalCopy(serverStyle, isPickingColor);
 
   const handleStyleChange = (newStyle: Partial<CounterStyle>) => {
     const updatedStyle = { ...style, ...newStyle };

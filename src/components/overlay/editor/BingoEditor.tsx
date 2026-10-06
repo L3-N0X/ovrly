@@ -3,7 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { type BingoStyle, type PrismaElement } from "@/lib/types";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import {
   BINGO_BORDER_RADIUS_RANGE,
   BINGO_BORDER_WIDTH_RANGE,
@@ -115,27 +116,20 @@ export const BingoEditor: React.FC<{
   onDataChange?: (elementId: string, data: BingoDataUpdate) => void;
 }> = ({ element, onChange, onDataChange }) => {
   const [isPickingColor, setIsPickingColor] = useState(false);
-  // Optimistic value for the free-middle switch, cleared once the server state
-  // for this element comes back through.
-  const [pendingFreeMiddle, setPendingFreeMiddle] = useState<boolean | null>(null);
+  // The free-middle switch as this user last set it, together with the server state it was set
+  // against: it stays in front of the server's value until that state is replaced, which is how
+  // it stops being an override. Derived rather than cleared in an effect, so a stale override
+  // can't outlive the state it was based on.
+  const [pendingFreeMiddle, setPendingFreeMiddle] = useState<{ bingo: unknown; value: boolean } | null>(
+    null
+  );
 
   const bingoStyle = useMemo(
     () => resolveBingoStyle(element.style as BingoStyle | null),
     [element.style]
   );
-  const [style, setStyle] = useState<BingoStyle>(bingoStyle);
-
-  // Resync from the server, but never while a colour picker is open: that would
-  // snap the swatch back mid-interaction.
-  useEffect(() => {
-    if (!isPickingColor) {
-      setStyle(bingoStyle);
-    }
-  }, [bingoStyle, isPickingColor]);
-
-  useEffect(() => {
-    setPendingFreeMiddle(null);
-  }, [element.bingo]);
+  // Held while a colour picker is open, which would otherwise snap the swatch back mid-drag.
+  const { value: style, setValue: setStyle } = useLocalCopy(bingoStyle, isPickingColor);
 
   const handleStyleChange = useCallback(
     (newStylePart: Partial<BingoStyle>) => {
@@ -145,11 +139,15 @@ export const BingoEditor: React.FC<{
         return updated;
       });
     },
-    [onChange]
+    [onChange, setStyle]
   );
 
   const size = element.bingo?.size ?? DEFAULT_BINGO_SIZE;
-  const freeMiddle = element.bingo?.freeMiddle ?? false;
+  // This user's choice wins until the server state it was made against is replaced.
+  const freeMiddle =
+    pendingFreeMiddle && pendingFreeMiddle.bingo === element.bingo
+      ? pendingFreeMiddle.value
+      : (element.bingo?.freeMiddle ?? false);
   const canUseFreeMiddle = size % 2 === 1;
 
   const handleSizeChange = (value: string) => {
@@ -160,7 +158,7 @@ export const BingoEditor: React.FC<{
 
   const handleFreeMiddleChange = (checked: boolean) => {
     if (!onDataChange || !canUseFreeMiddle) return;
-    setPendingFreeMiddle(checked);
+    setPendingFreeMiddle({ bingo: element.bingo, value: checked });
     onDataChange(element.id, { freeMiddle: checked });
   };
 
@@ -188,7 +186,7 @@ export const BingoEditor: React.FC<{
           <div className="flex items-end pb-2 space-x-2">
             <Switch
               id={`${element.id}-free-middle`}
-              checked={pendingFreeMiddle ?? freeMiddle}
+              checked={freeMiddle}
               onCheckedChange={handleFreeMiddleChange}
               disabled={!canUseFreeMiddle || !onDataChange}
             />

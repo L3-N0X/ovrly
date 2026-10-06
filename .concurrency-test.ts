@@ -4,8 +4,16 @@ import { handleBingoRoutes } from "./routes/bingo";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleOverlaysRoutes } from "./routes/overlays";
 
-const published: { channel: string; message: any }[] = [];
-const server = { publish: (channel: string, message: string) => published.push({ channel, message: JSON.parse(message) }) };
+// What a route puts on the wire: either an overlay snapshot (carries the revision it was
+// published with, plus the writeId of the change that caused it) or a deletion notice.
+type Broadcast = { type?: string; revision?: number; writeId?: string };
+type Publisher = { publish: (channel: string, message: string) => unknown | Promise<unknown> };
+type RouteHandler = (req: Request, server: Publisher, path: string) => Promise<Response | null>;
+
+const published: { channel: string; message: Broadcast }[] = [];
+const server: Publisher = {
+  publish: (channel, message) => published.push({ channel, message: JSON.parse(message) as Broadcast }),
+};
 
 const sign = async (value: string, secret: string) => {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -18,12 +26,19 @@ const token = `tok${Date.now()}`;
 await prisma.session.create({ data: { token, userId: user.id, expiresAt: new Date(Date.now() + 3600_000) } });
 const cookie = `better-auth.session_token=${encodeURIComponent(await sign(token, process.env.AUTH_SECRET!))}`;
 
-const call = (handler: any, path: string, method: string, body?: unknown, writeId?: string) =>
-  handler(new Request(`http://localhost${path}`, {
-    method,
-    headers: { cookie, "Content-Type": "application/json", ...(writeId ? { "X-Write-Id": writeId } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  }), server, path) as Promise<Response>;
+const call = async (handler: RouteHandler, path: string, method: string, body?: unknown, writeId?: string) => {
+  const res = await handler(
+    new Request(`http://localhost${path}`, {
+      method,
+      headers: { cookie, "Content-Type": "application/json", ...(writeId ? { "X-Write-Id": writeId } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+    server,
+    path
+  );
+  if (!res) throw new Error(`${method} ${path} matched no route`);
+  return res;
+};
 
 const overlay = await prisma.overlay.create({ data: { name: "cc", userId: user.id, globalStyle: {} } });
 const add = async (type: string) => {
@@ -105,7 +120,7 @@ const t = await prisma.element.findUnique({ where: { id: titleId } });
 check("reorder skips element deleted meanwhile", res[0].status === 200 && t!.position === 42, `status=${res[0].status}`);
 
 // 7. Broadcasts: revisions strictly increase in publish order; writeId echoed; header set.
-const revs = published.filter((p) => p.message.revision !== undefined).map((p) => p.message.revision);
+const revs = published.flatMap((p) => (p.message.revision === undefined ? [] : [p.message.revision]));
 check("broadcast revisions strictly increasing", revs.every((r, i) => i === 0 || r > revs[i - 1]), `${revs.length} broadcasts`);
 const r = await call(handleElementsRoutes, `/api/elements/${counterId}`, "PATCH", { data: { increment: 1 } }, "abc-1");
 const last = published.at(-1)!.message;

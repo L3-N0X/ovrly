@@ -32,6 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import OverlayCard from "@/components/OverlayCard";
 import CreateOverlayModal from "@/components/CreateOverlayModal";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
@@ -68,15 +69,12 @@ const readStoredSort = (): Sort => {
 
 const HomePage: React.FC = () => {
   const { data: user, isPending: isSessionPending } = authClient.useSession();
-  const [overlays, setOverlays] = useState<OverlaySummary[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newOverlayName, setNewOverlayName] = useState("");
   const [newOverlayDescription, setNewOverlayDescription] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<OverlayPreset | null>(null);
-  const [presets, setPresets] = useState<OverlayPreset[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -88,60 +86,43 @@ const HomePage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [shareOverlayId, setShareOverlayId] = useState<string | null>(null);
 
-  const fetchOverlays = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/overlays", {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch overlays");
-      }
-      setOverlays(await response.json());
-      setHasLoaded(true);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-      setError(
-        errorMessage.includes("fetch")
-          ? "Unable to connect to the server. Please check your internet connection and try again."
-          : `Failed to load overlays: ${errorMessage}`
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchPresets = async () => {
-    try {
-      const response = await fetch("/presets/overlay-presets.json");
-      if (!response.ok) {
-        throw new Error("Failed to fetch presets");
-      }
-      const data = await response.json();
-      setPresets(data.presets);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-      setError(
-        errorMessage.includes("fetch")
-          ? "Unable to load overlay templates. Please check your connection and refresh the page."
-          : `Failed to load templates: ${errorMessage}`
-      );
-    }
-  };
-
-  // Keyed on the user id: the session object is replaced whenever better-auth refetches it
-  // (e.g. on window focus), which would otherwise reload the list every time.
   const userId = user?.user.id;
-  useEffect(() => {
-    if (userId) {
-      fetchOverlays();
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchPresets();
-  }, []);
+  const overlaysQuery = useQuery({
+    queryKey: ["overlays", userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<OverlaySummary[]> => {
+      const response = await fetch("/api/overlays", { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch overlays");
+      return response.json();
+    },
+  });
+  const presetsQuery = useQuery({
+    queryKey: ["overlay-presets"],
+    queryFn: async (): Promise<OverlayPreset[]> => {
+      const response = await fetch("/presets/overlay-presets.json");
+      if (!response.ok) throw new Error("Failed to fetch presets");
+      const data = await response.json();
+      return data.presets;
+    },
+  });
+  const overlays = useMemo(() => overlaysQuery.data ?? [], [overlaysQuery.data]);
+  const hasLoaded = overlaysQuery.data !== undefined;
+  const isLoading = overlaysQuery.isFetching;
+  const presets = presetsQuery.data ?? [];
+  const queryError = overlaysQuery.error
+    ? overlaysQuery.error.message.includes("fetch")
+      ? "Unable to connect to the server. Please check your internet connection and try again."
+      : `Failed to load overlays: ${overlaysQuery.error.message}`
+    : presetsQuery.error
+      ? presetsQuery.error.message.includes("fetch")
+        ? "Unable to load overlay templates. Please check your connection and refresh the page."
+        : `Failed to load templates: ${presetsQuery.error.message}`
+      : null;
+  const displayedError = error ?? queryError;
+  const fetchOverlays = () => {
+    setError(null);
+    return queryClient.invalidateQueries({ queryKey: ["overlays", userId] });
+  };
 
   useEffect(() => {
     localStorage.setItem(SORT_STORAGE_KEY, sort);
@@ -211,7 +192,9 @@ const HomePage: React.FC = () => {
       if (!response.ok) {
         throw new Error("Failed to delete overlay");
       }
-      setOverlays((current) => current.filter((o) => o.id !== deleteTarget.id));
+      queryClient.setQueryData<OverlaySummary[]>(["overlays", userId], (current) =>
+        current?.filter((o) => o.id !== deleteTarget.id)
+      );
       setDeleteTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
@@ -251,7 +234,7 @@ const HomePage: React.FC = () => {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Failed to create overlay");
       }
-      fetchOverlays(); // Refetch overlays after creating a new one
+      fetchOverlays(); // Refresh the list after creating a new one.
       setIsDialogOpen(false); // Close the dialog
       setNewOverlayName(""); // Reset form
       setNewOverlayDescription(""); // Reset form
@@ -423,11 +406,18 @@ const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {error && (
+      {displayedError && (
         <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="size-4 shrink-0" />
-          <span className="flex-1">{error}</span>
-          <Button variant="outline" size="sm" onClick={fetchOverlays}>
+          <span className="flex-1">{displayedError}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void fetchOverlays();
+              void presetsQuery.refetch();
+            }}
+          >
             Try again
           </Button>
         </div>

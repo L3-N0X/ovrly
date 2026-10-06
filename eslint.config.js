@@ -20,11 +20,7 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // This codebase fetches data on mount via async functions called from an
-      // effect. The rule flags the setState inside those functions, but the
-      // state updates happen after an await, so there is no cascading render.
-      // Kept as a warning until the data layer is migrated to a query library.
-      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/set-state-in-effect': 'error',
     },
   },
 ])

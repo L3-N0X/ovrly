@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Check, Globe, Link2, Loader2, LogOut, UserX } from "lucide-react";
 import { Avatar } from "@/components/home/AvatarStack";
@@ -44,29 +45,23 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   onChanged,
   onLeft,
 }) => {
-  const [access, setAccess] = useState<OverlayAccess | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setAccess(await sharingApi.overlayAccess(overlayId));
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load who has access");
-    }
-  }, [overlayId]);
-
-  useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+  const queryClient = useQueryClient();
+  const accessQuery = useQuery({
+    queryKey: ["overlay-access", overlayId],
+    queryFn: () => sharingApi.overlayAccess(overlayId),
+    enabled: open,
+  });
+  const access = accessQuery.data ?? null;
+  const displayedError = error ?? accessQuery.error?.message ?? null;
 
   // Runs a change that answers with the new access list.
   const change = async (key: string, action: () => Promise<OverlayAccess>) => {
     setBusyKey(key);
     setError(null);
     try {
-      setAccess(await action());
+      queryClient.setQueryData(["overlay-access", overlayId], await action());
       onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update access");
@@ -120,7 +115,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
               existing={existing}
               onInvite={async (name, role) => {
                 const next = await sharingApi.shareOverlay(overlayId, name, role);
-                setAccess(next);
+                queryClient.setQueryData(["overlay-access", overlayId], next);
                 onChanged?.();
               }}
             />
@@ -135,9 +130,9 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
             {busyKey && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
           </div>
 
-          {error && (
+          {displayedError && (
             <p className="mb-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
+              {displayedError}
             </p>
           )}
 

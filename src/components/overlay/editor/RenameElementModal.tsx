@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type PrismaElement, type OnOverlayChange } from "@/lib/types";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 interface RenameElementModalProps {
   element: PrismaElement;
@@ -23,13 +24,8 @@ export const RenameElementModal: React.FC<RenameElementModalProps> = ({
   children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [name, setName] = useState(element.name);
-
-  useEffect(() => {
-    if (isOpen) {
-      setName(element.name);
-    }
-  }, [isOpen, element.name]);
+  // Track the latest server name while closed, then preserve edits while the dialog is open.
+  const { value: name, setValue: setName } = useLocalCopy(element.name, isOpen);
 
   const handleRenameElement = async () => {
     if (!name.trim()) return;

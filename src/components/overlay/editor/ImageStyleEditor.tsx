@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import type { PrismaElement, ImageStyle } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { GalleryHorizontal, Grid2x2, ScanEye, Square } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 interface ImageStyleEditorProps {
   element: PrismaElement;
@@ -23,11 +24,10 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
   element,
   onChange,
 }) => {
-  const [style, setStyle] = useState<ImageStyle>((element.style as ImageStyle) || {});
-
-  useEffect(() => {
-    setStyle((element.style as ImageStyle) || {});
-  }, [element.style]);
+  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
+  // new value to mean the server sent a new one.
+  const serverStyle = useMemo(() => (element.style as ImageStyle) || {}, [element.style]);
+  const { value: style, setValue: setStyle } = useLocalCopy(serverStyle);
 
   const handleImmediateValueChange = (
     key: keyof ImageStyle,

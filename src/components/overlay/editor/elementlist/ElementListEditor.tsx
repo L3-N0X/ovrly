@@ -69,9 +69,24 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     localStorage.setItem(collapsedStorageKey(overlay.id), JSON.stringify([...collapsed]));
   }, [overlay.id, collapsed]);
 
+  const selectedAncestors = useMemo(() => {
+    const ancestors = new Set<string>();
+    for (
+      let id = overlay.elements.find((element) => element.id === selectedId)?.parentId;
+      id;
+      id = overlay.elements.find((element) => element.id === id)?.parentId
+    ) {
+      ancestors.add(id);
+    }
+    return ancestors;
+  }, [overlay.elements, selectedId]);
+  const expandedCollapsed = useMemo(
+    () => new Set([...collapsed].filter((id) => !selectedAncestors.has(id))),
+    [collapsed, selectedAncestors]
+  );
   const rows = useMemo(
-    () => flattenTree(overlay.elements, collapsed),
-    [overlay.elements, collapsed]
+    () => flattenTree(overlay.elements, expandedCollapsed),
+    [overlay.elements, expandedCollapsed]
   );
   // Without a visible selected row, the first row takes the Tab stop so the tree stays
   // reachable from the keyboard.
@@ -96,27 +111,8 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
       return next;
     });
 
-  // Open every collapsed ancestor so the selected row is visible in the tree.
-  useEffect(() => {
-    if (!selectedId) return;
-    const ancestors = new Set<string>();
-    for (
-      let id = getElements().find((e) => e.id === selectedId)?.parentId;
-      id;
-      id = getElements().find((e) => e.id === id)?.parentId
-    ) {
-      ancestors.add(id);
-    }
-    setCollapsed((current) =>
-      [...ancestors].some((id) => current.has(id))
-        ? new Set([...current].filter((id) => !ancestors.has(id)))
-        : current
-    );
-  }, [selectedId, getElements]);
-
   // Elements picked on the canvas may be far down a long tree, so their row is scrolled
-  // into view. That has to wait until the effect above has opened its ancestors and the row
-  // has rendered, and must happen only once: live updates re-render the rows all the time.
+  // into view after the derived expanded rows render, and only once per selection change.
   const pendingReveal = useRef<string | null>(null);
   useEffect(() => {
     pendingReveal.current = selectedId;
@@ -130,7 +126,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   }, [selectedId, rows]);
 
   const parentIds = overlay.elements.filter((e) => isParentType(e.type)).map((e) => e.id);
-  const allCollapsed = parentIds.length > 0 && parentIds.every((id) => collapsed.has(id));
+  const allCollapsed = parentIds.length > 0 && parentIds.every((id) => expandedCollapsed.has(id));
 
   useEffect(() => {
     return monitorForElements({
@@ -198,12 +194,12 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         if (rows[index - 1]) select(rows[index - 1].element.id);
         break;
       case "ArrowRight":
-        if (isParent && collapsed.has(element.id)) setCollapsedFor(element.id, false);
+        if (isParent && expandedCollapsed.has(element.id)) setCollapsedFor(element.id, false);
         else if (isParent && rows[index + 1]?.element.parentId === element.id)
           select(rows[index + 1].element.id);
         break;
       case "ArrowLeft":
-        if (isParent && !collapsed.has(element.id)) setCollapsedFor(element.id, true);
+        if (isParent && !expandedCollapsed.has(element.id)) setCollapsedFor(element.id, true);
         else if (element.parentId) select(element.parentId);
         break;
       case "Enter":
@@ -277,19 +273,19 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
               const { element, depth } = row;
               const isOpenEmptyParent =
                 isParentType(element.type) &&
-                !collapsed.has(element.id) &&
+                !expandedCollapsed.has(element.id) &&
                 childrenOf(overlay.elements, element.id).length === 0;
               return (
                 <React.Fragment key={element.id}>
                   <ElementTreeItem
                     row={row}
-                    collapsed={collapsed.has(element.id)}
+                    collapsed={expandedCollapsed.has(element.id)}
                     selected={element.id === selectedId}
                     tabbable={element.id === tabbableId}
                     getElements={getElements}
                     onSelect={() => setSelectedId(element.id === selectedId ? null : element.id)}
                     onToggleCollapsed={() =>
-                      setCollapsedFor(element.id, !collapsed.has(element.id))
+                      setCollapsedFor(element.id, !expandedCollapsed.has(element.id))
                     }
                     onExpand={() => setCollapsedFor(element.id, false)}
                     onKeyDown={handleKeyDown(index)}

@@ -5,27 +5,29 @@ import { Slider } from "@/components/ui/slider";
 import { type PrismaElement, type TimerStyle } from "@/lib/types";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { Info } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: TimerStyle) => void;
 }> = ({ element, onChange }) => {
-  const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
-
-  const debouncedOnChange = useDebouncedCallback(onChange, 400);
-
   const [fgPopoverOpen, setFgPopoverOpen] = useState(false);
   const [bgPopoverOpen, setBgPopoverOpen] = useState(false);
 
-  useEffect(() => {
-    if (!fgPopoverOpen && !bgPopoverOpen) {
-      setStyle((element.style as TimerStyle) || {});
-    }
-  }, [element.style, fgPopoverOpen, bgPopoverOpen]);
+  const debouncedOnChange = useDebouncedCallback(onChange, 400);
+
+  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
+  // new value to mean the server sent a new one.
+  const serverStyle = useMemo(() => (element.style as TimerStyle) || {}, [element.style]);
+  // Held while a colour picker is open, which would otherwise snap the swatch back mid-drag.
+  const { value: style, setValue: setStyle } = useLocalCopy(
+    serverStyle,
+    fgPopoverOpen || bgPopoverOpen
+  );
 
   const handleStyleChange = (newStyle: Partial<TimerStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
