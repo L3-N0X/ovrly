@@ -197,3 +197,18 @@ export interface PrismaOverlay {
 // stale and would write older styles back over newer ones.
 export type OverlayChange = PrismaOverlay | ((current: PrismaOverlay) => PrismaOverlay);
 export type OnOverlayChange = (change: OverlayChange) => void;
+
+// Someone who can open an overlay: its owner, an editor it was shared with, or one of the
+// owner's global editors.
+export interface OverlayMember {
+  name: string;
+  image: string | null;
+  role: "owner" | "editor" | "global";
+}
+
+// An overlay as listed on the home page.
+export interface OverlaySummary extends PrismaOverlay {
+  createdAt: string;
+  updatedAt: string;
+  members: OverlayMember[];
+}

@@ -65,11 +65,11 @@ const CreateOverlayModal: React.FC<CreateOverlayModalProps> = ({
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button onClick={onCreateNewOverlay}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create New
+          <Plus />
+          New overlay
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Create New Overlay</DialogTitle>
           <DialogDescription>
@@ -82,15 +82,16 @@ const CreateOverlayModal: React.FC<CreateOverlayModalProps> = ({
         {!selectedPreset ? (
           <div className="space-y-4 py-4">
             <h3 className="font-semibold">Select a Template</h3>
-            <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto p-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[min(28rem,60vh)] overflow-y-auto p-1">
               {presets.map((preset) => (
-                <div
+                <button
+                  type="button"
                   key={preset.id}
-                  className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+                  className="flex items-center p-3 border rounded-lg text-left cursor-pointer hover:bg-accent hover:border-primary/40 transition-colors"
                   onClick={() => onPresetSelect(preset)}
                 >
                   {preset.icon ? (
-                    <div className="w-10 h-10 mr-3 flex items-center justify-center">
+                    <div className="w-12 h-12 mr-3 shrink-0 flex items-center justify-center rounded-md bg-muted p-1.5">
                       <img
                         src={`/presets/icons/${preset.icon}`}
                         alt={`${preset.name} icon`}
@@ -104,7 +105,7 @@ const CreateOverlayModal: React.FC<CreateOverlayModalProps> = ({
                     <div className="font-medium">{preset.name}</div>
                     <div className="text-sm text-muted-foreground">{preset.description}</div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -132,7 +133,9 @@ const CreateOverlayModal: React.FC<CreateOverlayModalProps> = ({
               <Label htmlFor="name">Overlay Name *</Label>
               <Input
                 id="name"
+                autoFocus
                 value={newOverlayName}
+                onKeyDown={(e) => e.key === "Enter" && !isCreating && onCreateOverlay()}
                 onChange={(e) => setNewOverlayName(e.target.value)}
                 placeholder="My Awesome Overlay"
                 className={modalError ? "border-destructive focus:border-destructive" : ""}

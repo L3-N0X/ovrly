@@ -8,6 +8,13 @@ import { findOverlayWithElements, overlayElementsInclude } from "../services/ove
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ElementSeed = any;
 
+// Someone who can open an overlay, as listed on the home page.
+interface OverlayMember {
+  name: string;
+  image: string | null;
+  role: "owner" | "editor" | "global";
+}
+
 // Builds the nested create input for a sibling list. Children are created through Prisma's
 // nested writes, so each root element and its whole subtree go in with a single statement.
 function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
@@ -235,10 +242,46 @@ export const handleOverlaysRoutes = async (
         where: {
           OR: [{ userId: session.user.id }, { id: { in: sharedOverlayIds } }],
         },
-        include: overlayElementsInclude,
+        include: {
+          ...overlayElementsInclude,
+          user: { select: { name: true, image: true } },
+          editors: {
+            select: { editorTwitchName: true, editor: { select: { name: true, image: true } } },
+          },
+        },
       });
 
-      return new Response(JSON.stringify(overlays), {
+      // Global editors can open every overlay of their owner, so they belong to each one's
+      // list of people with access.
+      const ownerIds = [...new Set(overlays.map((o) => o.userId))];
+      const globalEditors = await prisma.editor.findMany({
+        where: { ownerId: { in: ownerIds } },
+        select: {
+          ownerId: true,
+          editorTwitchName: true,
+          editor: { select: { name: true, image: true } },
+        },
+      });
+
+      const withMembers = overlays.map(({ user, editors, ...overlay }) => {
+        const members: OverlayMember[] = [{ name: user.name, image: user.image, role: "owner" }];
+        const add = (
+          entry: { editorTwitchName: string; editor: { name: string; image: string | null } | null },
+          role: OverlayMember["role"]
+        ) => {
+          const name = entry.editor?.name ?? entry.editorTwitchName;
+          // Twitch names are case-insensitive; someone listed twice is only shown once.
+          if (members.some((m) => m.name.toLowerCase() === name.toLowerCase())) return;
+          members.push({ name, image: entry.editor?.image ?? null, role });
+        };
+        editors.forEach((entry) => add(entry, "editor"));
+        globalEditors
+          .filter((entry) => entry.ownerId === overlay.userId)
+          .forEach((entry) => add(entry, "global"));
+        return { ...overlay, members };
+      });
+
+      return new Response(JSON.stringify(withMembers), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

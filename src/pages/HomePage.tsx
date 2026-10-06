@@ -1,33 +1,46 @@
 import { Button } from "@/components/ui/button";
 import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
-import { Inbox, Plus, RefreshCw } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import type { OverlaySummary } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  AlertCircle,
+  Layers,
+  Loader2,
+  MonitorPlay,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  Users,
+  X,
+  Zap,
+} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 import OverlayCard from "@/components/OverlayCard";
 import CreateOverlayModal from "@/components/CreateOverlayModal";
+import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
 
 interface Element {
   id: string;
   name: string;
   type: string;
   style?: Record<string, unknown>;
-}
-
-interface Overlay {
-  id: string;
-  name: string;
-  description: string | null;
-  userId: string;
-  elements: Element[];
-  createdAt: string;
 }
 
 interface OverlayPreset {
@@ -38,10 +51,25 @@ interface OverlayPreset {
   elements: Element[];
 }
 
+type Filter = "all" | "mine" | "shared";
+type Sort = "newest" | "oldest" | "name";
+
+const SORT_STORAGE_KEY = "ovrly-home-sort";
+const SORT_LABELS: Record<Sort, string> = {
+  newest: "Newest first",
+  oldest: "Oldest first",
+  name: "Name (A–Z)",
+};
+
+const readStoredSort = (): Sort => {
+  const stored = localStorage.getItem(SORT_STORAGE_KEY);
+  return stored && stored in SORT_LABELS ? (stored as Sort) : "newest";
+};
+
 const HomePage: React.FC = () => {
   const { data: user, isPending: isSessionPending } = authClient.useSession();
-  const navigate = useNavigate();
-  const [overlays, setOverlays] = useState<Overlay[]>([]);
+  const [overlays, setOverlays] = useState<OverlaySummary[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -53,6 +81,12 @@ const HomePage: React.FC = () => {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<Sort>(readStoredSort);
+  const [deleteTarget, setDeleteTarget] = useState<OverlaySummary | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [shareOverlayId, setShareOverlayId] = useState<string | null>(null);
 
   const fetchOverlays = async () => {
     setIsLoading(true);
@@ -64,12 +98,8 @@ const HomePage: React.FC = () => {
       if (!response.ok) {
         throw new Error("Failed to fetch overlays");
       }
-      const data = await response.json();
-      const sortedData = data.sort(
-        (a: Overlay, b: Overlay) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setOverlays(sortedData);
+      setOverlays(await response.json());
+      setHasLoaded(true);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
       setError(
@@ -113,6 +143,34 @@ const HomePage: React.FC = () => {
     fetchPresets();
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem(SORT_STORAGE_KEY, sort);
+  }, [sort]);
+
+  const ownCount = overlays.filter((o) => o.userId === userId).length;
+  const sharedCount = overlays.length - ownCount;
+
+  const visibleOverlays = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return overlays
+      .filter((o) =>
+        filter === "mine" ? o.userId === userId : filter === "shared" ? o.userId !== userId : true
+      )
+      .filter(
+        (o) =>
+          !query ||
+          o.name.toLowerCase().includes(query) ||
+          o.description?.toLowerCase().includes(query) ||
+          o.members.some((m) => m.name.toLowerCase().includes(query))
+      )
+      .sort((a, b) =>
+        sort === "name"
+          ? a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+          : (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) *
+            (sort === "newest" ? 1 : -1)
+      );
+  }, [overlays, filter, search, sort, userId]);
+
   const handleDuplicateOverlay = async (overlayId: string) => {
     try {
       const response = await fetch(`/api/overlays/${overlayId}/duplicate`, {
@@ -133,7 +191,7 @@ const HomePage: React.FC = () => {
     navigator.clipboard.writeText(url).then(
       () => {
         setCopiedId(overlayId);
-        setTimeout(() => setCopiedId(null), 2000);
+        setTimeout(() => setCopiedId((id) => (id === overlayId ? null : id)), 2000);
       },
       (err) => {
         alert("Failed to copy URL.");
@@ -142,22 +200,24 @@ const HomePage: React.FC = () => {
     );
   };
 
-  const handleDeleteOverlay = async (overlayId: string) => {
-    if (!window.confirm("Are you sure you want to delete this overlay?")) {
-      return;
-    }
-
+  const handleDeleteOverlay = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/overlays/${overlayId}`, {
+      const response = await fetch(`/api/overlays/${deleteTarget.id}`, {
         method: "DELETE",
         credentials: "include",
       });
       if (!response.ok) {
         throw new Error("Failed to delete overlay");
       }
-      fetchOverlays();
+      setOverlays((current) => current.filter((o) => o.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setDeleteTarget(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -214,6 +274,7 @@ const HomePage: React.FC = () => {
     setSelectedPreset(null);
     setNewOverlayName("");
     setNewOverlayDescription("");
+    setModalError(null);
     setIsDialogOpen(true);
   };
 
@@ -232,105 +293,337 @@ const HomePage: React.FC = () => {
   };
 
   if (isSessionPending) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+        <Loader2 className="size-6 animate-spin" />
+      </div>
+    );
   }
 
+  if (!user) {
+    return <Landing onSignIn={handleTwitchSignIn} isSigningIn={isSigningIn} />;
+  }
+
+  const filters: { value: Filter; label: string; count: number }[] = [
+    { value: "all", label: "All", count: overlays.length },
+    { value: "mine", label: "Mine", count: ownCount },
+    { value: "shared", label: "Shared with me", count: sharedCount },
+  ];
+
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-5xl mx-auto space-y-8">
-        {user ? (
-          <>
-            <div className="text-center">
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Welcome back, {user.user.name}!
-              </h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Manage your stream overlays below
-              </p>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">Your Overlays</h2>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={fetchOverlays} disabled={isLoading}>
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-                </Button>
-                <CreateOverlayModal
-                  isDialogOpen={isDialogOpen}
-                  setIsDialogOpen={setIsDialogOpen}
-                  selectedPreset={selectedPreset}
-                  setSelectedPreset={setSelectedPreset}
-                  presets={presets}
-                  newOverlayName={newOverlayName}
-                  setNewOverlayName={setNewOverlayName}
-                  newOverlayDescription={newOverlayDescription}
-                  setNewOverlayDescription={setNewOverlayDescription}
-                  isCreating={isCreating}
-                  onCreateOverlay={handleCreateOverlay}
-                  onPresetSelect={handlePresetSelect}
-                  onCreateNewOverlay={handleCreateNewOverlay}
-                  modalError={modalError}
-                />
-              </div>
-            </div>
-
-            {isLoading && overlays.length === 0 ? (
-              <p className="text-center text-muted-foreground">Loading overlays...</p>
-            ) : error ? (
-              <p className="text-destructive text-center">{error}</p>
-            ) : overlays.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {overlays.map((overlay) => (
-                  <OverlayCard
-                    key={overlay.id}
-                    overlay={overlay}
-                    user={user}
-                    navigate={navigate}
-                    handleCopyPublicUrl={handleCopyPublicUrl}
-                    handleDuplicateOverlay={handleDuplicateOverlay}
-                    handleDeleteOverlay={handleDeleteOverlay}
-                    copiedId={copiedId}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Empty variant="outline" className="py-16">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Inbox className="h-10 w-10" />
-                  </EmptyMedia>
-                  <EmptyTitle className="mt-4">No overlays yet</EmptyTitle>
-                  <EmptyDescription>
-                    It looks like you haven't created any overlays.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <Button onClick={handleCreateNewOverlay}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create your first overlay
-                  </Button>
-                </EmptyContent>
-              </Empty>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-16">
-            <h1 className="text-4xl font-bold">Welcome to Ovrly</h1>
-            <p className="text-muted-foreground mt-2">
-              Your one-stop solution for stream overlays.
+    <div className="mx-auto w-full max-w-[1600px] space-y-8 pb-16">
+      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-center gap-4">
+          {user.user.image && (
+            <img
+              src={user.user.image}
+              alt=""
+              className="hidden size-14 rounded-full ring-2 ring-primary/40 ring-offset-2 ring-offset-background sm:block"
+            />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Welcome back, {user.user.name}
+            </h1>
+            <p className="mt-1 text-muted-foreground">
+              {hasLoaded
+                ? `${ownCount} ${ownCount === 1 ? "overlay" : "overlays"} of your own` +
+                  (sharedCount > 0 ? ` · ${sharedCount} shared with you` : "")
+                : "Manage your stream overlays"}
             </p>
-            <Button
-              onClick={handleTwitchSignIn}
-              disabled={isSigningIn}
-              className="w-full max-w-xs mt-8"
-            >
-              Sign in with Twitch
-            </Button>
           </div>
-        )}
+        </div>
+        <CreateOverlayModal
+          isDialogOpen={isDialogOpen}
+          setIsDialogOpen={setIsDialogOpen}
+          selectedPreset={selectedPreset}
+          setSelectedPreset={setSelectedPreset}
+          presets={presets}
+          newOverlayName={newOverlayName}
+          setNewOverlayName={setNewOverlayName}
+          newOverlayDescription={newOverlayDescription}
+          setNewOverlayDescription={setNewOverlayDescription}
+          isCreating={isCreating}
+          onCreateOverlay={handleCreateOverlay}
+          onPresetSelect={handlePresetSelect}
+          onCreateNewOverlay={handleCreateNewOverlay}
+          modalError={modalError}
+        />
+      </header>
+
+      <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <nav className="flex gap-1 overflow-x-auto" aria-label="Filter overlays">
+          {filters.map(({ value, label, count }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                filter === value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              {label}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-xs tabular-nums",
+                  filter === value ? "bg-primary-foreground/20" : "bg-muted"
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          ))}
+        </nav>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 lg:w-72 lg:flex-none">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search overlays or people…"
+              className="pr-8 pl-9"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <Select value={sort} onValueChange={(value) => setSort(value as Sort)}>
+            <SelectTrigger className="w-40 shrink-0" aria-label="Sort overlays">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORT_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={fetchOverlays}
+            disabled={isLoading}
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            <RefreshCw className={cn(isLoading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <Button variant="outline" size="sm" onClick={fetchOverlays}>
+            Try again
+          </Button>
+        </div>
+      )}
+
+      {!hasLoaded && isLoading ? (
+        <OverlayGrid>
+          {Array.from({ length: 6 }, (_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </OverlayGrid>
+      ) : hasLoaded && overlays.length === 0 ? (
+        <EmptyState onCreate={handleCreateNewOverlay} />
+      ) : visibleOverlays.length > 0 ? (
+        <OverlayGrid>
+          {visibleOverlays.map((overlay) => (
+            <OverlayCard
+              key={overlay.id}
+              overlay={overlay}
+              isOwner={overlay.userId === userId}
+              isCopied={copiedId === overlay.id}
+              onCopyPublicUrl={handleCopyPublicUrl}
+              onDuplicate={handleDuplicateOverlay}
+              onDelete={setDeleteTarget}
+              onManageAccess={setShareOverlayId}
+            />
+          ))}
+          {filter !== "shared" && !search && (
+            <button
+              type="button"
+              onClick={handleCreateNewOverlay}
+              className="group flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/5 hover:text-foreground"
+            >
+              <span className="flex size-12 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <Plus className="size-6" />
+              </span>
+              <span className="font-medium">New overlay</span>
+            </button>
+          )}
+        </OverlayGrid>
+      ) : hasLoaded ? (
+        <div className="flex flex-col items-center gap-2 py-20 text-center">
+          <Search className="size-8 text-muted-foreground" />
+          <p className="font-medium">
+            {search ? `No overlays match “${search.trim()}”` : "Nothing shared with you yet"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {search
+              ? "Try a different search or filter."
+              : "When someone adds you as an editor, their overlays show up here."}
+          </p>
+          {search && (
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => setSearch("")}>
+              Clear search
+            </Button>
+          )}
+        </div>
+      ) : null}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete “{deleteTarget?.name}”?</DialogTitle>
+            <DialogDescription>
+              The overlay and all of its elements are deleted for everyone with access. OBS
+              sources using it will stop showing anything. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteOverlay} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {shareOverlayId && (
+        <ShareOverlayModal
+          overlayId={shareOverlayId}
+          isOpen
+          onClose={() => {
+            setShareOverlayId(null);
+            // The list of people with access may have changed.
+            fetchOverlays();
+          }}
+        />
+      )}
     </div>
   );
 };
+
+const OverlayGrid: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    {children}
+  </div>
+);
+
+const CardSkeleton = () => (
+  <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="aspect-[4/3] animate-pulse bg-muted" />
+    <div className="space-y-3 border-t p-4">
+      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+      <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="-ml-2 size-8 animate-pulse rounded-full bg-muted ring-2 ring-card first:ml-0"
+            />
+          ))}
+        </div>
+        <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+      </div>
+    </div>
+  </div>
+);
+
+const EmptyState: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
+  <div className="relative overflow-hidden rounded-2xl border border-dashed px-6 py-20 text-center">
+    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
+    <div className="relative mx-auto flex max-w-md flex-col items-center gap-4">
+      <span className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <Layers className="size-8" />
+      </span>
+      <h2 className="text-xl font-semibold">Create your first overlay</h2>
+      <p className="text-muted-foreground">
+        Start from a template with titles, counters, timers or a bingo card, then add it to OBS
+        as a browser source.
+      </p>
+      <Button size="lg" className="mt-2" onClick={onCreate}>
+        <Plus />
+        New overlay
+      </Button>
+    </div>
+  </div>
+);
+
+const FEATURES = [
+  {
+    icon: Zap,
+    title: "Live updates",
+    text: "Change counters, timers and text mid-stream. OBS picks it up instantly.",
+  },
+  {
+    icon: Users,
+    title: "Built for teams",
+    text: "Share overlays with your mods so they can keep things up to date.",
+  },
+  {
+    icon: MonitorPlay,
+    title: "Drop into OBS",
+    text: "Every overlay has a browser source URL. Paste it in and you're done.",
+  },
+];
+
+const Landing: React.FC<{ onSignIn: () => void; isSigningIn: boolean }> = ({
+  onSignIn,
+  isSigningIn,
+}) => (
+  <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-16 py-16 text-center sm:py-24">
+    <div className="flex flex-col items-center gap-6">
+      <span className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+        Stream overlays, made simple
+      </span>
+      <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
+        Overlays your whole team can{" "}
+        <span className="bg-gradient-to-r from-primary to-fuchsia-500 bg-clip-text text-transparent">
+          update live
+        </span>
+      </h1>
+      <p className="max-w-xl text-lg text-muted-foreground">
+        Design titles, counters, timers and bingo cards, then control them from anywhere while
+        you stream.
+      </p>
+      <Button size="lg" onClick={onSignIn} disabled={isSigningIn} className="mt-2 min-w-60">
+        {isSigningIn && <Loader2 className="animate-spin" />}
+        Sign in with Twitch
+      </Button>
+    </div>
+    <div className="grid w-full gap-4 text-left sm:grid-cols-3">
+      {FEATURES.map(({ icon: Icon, title, text }) => (
+        <div key={title} className="rounded-xl border bg-card p-5">
+          <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="size-5" />
+          </span>
+          <h3 className="font-semibold">{title}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{text}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export default HomePage;
