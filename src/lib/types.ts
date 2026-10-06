@@ -192,6 +192,8 @@ export interface PrismaOverlay {
   globalStyle: GlobalStyle | null;
   elements: PrismaElement[];
   userId: string;
+  // Increases with every broadcast of the overlay; a lower one is older state.
+  revision: number;
 }
 
 // What onOverlayChange accepts: the next overlay, or a function that derives it from the

@@ -13,18 +13,19 @@ const PublicCounterPage = () => {
     if (!overlayId) return;
 
     let disposed = false;
-    // Bumped by every broadcast: a fetch that started before one arrived holds older data
-    // and must not overwrite it.
-    let broadcastCount = 0;
+    // Snapshots can arrive out of order (a fetch that started before a broadcast, two
+    // broadcasts overtaking each other); the revision tells which one is newer.
+    let revision = -1;
+    const show = (data: PrismaOverlay) => {
+      if (disposed || data.revision < revision) return;
+      revision = data.revision;
+      setOverlay(data);
+    };
 
     const fetchOverlay = async () => {
-      const startedAt = broadcastCount;
       try {
         const response = await fetch(`/api/public/overlays/${overlayId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (!disposed && startedAt === broadcastCount) setOverlay(data);
-        }
+        if (response.ok) show(await response.json());
       } catch (error) {
         console.error("Failed to fetch overlay data:", error);
       }
@@ -36,10 +37,7 @@ const PublicCounterPage = () => {
     // Reconnects on its own (an OBS source can't be reloaded by hand), and refetches whenever
     // it (re)connects to pick up whatever was broadcast while it wasn't connected.
     const disconnect = connectOverlaySocket(overlayId, {
-      onOverlay: (updated) => {
-        broadcastCount++;
-        setOverlay(updated);
-      },
+      onOverlay: show,
       onOpen: fetchOverlay,
     });
 

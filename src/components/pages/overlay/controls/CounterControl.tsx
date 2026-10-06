@@ -7,18 +7,18 @@ import type { PrismaElement } from "@/lib/types";
 interface CounterControlProps {
   element: PrismaElement;
   handleCounterChange: (elementId: string, value: number) => void;
-  handleImmediateCounterChange: (elementId: string, value: number) => void;
+  handleCounterIncrement: (elementId: string, increment: number) => void;
 }
 
 const CounterControl: React.FC<CounterControlProps> = ({
   element,
   handleCounterChange,
-  handleImmediateCounterChange,
+  handleCounterIncrement,
 }) => {
   return (
     <div className="flex space-x-1">
       <Button
-        onClick={() => handleImmediateCounterChange(element.id, (element.counter?.value || 0) - 1)}
+        onClick={() => handleCounterIncrement(element.id, -1)}
         size="icon-lg"
         variant="secondary"
         className="h-10 w-12 rounded-r-xs border-input border"
@@ -34,7 +34,7 @@ const CounterControl: React.FC<CounterControlProps> = ({
         className="flex-1 text-center text-2xl h-10 rounded-l-xs rounded-r-xs bg-input/30 border-input"
       />
       <Button
-        onClick={() => handleImmediateCounterChange(element.id, (element.counter?.value || 0) + 1)}
+        onClick={() => handleCounterIncrement(element.id, 1)}
         size="icon-lg"
         variant="secondary"
         className="h-10 w-12 rounded-l-xs border-input border"

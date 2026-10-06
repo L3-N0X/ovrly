@@ -14,12 +14,13 @@ export interface BingoState {
 export interface BingoDataUpdate {
   size?: number;
   freeMiddle?: boolean;
-  fields?: string[];
-  checked?: boolean[];
+  // An array replaces every cell, an object `{ "3": ... }` changes only the cells it names.
+  fields?: string[] | Record<string, string>;
+  checked?: boolean[] | Record<string, boolean>;
 }
 
 export type BingoUpdateResult =
-  | { ok: true; value: Required<BingoDataUpdate> }
+  | { ok: true; value: BingoState }
   | { ok: false; error: string };
 
 const BINGO_UPDATE_KEYS = ["size", "freeMiddle", "fields", "checked"];
@@ -117,6 +118,31 @@ const parseChecked = (value: unknown): boolean[] | null => {
 };
 
 /**
+ * Reads a `{ cellIndex: value }` patch. Patching single cells lets people edit or mark
+ * different cells of the same card at once without one of them overwriting the other.
+ */
+const parseCellPatch = <T>(
+  value: Record<string, unknown>,
+  cellCount: number,
+  parseValue: (entry: unknown) => T | null
+): Map<number, T> | null => {
+  const patch = new Map<number, T>();
+  for (const [key, entry] of Object.entries(value)) {
+    const index = Number(key);
+    const parsed = parseValue(entry);
+    if (!/^\d+$/.test(key) || index >= cellCount || parsed === null) return null;
+    patch.set(index, parsed);
+  }
+  return patch;
+};
+
+const applyCellPatch = <T>(cells: T[], patch: Map<number, T>) => {
+  const next = [...cells];
+  patch.forEach((value, index) => (next[index] = value));
+  return next;
+};
+
+/**
  * Validates a PATCH payload for a bingo element against its current state.
  *
  * The returned update is always complete: `size` changes are applied to
@@ -150,7 +176,15 @@ export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdat
   let fields = isResize ? resizeBingoFields(current.fields, nextSize) : undefined;
   let checked = isResize ? new Array(cellCount).fill(false) : undefined;
 
-  if (data.fields !== undefined) {
+  if (isPlainObject(data.fields)) {
+    const patch = parseCellPatch(data.fields, cellCount, (entry) =>
+      typeof entry === "string" ? sanitizeBingoField(entry) : null
+    );
+    if (!patch) {
+      return { ok: false, error: "fields must map cell indexes on the card to strings" };
+    }
+    fields = applyCellPatch(fields ?? current.fields, patch);
+  } else if (data.fields !== undefined) {
     const parsed = parseFields(data.fields);
     if (!parsed) {
       return { ok: false, error: "fields must be an array of strings" };
@@ -164,7 +198,15 @@ export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdat
     fields = parsed;
   }
 
-  if (data.checked !== undefined) {
+  if (isPlainObject(data.checked)) {
+    const patch = parseCellPatch(data.checked, cellCount, (entry) =>
+      typeof entry === "boolean" ? entry : null
+    );
+    if (!patch) {
+      return { ok: false, error: "checked must map cell indexes on the card to booleans" };
+    }
+    checked = applyCellPatch(checked ?? current.checked, patch);
+  } else if (data.checked !== undefined) {
     const parsed = parseChecked(data.checked);
     if (!parsed) {
       return { ok: false, error: "checked must be an array of booleans" };

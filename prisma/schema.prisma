@@ -77,6 +77,9 @@ model Overlay {
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   elements    Element[]
   shares      OverlayShare[]
+  // Bumped every time the overlay's state is broadcast. Clients use it to tell an older
+  // snapshot (a slow fetch, an out-of-order broadcast) from a newer one.
+  revision    Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

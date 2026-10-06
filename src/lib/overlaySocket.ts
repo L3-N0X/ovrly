@@ -13,6 +13,8 @@ interface OverlaySocketHandlers {
   onOverlay: (overlay: PrismaOverlay) => void;
   // Fired when someone's access to the overlay changed (shared, role changed, removed).
   onAccessChange?: () => void;
+  // Fired when the overlay was deleted.
+  onDeleted?: () => void;
   // Fired every time the socket opens, including the first time. Updates broadcast while it
   // wasn't connected are lost (also between the initial fetch and the first open), so
   // callers should refetch the overlay here.
@@ -26,7 +28,7 @@ interface OverlaySocketHandlers {
  */
 export const connectOverlaySocket = (
   overlayId: string,
-  { onOverlay, onOpen, onAccessChange }: OverlaySocketHandlers
+  { onOverlay, onOpen, onAccessChange, onDeleted }: OverlaySocketHandlers
 ) => {
   let ws: WebSocket | null = null;
   let disposed = false;
@@ -83,6 +85,10 @@ export const connectOverlaySocket = (
         if (message?.type === "heartbeat") return;
         if (message?.type === "access") {
           onAccessChange?.();
+          return;
+        }
+        if (message?.type === "deleted") {
+          onDeleted?.();
           return;
         }
         onOverlay(message as PrismaOverlay);

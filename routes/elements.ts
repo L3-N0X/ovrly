@@ -7,8 +7,11 @@ import {
 } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
 import { hasRole } from "../lib/sharing";
-import { publishOverlay } from "../services/overlay-query";
+import { publishOverlay, revisionHeaders, writeIdOf } from "../services/overlay-query";
+import { lockElement, lockOverlay } from "../services/locks";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
+import { isStyleObject, mergeStyle } from "../lib/style";
+import { applyTimerAction, parseTimerActions, type TimerState } from "../lib/timer";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
@@ -33,7 +36,9 @@ const requiredRoleForPatch = (body: Record<string, unknown>, elementType: string
   return "CONTROLLER" as const;
 };
 
-async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
+async function getAllDescendantIds(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  initialIds: string[]): Promise<string[]> {
   const allIds = new Set<string>(initialIds);
   let frontier = [...initialIds];
   while (frontier.length > 0) {
@@ -81,18 +86,11 @@ export const handleElementsRoutes = async (
         });
       }
 
-      // New elements are appended to the root level.
-      const maxPosition = await prisma.element.aggregate({
-        where: { overlayId: overlayId, parentId: null },
-        _max: { position: true },
-      });
-
       const elementCreateData: Prisma.ElementUncheckedCreateInput = {
         name: name,
         type: type,
         overlayId: overlayId,
         style: {}, // Initialize with empty style object instead of null
-        position: (maxPosition._max.position ?? -1) + 1,
       } as Prisma.ElementUncheckedCreateInput;
 
       if (type === "TITLE") {
@@ -117,15 +115,28 @@ export const handleElementsRoutes = async (
         });
       }
 
-      await prisma.element.create({
-        data: elementCreateData,
+      await prisma.$transaction(async (tx) => {
+        // New elements are appended to the root level. Locked so two elements added at the
+        // same time don't both get the last position.
+        await lockOverlay(tx, overlayId);
+        const maxPosition = await tx.element.aggregate({
+          where: { overlayId: overlayId, parentId: null },
+          _max: { position: true },
+        });
+        await tx.element.create({
+          data: { ...elementCreateData, position: (maxPosition._max.position ?? -1) + 1 },
+        });
       });
 
-      const updatedOverlay = await publishOverlay(server, overlayId);
+      const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
 
       return new Response(JSON.stringify(updatedOverlay), {
         status: 201,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: {
+          ...corsHeaders,
+          ...revisionHeaders(updatedOverlay),
+          "Content-Type": "application/json",
+        },
       });
     } catch (e) {
       console.error(e);
@@ -220,14 +231,22 @@ export const handleElementsRoutes = async (
       }
 
       const sortedLevels = Array.from(levels.keys()).sort((a, b) => b - a);
-      for (const level of sortedLevels) {
-        const levelIds = levels.get(level)!;
-        await prisma.element.deleteMany({ where: { id: { in: levelIds } } });
-      }
+      // Under the overlay's lock, so a move that is being validated right now doesn't have
+      // elements disappear underneath it.
+      await prisma.$transaction(async (tx) => {
+        await lockOverlay(tx, firstElement.overlayId);
+        for (const level of sortedLevels) {
+          const levelIds = levels.get(level)!;
+          await tx.element.deleteMany({ where: { id: { in: levelIds } } });
+        }
+      });
 
-      await publishOverlay(server, firstElement.overlayId);
+      const overlay = await publishOverlay(server, firstElement.overlayId, writeIdOf(req));
 
-      return new Response(null, { status: 204, headers: corsHeaders });
+      return new Response(null, {
+        status: 204,
+        headers: { ...corsHeaders, ...revisionHeaders(overlay) },
+      });
     } catch (e) {
       console.error(e);
       return new Response(JSON.stringify({ error: "Invalid request" }), {
@@ -274,126 +293,163 @@ export const handleElementsRoutes = async (
           data?: {
             text?: string;
             value?: number;
+            increment?: number;
             src?: string;
             startedAt?: string | null;
             pausedAt?: string | null;
             duration?: number;
             countDown?: boolean;
+            actions?: unknown;
             [key: string]: unknown;
           };
           position?: unknown;
           parentId?: string | null;
         };
-        const elementUpdateData: Prisma.ElementUncheckedUpdateInput =
-          {} as Prisma.ElementUncheckedUpdateInput;
-        if (typeof name === "string" && name.trim()) elementUpdateData.name = name.trim();
-        if (style && typeof style === "object" && !Array.isArray(style)) {
-          const existingStyle = (element.style || {}) as Prisma.JsonObject;
-          const newStyle = style as Prisma.JsonObject;
-          const mergedStyle = { ...existingStyle, ...newStyle };
-          elementUpdateData.style = mergedStyle;
-        }
-        // Checked against undefined so that position 0 and moving back to the root (null) work.
-        if (typeof position === "number" && Number.isInteger(position)) {
-          elementUpdateData.position = position;
-        }
-        if (parentId === null) {
-          elementUpdateData.parentId = null;
-        } else if (parentId !== undefined) {
-          // The new parent must live in the same overlay (and must not be the element itself
-          // or one of its descendants), otherwise this could graft elements into another overlay.
-          // It must also be a type that renders its children.
-          const descendantIds =
-            typeof parentId === "string" ? await getAllDescendantIds(prisma, [elementId]) : [];
-          const parent =
-            typeof parentId === "string" && !descendantIds.includes(parentId)
-              ? await prisma.element.findFirst({
-                  where: {
-                    id: parentId,
-                    overlayId: element.overlayId,
-                    type: { in: ["CONTAINER", "GROUP"] },
-                  },
-                  select: { id: true },
-                })
-              : null;
-          if (!parent) {
-            return new Response(JSON.stringify({ error: "Invalid parent element" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          elementUpdateData.parentId = parentId;
-        }
 
-        if (data) {
-          if (element.type === "TITLE" && typeof data.text === "string") {
-            elementUpdateData.title = { update: { text: data.text } };
+        // Everything that builds on the stored state (style merge, counter, timer, bingo) is
+        // read and written under the element's row lock, so concurrent changes to the same
+        // element are applied one after another instead of overwriting each other.
+        const result = await prisma.$transaction(async (tx): Promise<{ error: Response } | { ok: true }> => {
+          if (typeof parentId === "string") {
+            // Concurrent moves are checked against each other's result, otherwise two moves
+            // that are fine on their own could together put elements underneath themselves.
+            await lockOverlay(tx, element.overlayId);
           }
-          if (element.type === "COUNTER" && Number.isInteger(data.value)) {
-            elementUpdateData.counter = { update: { value: data.value } };
+          await lockElement(tx, elementId);
+          const current = await tx.element.findUnique({
+            where: { id: elementId },
+            include: { bingo: true, timer: true },
+          });
+          if (!current) {
+            return { error: json({ error: "Element not found" }, 404) };
           }
-          if (element.type === "IMAGE" && typeof data.src === "string") {
-            elementUpdateData.image = { update: { src: data.src } };
+
+          const elementUpdateData: Prisma.ElementUncheckedUpdateInput =
+            {} as Prisma.ElementUncheckedUpdateInput;
+          if (typeof name === "string" && name.trim()) elementUpdateData.name = name.trim();
+          if (isStyleObject(style)) {
+            elementUpdateData.style = mergeStyle(current.style, style) as Prisma.InputJsonObject;
           }
-          if (element.type === "TIMER") {
-            const { startedAt, pausedAt, duration, countDown } = data;
-            const timerUpdateData: Prisma.TimerUpdateInput = {};
-            if (startedAt !== undefined) {
-              timerUpdateData.startedAt = startedAt ? new Date(startedAt) : null;
-            }
-            if (pausedAt !== undefined) {
-              timerUpdateData.pausedAt = pausedAt ? new Date(pausedAt) : null;
-            }
-            if (duration !== undefined) {
-              timerUpdateData.duration = duration;
-            }
-            if (countDown !== undefined) {
-              timerUpdateData.countDown = countDown;
-            }
-            elementUpdateData.timer = {
-              update: timerUpdateData,
-            };
+          // Checked against undefined so that position 0 and moving back to the root (null) work.
+          if (typeof position === "number" && Number.isInteger(position)) {
+            elementUpdateData.position = position;
           }
-          if (element.type === "BINGO") {
-            if (!element.bingo) {
-              return new Response(JSON.stringify({ error: "Bingo data not found" }), {
-                status: 404,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
+          if (parentId === null) {
+            elementUpdateData.parentId = null;
+          } else if (parentId !== undefined) {
+            // The new parent must live in the same overlay (and must not be the element itself
+            // or one of its descendants), otherwise this could graft elements into another overlay.
+            // It must also be a type that renders its children.
+            const descendantIds =
+              typeof parentId === "string" ? await getAllDescendantIds(tx, [elementId]) : [];
+            const parent =
+              typeof parentId === "string" && !descendantIds.includes(parentId)
+                ? await tx.element.findFirst({
+                    where: {
+                      id: parentId,
+                      overlayId: element.overlayId,
+                      type: { in: ["CONTAINER", "GROUP"] },
+                    },
+                    select: { id: true },
+                  })
+                : null;
+            if (!parent) {
+              return { error: json({ error: "Invalid parent element" }, 400) };
+            }
+            elementUpdateData.parentId = parentId;
+          }
+
+          if (data) {
+            if (element.type === "TITLE" && typeof data.text === "string") {
+              elementUpdateData.title = { update: { text: data.text } };
+            }
+            if (element.type === "COUNTER") {
+              // `increment` adds to whatever the counter is at, so clicks by several people
+              // all count. `value` sets it (typing a number), where the last one wins.
+              if (Number.isInteger(data.value)) {
+                elementUpdateData.counter = { update: { value: data.value } };
+              } else if (Number.isInteger(data.increment)) {
+                elementUpdateData.counter = { update: { value: { increment: data.increment } } };
+              }
+            }
+            if (element.type === "IMAGE" && typeof data.src === "string") {
+              elementUpdateData.image = { update: { src: data.src } };
+            }
+            if (element.type === "TIMER") {
+              const { startedAt, pausedAt, duration, countDown, actions } = data;
+              const timerUpdateData: Prisma.TimerUpdateInput = {};
+              if (actions !== undefined) {
+                const parsed = parseTimerActions(actions);
+                if (!parsed || !current.timer) {
+                  return { error: json({ error: "Invalid timer actions" }, 400) };
+                }
+                // Applied with the server's clock, so it doesn't matter whose clock is off.
+                const now = Date.now();
+                const next = parsed.reduce(
+                  (timer, action) => applyTimerAction(timer, action, now),
+                  current.timer as TimerState
+                );
+                Object.assign(timerUpdateData, {
+                  startedAt: next.startedAt,
+                  pausedAt: next.pausedAt,
+                  duration: next.duration,
+                  countDown: next.countDown,
+                });
+              }
+              if (startedAt !== undefined) {
+                timerUpdateData.startedAt = startedAt ? new Date(startedAt) : null;
+              }
+              if (pausedAt !== undefined) {
+                timerUpdateData.pausedAt = pausedAt ? new Date(pausedAt) : null;
+              }
+              if (duration !== undefined) {
+                timerUpdateData.duration = duration;
+              }
+              if (countDown !== undefined) {
+                timerUpdateData.countDown = countDown;
+              }
+              elementUpdateData.timer = {
+                update: timerUpdateData,
+              };
+            }
+            if (element.type === "BINGO") {
+              if (!current.bingo) {
+                return { error: json({ error: "Bingo data not found" }, 404) };
+              }
+
+              const currentState = normalizeBingoState({
+                size: current.bingo.size,
+                freeMiddle: current.bingo.freeMiddle,
+                fields: current.bingo.fields,
+                checked: current.bingo.checked,
               });
+              const parsed = parseBingoUpdate(data, currentState);
+
+              if (!parsed.ok) {
+                return { error: json({ error: parsed.error }, 400) };
+              }
+
+              const { size, freeMiddle, fields, checked } = parsed.value;
+              elementUpdateData.bingo = {
+                update: { size, freeMiddle, fields, checked },
+              };
             }
-
-            const currentState = normalizeBingoState({
-              size: element.bingo.size,
-              freeMiddle: element.bingo.freeMiddle,
-              fields: element.bingo.fields,
-              checked: element.bingo.checked,
-            });
-            const parsed = parseBingoUpdate(data, currentState);
-
-            if (!parsed.ok) {
-              return new Response(JSON.stringify({ error: parsed.error }), {
-                status: 400,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
-
-            const { size, freeMiddle, fields, checked } = parsed.value;
-            elementUpdateData.bingo = {
-              update: { size, freeMiddle, fields, checked },
-            };
           }
-        }
 
-        const updatedElement = await prisma.element.update({
-          where: { id: elementId },
-          data: elementUpdateData,
-          include: { title: true, counter: true, timer: true, image: true, bingo: true },
+          await tx.element.update({ where: { id: elementId }, data: elementUpdateData });
+          return { ok: true };
         });
+        if ("error" in result) return result.error;
 
-        await publishOverlay(server, element.overlayId);
+        const overlay = await publishOverlay(server, element.overlayId, writeIdOf(req));
+        const updatedElement = overlay?.elements.find((el) => el.id === elementId) ?? null;
 
         return new Response(JSON.stringify(updatedElement), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: {
+            ...corsHeaders,
+            ...revisionHeaders(overlay),
+            "Content-Type": "application/json",
+          },
         });
       } catch (e) {
         console.error(e);
@@ -409,10 +465,17 @@ export const handleElementsRoutes = async (
         return json({ error: forbiddenMessage("EDITOR"), requiredRole: "EDITOR" }, 403);
       }
       // Children go with it through the parent relation's cascade.
-      await prisma.element.delete({ where: { id: elementId } });
-      await publishOverlay(server, element.overlayId);
+      await prisma.$transaction(async (tx) => {
+        await lockOverlay(tx, element.overlayId);
+        // deleteMany, because someone else may have deleted it already.
+        await tx.element.deleteMany({ where: { id: elementId } });
+      });
+      const overlay = await publishOverlay(server, element.overlayId, writeIdOf(req));
 
-      return new Response(null, { status: 204, headers: corsHeaders });
+      return new Response(null, {
+        status: 204,
+        headers: { ...corsHeaders, ...revisionHeaders(overlay) },
+      });
     }
 
     return new Response(JSON.stringify({ error: "Method not allowed" }), {

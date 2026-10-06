@@ -11,7 +11,7 @@ const FIELD_EDIT_DEBOUNCE_MS = 400;
 
 interface BingoControlProps {
   element: PrismaElement;
-  onDataChange: (elementId: string, data: { fields: string[] }) => void;
+  onDataChange: (elementId: string, data: { fields: Record<number, string> }) => void;
 }
 
 const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) => {
@@ -22,14 +22,17 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
   const [isShuffling, setIsShuffling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasPendingEdit = useRef(false);
+  // Cells typed into that haven't been sent yet. Only these are sent, so labels someone else
+  // changes meanwhile are kept.
+  const pendingEdits = useRef<Record<number, string>>({});
 
-  // Adopt server state whenever it changes, unless the user still has an
-  // uncommitted edit in flight for this card.
+  // Adopt server state whenever it changes, except for the cells the user is still typing in.
   useEffect(() => {
-    if (!hasPendingEdit.current) {
-      setFields(normalizeBingoData(element.bingo).fields);
-    }
+    setFields(
+      normalizeBingoData(element.bingo).fields.map(
+        (field, index) => pendingEdits.current[index] ?? field
+      )
+    );
   }, [serverFieldsKey, element.bingo]);
 
   useEffect(() => {
@@ -51,15 +54,16 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
     next[index] = value;
     setFields(next);
 
-    hasPendingEdit.current = true;
+    pendingEdits.current = { ...pendingEdits.current, [index]: value };
     setError(null);
 
     if (editTimer.current !== null) {
       clearTimeout(editTimer.current);
     }
     editTimer.current = setTimeout(() => {
-      hasPendingEdit.current = false;
-      onDataChange(element.id, { fields: next });
+      const edits = pendingEdits.current;
+      pendingEdits.current = {};
+      onDataChange(element.id, { fields: edits });
     }, FIELD_EDIT_DEBOUNCE_MS);
   };
 

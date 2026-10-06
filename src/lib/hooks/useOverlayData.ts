@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
+import { applyTimerAction, type TimerAction } from "@/lib/timer";
 import { ApiError, sharingApi, type OverlayAccess } from "@/lib/sharing";
 
 const DEBOUNCE_MS = 500;
@@ -10,25 +11,62 @@ const DEBOUNCE_MS = 500;
 // request is sent once the time is up (or right away when the page is left).
 export const UNDO_DELETE_MS = 8000;
 
-type TimerState = NonNullable<PrismaElement["timer"]>;
-
-// One queued write per field (an element's style, a counter's value, ...). Writes to the same
-// field are coalesced and sent one at a time, so the latest value always lands last; writes
-// to different fields don't interfere with each other.
+// How changes and other people's changes come together:
+//
+// - The server state (`serverOverlay`) is the latest snapshot received, by fetch or broadcast.
+//   Snapshots carry a revision, so an older one arriving late never replaces a newer one.
+// - Every local change is shown right away as a layer over that state, and stays laid over it
+//   until a snapshot arrives that contains it (or it failed). What's on screen is always the
+//   server state plus the user's own changes that are still on their way, so other people's
+//   changes show up immediately and the user's own don't flicker back while being saved.
+// - Changes are sent as what the user did rather than the resulting state wherever two people
+//   could do it at once: "+1" for counters, "pause" for timers, single cells for bingo cards,
+//   only the changed keys for styles. The server applies them to its current state.
+//
+// Requests go through one queue per field (an element's style, a counter, ...). Changes to the
+// same field are combined while they wait and sent one at a time, so they land in order;
+// changes to different fields don't hold each other up.
 interface WriteRequest {
   url: string;
   method?: "PATCH" | "POST" | "DELETE";
   body: object;
 }
 
-interface PendingWrite extends WriteRequest {
-  // Re-applies the local value on top of server state that doesn't include it yet.
+interface Layer {
   apply: (overlay: PrismaOverlay) => void;
-  version: number;
-  timer?: ReturnType<typeof setTimeout>;
-  inFlight: boolean;
-  resend: boolean;
+  // Set when the request is sent; the broadcast it causes carries the same id.
+  writeId?: string;
+  // The first revision known to contain the change. The layer is dropped once that (or a
+  // later) revision has been received.
+  revision?: number;
 }
+
+interface QueuedRequest extends WriteRequest {
+  layer: Layer;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
+interface WriteQueue {
+  // Waiting to be sent: for its debounce, or for the request before it to finish.
+  queued: QueuedRequest | null;
+  inFlight: boolean;
+}
+
+interface WriteOptions {
+  delay?: number;
+  // Folds a new body into one that hasn't been sent yet. Without it the newer body replaces
+  // the older one, which is right whenever a body holds the complete value.
+  combine?: (queued: object, next: object) => object;
+}
+
+// Cancels a write that hasn't been sent yet and returns its layer.
+const cancelQueued = (write: WriteQueue) => {
+  const queued = write.queued;
+  if (!queued) return null;
+  clearTimeout(queued.timer);
+  write.queued = null;
+  return queued.layer;
+};
 
 const findElement = (overlay: PrismaOverlay, elementId: string) =>
   overlay.elements.find((el) => el.id === elementId);
@@ -38,12 +76,82 @@ const resolveChange = (change: OverlayChange, current: PrismaOverlay) =>
 
 const isEqual = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-// Pausing folds the running stretch into `pausedAt`, which stores the accumulated elapsed
-// time as a timestamp relative to the epoch.
-const elapsedMs = ({ startedAt, pausedAt }: TimerState) => {
-  let elapsed = pausedAt ? new Date(pausedAt).getTime() : 0;
-  if (startedAt) elapsed += Date.now() - new Date(startedAt).getTime();
-  return elapsed;
+const writeIdPrefix = Math.random().toString(36).slice(2, 10);
+let writeCount = 0;
+const nextWriteId = () => `${writeIdPrefix}-${++writeCount}`;
+
+type StylePatch = Record<string, unknown>;
+
+// The keys that differ between two styles; removed keys are sent as null.
+const diffStyle = (before: unknown, after: unknown): StylePatch => {
+  const a = (before ?? {}) as StylePatch;
+  const b = (after ?? {}) as StylePatch;
+  const patch: StylePatch = {};
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (!isEqual(a[key], b[key])) patch[key] = b[key] ?? null;
+  }
+  return patch;
+};
+
+const applyStylePatch = (style: unknown, patch: StylePatch) => {
+  const next = { ...((style ?? {}) as StylePatch) };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) delete next[key];
+    else next[key] = value;
+  }
+  return next;
+};
+
+const combineStyle =
+  (field: "style" | "globalStyle") =>
+  (queued: object, next: object): object => ({
+    [field]: {
+      ...(queued as Record<string, StylePatch>)[field],
+      ...(next as Record<string, StylePatch>)[field],
+    },
+  });
+
+type CounterBody = { data: { value?: number; increment?: number } };
+
+const combineCounter = (queued: object, next: object): object => {
+  const q = (queued as CounterBody).data;
+  const n = (next as CounterBody).data;
+  // A typed value replaces whatever was waiting.
+  if (n.increment === undefined) return next;
+  if (q.increment !== undefined) return { data: { increment: q.increment + n.increment } };
+  return { data: { value: (q.value ?? 0) + n.increment } };
+};
+
+type TimerBody = { data: { actions: TimerAction[] } };
+
+const combineTimer = (queued: object, next: object): object => ({
+  data: {
+    actions: [...(queued as TimerBody).data.actions, ...(next as TimerBody).data.actions],
+  },
+});
+
+type BingoBody = { data: BingoDataUpdate };
+
+const mergeCells = <T>(
+  queued: T[] | Record<number, T> | undefined,
+  next: T[] | Record<number, T> | undefined
+) => {
+  if (queued === undefined || next === undefined || Array.isArray(next)) return next ?? queued;
+  if (!Array.isArray(queued)) return { ...queued, ...next };
+  const cells = [...queued];
+  for (const [index, value] of Object.entries(next)) cells[Number(index)] = value;
+  return cells;
+};
+
+const combineBingo = (queued: object, next: object): object => {
+  const q = (queued as BingoBody).data;
+  const n = (next as BingoBody).data;
+  const data: BingoDataUpdate = { ...q, ...n };
+  const fields = mergeCells(q.fields, n.fields);
+  const checked = mergeCells(q.checked, n.checked);
+  if (fields !== undefined) data.fields = fields;
+  if (checked !== undefined) data.checked = checked;
+  return { data };
 };
 
 export const useOverlayData = () => {
@@ -58,31 +166,54 @@ export const useOverlayData = () => {
   // Mirrors `overlay` synchronously so handlers invoked from stale closures (debounced
   // editors, drag and drop monitors, socket callbacks) always build on the latest state.
   const overlayRef = useRef<PrismaOverlay | null>(null);
-  const pendingWrites = useRef(new Map<string, PendingWrite>());
-  const writeVersion = useRef(0);
-  // Bumped whenever server state arrives over the socket; a fetch that started before then
-  // returns older data and is discarded.
-  const serverRevision = useRef(0);
+  // The latest server state, without local changes.
+  const serverOverlay = useRef<PrismaOverlay | null>(null);
+  const layers = useRef<Layer[]>([]);
+  const writes = useRef(new Map<string, WriteQueue>());
+  // Responses that arrive after switching to another overlay must not touch the new one.
+  const activeId = useRef(id);
+  // Set while this user deletes the overlay, so its own deletion isn't reported as someone
+  // else's.
+  const deletingOverlay = useRef(false);
 
   const setOverlay = useCallback((next: PrismaOverlay | null) => {
     overlayRef.current = next;
     setOverlayState(next);
   }, []);
 
-  // Server state doesn't contain local edits that are still waiting to be saved (or whose
-  // save hasn't been broadcast yet). Applying it as-is would make inputs jump back while
-  // the user is typing, so pending values are laid over it.
+  // Shows the server state with the local changes that it doesn't contain yet laid over it.
+  const render = useCallback(() => {
+    const server = serverOverlay.current;
+    if (!server) return;
+    if (layers.current.length === 0) {
+      setOverlay(server);
+      return;
+    }
+    const merged: PrismaOverlay = structuredClone(server);
+    layers.current.forEach((layer) => layer.apply(merged));
+    setOverlay(merged);
+  }, [setOverlay]);
+
+  const removeLayer = useCallback((layer: Layer) => {
+    layers.current = layers.current.filter((l) => l !== layer);
+  }, []);
+
   const applyServerOverlay = useCallback(
-    (serverOverlay: PrismaOverlay) => {
-      if (pendingWrites.current.size === 0) {
-        setOverlay(serverOverlay);
-        return;
-      }
-      const merged: PrismaOverlay = structuredClone(serverOverlay);
-      pendingWrites.current.forEach((write) => write.apply(merged));
-      setOverlay(merged);
+    ({ writeId, ...snapshot }: PrismaOverlay & { writeId?: string }) => {
+      if (snapshot.id !== activeId.current) return;
+      const current = serverOverlay.current;
+      // A fetch that started before a broadcast, or broadcasts overtaking each other.
+      if (current && snapshot.revision < current.revision) return;
+      serverOverlay.current = snapshot;
+
+      const { revision } = snapshot;
+      layers.current = layers.current.filter((layer) => {
+        if (writeId && layer.writeId === writeId) return false;
+        return layer.revision === undefined || layer.revision > revision;
+      });
+      render();
     },
-    [setOverlay]
+    [render]
   );
 
   // Re-read whenever access to the overlay changes, so someone demoted or removed while the
@@ -102,7 +233,6 @@ export const useOverlayData = () => {
   }, [id]);
 
   const fetchOverlayData = useCallback(async () => {
-    const revision = serverRevision.current;
     const response = await fetch(`/api/overlays/${id}`, { credentials: "include" });
     if (!response.ok) {
       throw new Error(
@@ -111,15 +241,13 @@ export const useOverlayData = () => {
           : "Failed to fetch overlay"
       );
     }
-    const data: PrismaOverlay = await response.json();
-    return revision === serverRevision.current ? data : null;
+    return (await response.json()) as PrismaOverlay;
   }, [id]);
 
   // Quiet refetch used when the live connection (re)opens and after a failed save.
   const refreshOverlay = useCallback(async () => {
     try {
-      const data = await fetchOverlayData();
-      if (data) applyServerOverlay(data);
+      applyServerOverlay(await fetchOverlayData());
     } catch (err) {
       console.error("Failed to refresh overlay", err);
     }
@@ -127,47 +255,55 @@ export const useOverlayData = () => {
 
   const sendWrite = useCallback(
     async (key: string) => {
-      const write = pendingWrites.current.get(key);
-      if (!write) return;
-      clearTimeout(write.timer);
-      write.timer = undefined;
-      if (write.inFlight) {
-        // Sent once the current request finishes, so requests can't overtake each other.
-        write.resend = true;
-        return;
-      }
-
+      const write = writes.current.get(key);
+      if (!write || write.inFlight) return;
       write.inFlight = true;
-      let failed: boolean;
-      let version: number;
-      // Loop (rather than recurse) so a resend queued mid-flight goes out after this request.
-      do {
-        write.resend = false;
-        const { url, method = "PATCH", body } = write;
-        version = write.version;
+
+      // Loop (rather than recurse) so a change queued mid-flight goes out after this request.
+      // One that is still waiting for its debounce is sent by its timer instead.
+      let request: QueuedRequest | null;
+      while ((request = write.queued) && !request.timer) {
+        write.queued = null;
+        const { url, method = "PATCH", body, layer } = request;
+        const writeId = nextWriteId();
+        layer.writeId = writeId;
+        let revision: number | undefined;
+        let failed = false;
         try {
           const response = await fetch(url, {
             method,
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-Write-Id": writeId },
             body: JSON.stringify(body),
             credentials: "include",
           });
           if (!response.ok) throw new Error(`Failed to update (${response.status})`);
-          failed = false;
+          const header = response.headers.get("X-Overlay-Revision");
+          revision = header ? Number(header) : undefined;
         } catch (err) {
           console.error(err);
           failed = true;
         }
-      } while (write.resend);
-      write.inFlight = false;
 
-      if (write.version === version && !write.timer) {
-        pendingWrites.current.delete(key);
+        // The page was left or switched to another overlay in the meantime.
+        if (writes.current.get(key) !== write) return;
+
+        if (layers.current.includes(layer)) {
+          const received = serverOverlay.current?.revision ?? -1;
+          if (failed || revision === undefined || received >= revision) {
+            removeLayer(layer);
+            render();
+          } else {
+            layer.revision = revision;
+          }
+        }
+        // Don't leave the UI showing a value the server never accepted.
+        if (failed) refreshOverlay();
       }
-      // Don't leave the UI showing a value the server never accepted.
-      if (failed) refreshOverlay();
+
+      write.inFlight = false;
+      if (!write.queued) writes.current.delete(key);
     },
-    [refreshOverlay]
+    [refreshOverlay, removeLayer, render]
   );
 
   const queueWrite = useCallback(
@@ -175,21 +311,36 @@ export const useOverlayData = () => {
       key: string,
       request: WriteRequest,
       apply: (overlay: PrismaOverlay) => void,
-      delay = 0
+      { delay = 0, combine }: WriteOptions = {}
     ) => {
-      const write: PendingWrite = pendingWrites.current.get(key) ?? {
-        ...request,
-        apply,
-        version: 0,
-        inFlight: false,
-        resend: false,
-      };
-      Object.assign(write, { method: undefined, ...request, apply, version: ++writeVersion.current });
-      pendingWrites.current.set(key, write);
-      clearTimeout(write.timer);
-      write.timer = undefined;
+      let write = writes.current.get(key);
+      if (!write) {
+        write = { queued: null, inFlight: false };
+        writes.current.set(key, write);
+      }
+      const queued = write.queued;
+      if (queued) {
+        clearTimeout(queued.timer);
+        queued.timer = undefined;
+        queued.url = request.url;
+        queued.method = request.method;
+        queued.body = combine ? combine(queued.body, request.body) : request.body;
+        const previous = queued.layer.apply;
+        queued.layer.apply = (target) => {
+          previous(target);
+          apply(target);
+        };
+      } else {
+        const layer: Layer = { apply };
+        layers.current.push(layer);
+        write.queued = { ...request, layer };
+      }
+      const pending = write.queued!;
       if (delay > 0) {
-        write.timer = setTimeout(() => sendWrite(key), delay);
+        pending.timer = setTimeout(() => {
+          pending.timer = undefined;
+          sendWrite(key);
+        }, delay);
       } else {
         sendWrite(key);
       }
@@ -204,7 +355,7 @@ export const useOverlayData = () => {
       field: string,
       body: object,
       mutate: (el: PrismaElement) => void,
-      delay = 0
+      options?: WriteOptions
     ) => {
       const current = overlayRef.current;
       if (!current || !findElement(current, elementId)) return;
@@ -215,7 +366,12 @@ export const useOverlayData = () => {
       const next: PrismaOverlay = structuredClone(current);
       apply(next);
       setOverlay(next);
-      queueWrite(`${elementId}:${field}`, { url: `/api/elements/${elementId}`, body }, apply, delay);
+      queueWrite(
+        `${elementId}:${field}`,
+        { url: `/api/elements/${elementId}`, body },
+        apply,
+        options
+      );
     },
     [queueWrite, setOverlay]
   );
@@ -223,6 +379,8 @@ export const useOverlayData = () => {
   useEffect(() => {
     if (!id) return;
     let disposed = false;
+    activeId.current = id;
+    const pending = writes.current;
 
     const load = async () => {
       setIsLoading(true);
@@ -234,7 +392,7 @@ export const useOverlayData = () => {
         ]);
         if (disposed) return;
         setAccess(initialAccess);
-        if (data) applyServerOverlay(data);
+        applyServerOverlay(data);
       } catch (err) {
         if (!disposed) {
           setError(err instanceof Error ? err.message : "An unknown error occurred");
@@ -248,50 +406,58 @@ export const useOverlayData = () => {
     // Only `id` may restart the socket: reconnecting on every state change would drop
     // broadcasts that arrive in between.
     const disconnect = connectOverlaySocket(id, {
-      onOverlay: (updatedOverlay) => {
-        serverRevision.current++;
-        applyServerOverlay(updatedOverlay);
-      },
+      onOverlay: applyServerOverlay,
       onOpen: refreshOverlay,
       onAccessChange: refreshAccess,
+      onDeleted: () => {
+        if (deletingOverlay.current) return;
+        pending.forEach(cancelQueued);
+        pending.clear();
+        setError("This overlay has been deleted.");
+      },
     });
 
-    const writes = pendingWrites.current;
     return () => {
       disposed = true;
       disconnect();
       // Leaving the page must not drop edits that are still waiting for their debounce (or
       // for an earlier request to the same field to finish).
-      writes.forEach((write) => {
-        if (!write.timer && !write.resend) return;
-        clearTimeout(write.timer);
-        fetch(write.url, {
-          method: write.method ?? "PATCH",
+      pending.forEach(({ queued }) => {
+        if (!queued) return;
+        clearTimeout(queued.timer);
+        fetch(queued.url, {
+          method: queued.method ?? "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(write.body),
+          body: JSON.stringify(queued.body),
           credentials: "include",
           keepalive: true,
         }).catch(console.error);
       });
-      writes.clear();
+      pending.clear();
+      layers.current = [];
+      serverOverlay.current = null;
+      activeId.current = undefined;
       setOverlay(null);
     };
   }, [id, fetchOverlayData, applyServerOverlay, refreshOverlay, refreshAccess, setOverlay]);
 
   // Elements that are gone locally must not receive their queued writes any more (they
   // would only fail with a 404 once the delete has gone through).
-  const dropWritesForRemoved = useCallback((current: PrismaOverlay, next: PrismaOverlay) => {
-    const remaining = new Set(next.elements.map((el) => el.id));
-    for (const el of current.elements) {
-      if (remaining.has(el.id)) continue;
-      for (const [key, write] of pendingWrites.current) {
-        if (key.startsWith(`${el.id}:`) && !write.inFlight) {
-          clearTimeout(write.timer);
-          pendingWrites.current.delete(key);
+  const dropWritesForRemoved = useCallback(
+    (current: PrismaOverlay, next: PrismaOverlay) => {
+      const remaining = new Set(next.elements.map((el) => el.id));
+      for (const el of current.elements) {
+        if (remaining.has(el.id)) continue;
+        for (const [key, write] of writes.current) {
+          if (!key.startsWith(`${el.id}:`)) continue;
+          const layer = cancelQueued(write);
+          if (layer) removeLayer(layer);
+          if (!write.inFlight) writes.current.delete(key);
         }
       }
-    }
-  }, []);
+    },
+    [removeLayer]
+  );
 
   // Persists whatever changed between the current overlay and the new one (global style and
   // element styles) and adopts the new one as local state. Structure (adding, deleting,
@@ -302,15 +468,20 @@ export const useOverlayData = () => {
       if (!current) return;
       const updatedOverlay = resolveChange(change, current);
 
-      if (!isEqual(updatedOverlay.globalStyle, current.globalStyle)) {
-        const globalStyle = updatedOverlay.globalStyle;
+      // Only the changed keys are sent, so someone else changing another property at the
+      // same time keeps their change.
+      const globalStyle = diffStyle(current.globalStyle, updatedOverlay.globalStyle);
+      if (Object.keys(globalStyle).length > 0) {
         queueWrite(
           "overlay:globalStyle",
           { url: `/api/overlays/${current.id}`, body: { globalStyle } },
           (target) => {
-            target.globalStyle = globalStyle;
+            target.globalStyle = applyStylePatch(
+              target.globalStyle,
+              globalStyle
+            ) as unknown as PrismaOverlay["globalStyle"];
           },
-          DEBOUNCE_MS
+          { delay: DEBOUNCE_MS, combine: combineStyle("globalStyle") }
         );
       }
 
@@ -318,16 +489,17 @@ export const useOverlayData = () => {
       const originalById = new Map(current.elements.map((el) => [el.id, el]));
       for (const element of updatedOverlay.elements) {
         const original = originalById.get(element.id);
-        if (!original || isEqual(element.style, original.style)) continue;
-        const style = element.style;
+        if (!original) continue;
+        const style = diffStyle(original.style, element.style);
+        if (Object.keys(style).length === 0) continue;
         queueWrite(
           `${element.id}:style`,
           { url: `/api/elements/${element.id}`, body: { style } },
           (target) => {
             const el = findElement(target, element.id);
-            if (el) el.style = style;
+            if (el) el.style = applyStylePatch(el.style, style);
           },
-          DEBOUNCE_MS
+          { delay: DEBOUNCE_MS, combine: combineStyle("style") }
         );
       }
 
@@ -386,7 +558,7 @@ export const useOverlayData = () => {
         key,
         { url: "/api/elements/delete", method: "DELETE", body: { ids } },
         apply,
-        UNDO_DELETE_MS
+        { delay: UNDO_DELETE_MS }
       );
       return { key, elements: current.elements.filter((el) => removed.has(el.id)) };
     },
@@ -397,24 +569,21 @@ export const useOverlayData = () => {
   // could be undone.
   const handleUndoDelete = useCallback(
     (deletion: { key: string; elements: PrismaElement[] }) => {
-      const write = pendingWrites.current.get(deletion.key);
-      const current = overlayRef.current;
-      if (!current || !write || write.inFlight || !write.timer) return false;
-      clearTimeout(write.timer);
-      pendingWrites.current.delete(deletion.key);
-      const present = new Set(current.elements.map((el) => el.id));
-      setOverlay({
-        ...current,
-        elements: [...current.elements, ...deletion.elements.filter((el) => !present.has(el.id))],
-      });
-      // Broadcasts were filtered while the deletion was pending, so the server's copies of
-      // the elements (possibly changed by someone else meanwhile) are fetched again.
-      refreshOverlay();
+      const write = writes.current.get(deletion.key);
+      // Too late once the request has been sent.
+      if (!write?.queued?.timer) return false;
+      const layer = cancelQueued(write)!;
+      if (!write.inFlight) writes.current.delete(deletion.key);
+      // The server still has the elements, including whatever others changed on them
+      // meanwhile, so dropping the deletion's layer brings them back as they are now.
+      removeLayer(layer);
+      render();
       return true;
     },
-    [setOverlay, refreshOverlay]
+    [removeLayer, render]
   );
 
+  // Typing a value: the last one typed wins.
   const handleCounterChange = useCallback(
     (elementId: string, value: number) => {
       updateElement(
@@ -424,17 +593,24 @@ export const useOverlayData = () => {
         (el) => {
           if (el.counter) el.counter.value = value;
         },
-        DEBOUNCE_MS
+        { delay: DEBOUNCE_MS, combine: combineCounter }
       );
     },
     [updateElement]
   );
 
-  const handleImmediateCounterChange = useCallback(
-    (elementId: string, value: number) => {
-      updateElement(elementId, "counter", { data: { value } }, (el) => {
-        if (el.counter) el.counter.value = value;
-      });
+  // The +/- buttons: sent as a step, so clicks by several people at once all count.
+  const handleCounterIncrement = useCallback(
+    (elementId: string, increment: number) => {
+      updateElement(
+        elementId,
+        "counter",
+        { data: { increment } },
+        (el) => {
+          if (el.counter) el.counter.value += increment;
+        },
+        { combine: combineCounter }
+      );
     },
     [updateElement]
   );
@@ -448,7 +624,7 @@ export const useOverlayData = () => {
         (el) => {
           if (el.title) el.title.text = text;
         },
-        DEBOUNCE_MS
+        { delay: DEBOUNCE_MS }
       );
     },
     [updateElement]
@@ -464,96 +640,77 @@ export const useOverlayData = () => {
   );
 
   // Single mutation path for bingo data: applied locally first so the editor and preview
-  // stay in step, then persisted.
+  // stay in step, then persisted. Cells are sent as `{ index: value }` patches, so people
+  // marking or editing different cells don't overwrite each other.
   const handleBingoDataChange = useCallback(
     (elementId: string, data: BingoDataUpdate) => {
-      updateElement(elementId, "bingo", { data }, (el) => {
-        if (!el.bingo) return;
-        const next = applyBingoDataUpdate(normalizeBingoData(el.bingo), data);
-        el.bingo.size = next.size;
-        el.bingo.freeMiddle = next.freeMiddle;
-        el.bingo.fields = next.fields;
-        el.bingo.checked = next.checked;
-      });
+      const reshapesCard = data.size !== undefined || data.freeMiddle !== undefined;
+      updateElement(
+        elementId,
+        reshapesCard ? "bingoCard" : "bingoCells",
+        { data },
+        (el) => {
+          if (!el.bingo) return;
+          const next = applyBingoDataUpdate(normalizeBingoData(el.bingo), data);
+          el.bingo.size = next.size;
+          el.bingo.freeMiddle = next.freeMiddle;
+          el.bingo.fields = next.fields;
+          el.bingo.checked = next.checked;
+        },
+        { combine: combineBingo }
+      );
     },
     [updateElement]
   );
 
-  // Timer writes always carry the complete timer state, so coalescing them can't lose a
-  // field that only an earlier write contained.
-  const writeTimer = useCallback(
-    (elementId: string, compute: (timer: TimerState) => Partial<TimerState>) => {
-      const current = overlayRef.current;
-      const timer = current && findElement(current, elementId)?.timer;
-      if (!timer) return;
-      const next: TimerState = { ...timer, ...compute(timer) };
-      const { startedAt, pausedAt, duration, countDown } = next;
-      updateElement(elementId, "timer", { data: { startedAt, pausedAt, duration, countDown } }, (el) => {
-        if (el.timer) el.timer = { ...el.timer, startedAt, pausedAt, duration, countDown };
-      });
+  // Timers are changed through actions the server applies to the timer as it is then, so
+  // two people pausing or adding time at once get what each of them clicked.
+  const timerAction = useCallback(
+    (elementId: string, action: TimerAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the timer.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "timer",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.timer) el.timer = applyTimerAction(el.timer, action, now);
+        },
+        { combine: combineTimer }
+      );
     },
     [updateElement]
   );
 
   const handleTimerToggle = useCallback(
     (elementId: string) => {
-      writeTimer(elementId, (timer) =>
-        timer.startedAt
-          ? { startedAt: null, pausedAt: new Date(elapsedMs(timer)).toISOString() }
-          : { startedAt: new Date().toISOString() }
-      );
+      const timer = overlayRef.current && findElement(overlayRef.current, elementId)?.timer;
+      if (!timer) return;
+      // What the button showed: someone else starting it a moment earlier doesn't turn this
+      // "start" into a pause.
+      timerAction(elementId, { type: timer.startedAt ? "pause" : "start" });
     },
-    [writeTimer]
+    [timerAction]
   );
 
   const handleTimerReset = useCallback(
-    (elementId: string) => {
-      writeTimer(elementId, () => ({
-        startedAt: null,
-        pausedAt: new Date(0).toISOString(),
-        duration: 0,
-        countDown: false,
-      }));
-    },
-    [writeTimer]
+    (elementId: string) => timerAction(elementId, { type: "reset" }),
+    [timerAction]
   );
 
   const handleTimerUpdate = useCallback(
-    (elementId: string, update: { duration?: number; countDown?: boolean }) => {
-      writeTimer(elementId, (timer) => {
-        const next: Partial<TimerState> = { ...update };
-        if (update.countDown === true && !timer.countDown) {
-          // Count down from whatever the timer currently shows.
-          next.duration = elapsedMs(timer);
-          next.pausedAt = new Date(0).toISOString();
-          next.startedAt = null;
-        } else if (update.countDown === false && timer.countDown) {
-          // Count up from whatever time was left.
-          const remaining = (timer.duration || 0) - elapsedMs(timer);
-          next.pausedAt = new Date(Math.max(0, remaining)).toISOString();
-          next.duration = 0;
-          next.startedAt = null;
-        }
-        return next;
-      });
-    },
-    [writeTimer]
+    (elementId: string, update: { countDown: boolean }) =>
+      timerAction(elementId, { type: "setCountDown", countDown: update.countDown }),
+    [timerAction]
   );
 
   const handleTimerAddTime = useCallback(
-    (elementId: string, timeToAdd: number) => {
-      writeTimer(elementId, (timer) => {
-        if (timer.countDown) {
-          return { duration: Math.max(0, (timer.duration || 0) + timeToAdd) };
-        }
-        const paused = timer.pausedAt ? new Date(timer.pausedAt).getTime() : 0;
-        return { pausedAt: new Date(Math.max(0, paused + timeToAdd)).toISOString() };
-      });
-    },
-    [writeTimer]
+    (elementId: string, ms: number) => timerAction(elementId, { type: "addTime", ms }),
+    [timerAction]
   );
 
   const handleDeleteOverlay = async () => {
+    deletingOverlay.current = true;
     try {
       const response = await fetch(`/api/overlays/${id}`, {
         method: "DELETE",
@@ -567,10 +724,11 @@ export const useOverlayData = () => {
         );
       }
       // Nothing left to save edits into.
-      pendingWrites.current.forEach((write) => clearTimeout(write.timer));
-      pendingWrites.current.clear();
+      writes.current.forEach(cancelQueued);
+      writes.current.clear();
       navigate("/");
     } catch (err) {
+      deletingOverlay.current = false;
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
@@ -589,7 +747,7 @@ export const useOverlayData = () => {
     handleDeleteElements,
     handleUndoDelete,
     handleCounterChange,
-    handleImmediateCounterChange,
+    handleCounterIncrement,
     handleTitleChange,
     handleImageChange,
     handleBingoDataChange,

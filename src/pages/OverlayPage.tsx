@@ -34,7 +34,7 @@ const OverlayPage: React.FC = () => {
     handleDeleteElements,
     handleUndoDelete,
     handleCounterChange,
-    handleImmediateCounterChange,
+    handleCounterIncrement,
     handleTitleChange,
     handleImageChange,
     handleBingoDataChange,
@@ -59,7 +59,7 @@ const OverlayPage: React.FC = () => {
   const content = useMemo<ContentHandlers>(
     () => ({
       onCounterChange: handleCounterChange,
-      onImmediateCounterChange: handleImmediateCounterChange,
+      onCounterIncrement: handleCounterIncrement,
       onTitleChange: handleTitleChange,
       onImageChange: handleImageChange,
       onBingoDataChange: handleBingoDataChange,
@@ -70,7 +70,7 @@ const OverlayPage: React.FC = () => {
     }),
     [
       handleCounterChange,
-      handleImmediateCounterChange,
+      handleCounterIncrement,
       handleTitleChange,
       handleImageChange,
       handleBingoDataChange,

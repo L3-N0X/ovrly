@@ -10,13 +10,13 @@ import BingoControl from "./BingoControl";
 // Everything that changes what an element shows (as opposed to how it looks).
 export interface ContentHandlers {
   onCounterChange: (elementId: string, value: number) => void;
-  onImmediateCounterChange: (elementId: string, value: number) => void;
+  onCounterIncrement: (elementId: string, increment: number) => void;
   onTitleChange: (elementId: string, text: string) => void;
   onImageChange: (elementId: string, src: string) => void;
   onBingoDataChange: (elementId: string, data: BingoDataUpdate) => void;
   onTimerToggle: (elementId: string) => void;
   onTimerReset: (elementId: string) => void;
-  onTimerUpdate: (elementId: string, update: { duration?: number; countDown?: boolean }) => void;
+  onTimerUpdate: (elementId: string, update: { countDown: boolean }) => void;
   onTimerAddTime: (elementId: string, timeToAdd: number) => void;
 }
 
@@ -40,7 +40,7 @@ export const ElementContentControl: React.FC<{
         <CounterControl
           element={element}
           handleCounterChange={handlers.onCounterChange}
-          handleImmediateCounterChange={handlers.onImmediateCounterChange}
+          handleCounterIncrement={handlers.onCounterIncrement}
         />
       );
     case ElementTypeEnum.TITLE:

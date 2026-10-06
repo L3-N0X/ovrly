@@ -1,7 +1,8 @@
 import { prisma } from "../auth";
 import { authenticate, requireOverlayRole } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
-import { publishOverlay } from "../services/overlay-query";
+import { publishOverlay, revisionHeaders, writeIdOf } from "../services/overlay-query";
+import { lockOverlay } from "../services/locks";
 
 const MAX_REORDER_ELEMENTS = 1000;
 // Only these render their children; anything placed under another type would vanish.
@@ -55,57 +56,61 @@ export const handleReorderRoutes = async (
         moves.set(id, { position, parentId });
       }
 
-      const overlayElements = await prisma.element.findMany({
-        where: { overlayId },
-        select: { id: true, parentId: true, type: true },
-      });
-      const parentOf = new Map(overlayElements.map((e) => [e.id, e.parentId]));
-      const typeOf = new Map(overlayElements.map((e) => [e.id, e.type]));
+      // Validated and written under the overlay's lock, so a concurrent move (or deletion)
+      // is either fully visible to the checks below or happens after this one.
+      const failure = await prisma.$transaction(async (tx) => {
+        await lockOverlay(tx, overlayId);
+        const overlayElements = await tx.element.findMany({
+          where: { overlayId },
+          select: { id: true, parentId: true, type: true },
+        });
+        const parentOf = new Map(overlayElements.map((e) => [e.id, e.parentId]));
+        const typeOf = new Map(overlayElements.map((e) => [e.id, e.type]));
 
-      for (const [id, { parentId }] of moves) {
-        if (!parentOf.has(id) || (parentId && !parentOf.has(parentId))) {
-          return new Response(JSON.stringify({ error: "Element not found in overlay" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+        // The layout comes from the sender's view of the overlay. Elements someone else
+        // deleted in the meantime are skipped instead of failing the whole move.
+        for (const id of [...moves.keys()]) {
+          if (!parentOf.has(id)) moves.delete(id);
         }
-        if (parentId && !PARENT_TYPES.has(typeOf.get(parentId)!)) {
-          return new Response(JSON.stringify({ error: "Parent element can't hold children" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (parentId !== undefined) parentOf.set(id, parentId);
-      }
 
-      // Reject moves that would put an element underneath itself.
-      for (const id of moves.keys()) {
-        const seen = new Set<string>();
-        for (let cur: string | null | undefined = id; cur; cur = parentOf.get(cur)) {
-          if (seen.has(cur)) {
-            return new Response(JSON.stringify({ error: "Invalid element hierarchy" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+        for (const [id, { parentId }] of moves) {
+          if (parentId && !parentOf.has(parentId)) {
+            return { error: "Element not found in overlay", status: 404 };
           }
-          seen.add(cur);
+          if (parentId && !PARENT_TYPES.has(typeOf.get(parentId)!)) {
+            return { error: "Parent element can't hold children", status: 400 };
+          }
+          if (parentId !== undefined) parentOf.set(id, parentId);
         }
+
+        // Reject moves that would put an element underneath itself.
+        for (const id of moves.keys()) {
+          const seen = new Set<string>();
+          for (let cur: string | null | undefined = id; cur; cur = parentOf.get(cur)) {
+            if (seen.has(cur)) {
+              return { error: "Invalid element hierarchy", status: 400 };
+            }
+            seen.add(cur);
+          }
+        }
+
+        // All-or-nothing: a failure part-way through must not leave a half-reordered tree.
+        for (const [id, { position, parentId }] of moves) {
+          await tx.element.update({ where: { id }, data: { position, parentId } });
+        }
+        return null;
+      });
+      if (failure) {
+        return new Response(JSON.stringify({ error: failure.error }), {
+          status: failure.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // All-or-nothing: a failure part-way through must not leave a half-reordered tree.
-      await prisma.$transaction(
-        [...moves].map(([id, { position, parentId }]) =>
-          prisma.element.update({
-            where: { id },
-            data: { position, parentId },
-          })
-        )
-      );
-
-      await publishOverlay(server, overlayId);
+      const overlay = await publishOverlay(server, overlayId, writeIdOf(req));
 
       return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, ...revisionHeaders(overlay), "Content-Type": "application/json" },
       });
     } catch (e) {
       console.error(e);

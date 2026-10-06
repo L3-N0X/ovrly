@@ -1,7 +1,6 @@
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { type FC, useMemo } from "react";
 import type { BingoStyle, PrismaElement } from "@/lib/types";
 import { bingoMiddleIndex, normalizeBingoData, resolveBingoStyle } from "@/lib/bingo";
-import { toggleBingoCell } from "@/lib/bingoApi";
 import { useBingoDataChange } from "@/lib/bingoDataContext";
 import BingoCell from "./BingoCell";
 
@@ -21,57 +20,24 @@ const Bingo: FC<BingoProps> = ({ element, isEditor = false }) => {
   const canEdit = isEditor && onBingoDataChange !== null;
 
   const middleIndex = bingoMiddleIndex(data.size);
-  // Cells the user has just clicked but whose server state has not arrived yet.
-  const [pendingToggles, setPendingToggles] = useState<Record<number, boolean>>({});
-  const [error, setError] = useState<string | null>(null);
 
-  // The WebSocket broadcast carries the authoritative state, so once it lands
-  // the optimistic overrides are no longer needed.
-  useEffect(() => {
-    setPendingToggles({});
-    setError(null);
-  }, [data]);
-
-  const isCellChecked = useCallback(
-    (index: number) => {
-      const isFreeSpace = data.freeMiddle && index === middleIndex;
-      if (isFreeSpace) return true;
-      return pendingToggles[index] ?? data.checked[index];
-    },
-    [data, middleIndex, pendingToggles]
-  );
-
-  const handleToggle = useCallback(
-    async (index: number) => {
-      if (!canEdit) return;
-
-      setError(null);
-      setPendingToggles((pending) => ({ ...pending, [index]: !isCellChecked(index) }));
-
-      try {
-        await toggleBingoCell(element.id, index);
-      } catch (toggleError) {
-        setPendingToggles((pending) => {
-          const next = { ...pending };
-          delete next[index];
-          return next;
-        });
-        setError(toggleError instanceof Error ? toggleError.message : "Could not update the cell");
-      }
-    },
-    [element.id, isCellChecked, canEdit]
-  );
+  const isCellChecked = (index: number) =>
+    (data.freeMiddle && index === middleIndex) || data.checked[index];
 
   if (!bingo) {
     return null;
   }
 
+  // Sent as the state the cell should end up in, for this cell only: someone else marking
+  // another cell (or this one) at the same time doesn't undo either change.
+  const handleToggle = (index: number) => {
+    if (!canEdit || !onBingoDataChange) return;
+    onBingoDataChange(element.id, { checked: { [index]: !isCellChecked(index) } });
+  };
+
   const handleFieldChange = (index: number, newText: string) => {
     if (!canEdit || !onBingoDataChange) return;
-
-    const fields = [...data.fields];
-    fields[index] = newText;
-    onBingoDataChange(element.id, { fields });
+    onBingoDataChange(element.id, { fields: { [index]: newText } });
   };
 
   const borderWidth = bingoStyle.borderWidth ?? 0;
@@ -124,14 +90,6 @@ const Bingo: FC<BingoProps> = ({ element, isEditor = false }) => {
           );
         })}
       </div>
-      {canEdit && error && (
-        <p
-          role="alert"
-          className="absolute -bottom-6 left-0 rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground"
-        >
-          {error}
-        </p>
-      )}
     </div>
   );
 };

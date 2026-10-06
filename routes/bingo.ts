@@ -7,19 +7,52 @@ import {
   shuffleBingoFields,
   type BingoState,
 } from "../lib/bingo";
-import { publishOverlay } from "../services/overlay-query";
+import { publishOverlay, revisionHeaders, writeIdOf } from "../services/overlay-query";
+import { lockElement } from "../services/locks";
 
-const jsonResponse = (body: unknown, status = 200) =>
+const jsonResponse = (
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {}
+) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, ...headers, "Content-Type": "application/json" },
   });
 
 interface BingoElementContext {
+  elementId: string;
   bingoId: string;
   overlayId: string;
-  state: BingoState;
 }
+
+type BingoChange = { state: Partial<BingoState> } | { error: Response };
+
+/**
+ * Reads the card and writes `change(state)` back under the element's row lock, so a toggle
+ * or shuffle always builds on the latest card and two people marking different cells at the
+ * same time both keep their mark.
+ */
+const updateBingo = async (
+  { elementId, bingoId }: BingoElementContext,
+  change: (state: BingoState) => BingoChange
+): Promise<Response | null> =>
+  prisma.$transaction(async (tx) => {
+    await lockElement(tx, elementId);
+    const bingo = await tx.bingo.findUnique({ where: { id: bingoId } });
+    if (!bingo) return jsonResponse({ error: "Bingo element not found" }, 404);
+    const result = change(
+      normalizeBingoState({
+        size: bingo.size,
+        freeMiddle: bingo.freeMiddle,
+        fields: bingo.fields,
+        checked: bingo.checked,
+      })
+    );
+    if ("error" in result) return result.error;
+    await tx.bingo.update({ where: { id: bingoId }, data: result.state });
+    return null;
+  });
 
 type BingoElementResult = { context: BingoElementContext; error?: never } | { error: Response };
 
@@ -60,14 +93,9 @@ const resolveBingoElement = async (
 
   return {
     context: {
+      elementId: element.id,
       bingoId: element.bingo.id,
       overlayId: element.overlayId,
-      state: normalizeBingoState({
-        size: element.bingo.size,
-        freeMiddle: element.bingo.freeMiddle,
-        fields: element.bingo.fields,
-        checked: element.bingo.checked,
-      }),
     },
   };
 };
@@ -88,23 +116,17 @@ export const handleBingoRoutes = async (
       return resolved.error;
     }
 
-    const { bingoId, overlayId, state } = resolved.context;
-
-    if (!state.fields.some((field) => field.length > 0)) {
-      return jsonResponse({ error: "Add at least one bingo field before shuffling" }, 400);
-    }
-
     try {
-      const fields = shuffleBingoFields(state.fields);
+      const failure = await updateBingo(resolved.context, (state) =>
+        state.fields.some((field) => field.length > 0)
+          ? { state: { fields: shuffleBingoFields(state.fields) } }
+          : { error: jsonResponse({ error: "Add at least one bingo field before shuffling" }, 400) }
+      );
+      if (failure) return failure;
 
-      await prisma.bingo.update({
-        where: { id: bingoId },
-        data: { fields },
-      });
+      const updatedOverlay = await publishOverlay(server, resolved.context.overlayId, writeIdOf(req));
 
-      const updatedOverlay = await publishOverlay(server, overlayId);
-
-      return jsonResponse(updatedOverlay);
+      return jsonResponse(updatedOverlay, 200, revisionHeaders(updatedOverlay));
     } catch (error) {
       console.error("POST /api/bingo/:elementId/shuffle Error:", error);
       return jsonResponse({ error: "Invalid request" }, 400);
@@ -122,8 +144,6 @@ export const handleBingoRoutes = async (
       return resolved.error;
     }
 
-    const { bingoId, overlayId, state } = resolved.context;
-
     let body: unknown;
     try {
       body = await req.json();
@@ -131,34 +151,39 @@ export const handleBingoRoutes = async (
       return jsonResponse({ error: "Invalid request body" }, 400);
     }
 
-    const index =
-      typeof body === "object" && body !== null ? (body as { index?: unknown }).index : undefined;
+    const { index, checked } =
+      typeof body === "object" && body !== null
+        ? (body as { index?: unknown; checked?: unknown })
+        : { index: undefined, checked: undefined };
 
     if (!Number.isInteger(index)) {
       return jsonResponse({ error: "index is required and must be an integer" }, 400);
     }
+    if (checked !== undefined && typeof checked !== "boolean") {
+      return jsonResponse({ error: "checked must be a boolean" }, 400);
+    }
 
     const cellIndex = index as number;
-    if (cellIndex < 0 || cellIndex >= state.checked.length) {
-      return jsonResponse({ error: "Index out of bounds" }, 400);
-    }
-
-    if (state.freeMiddle && cellIndex === bingoMiddleIndex(state.size)) {
-      return jsonResponse({ error: "The free middle cell cannot be toggled" }, 400);
-    }
 
     try {
-      const checked = [...state.checked];
-      checked[cellIndex] = !checked[cellIndex];
-
-      await prisma.bingo.update({
-        where: { id: bingoId },
-        data: { checked },
+      const failure = await updateBingo(resolved.context, (state) => {
+        if (cellIndex < 0 || cellIndex >= state.checked.length) {
+          return { error: jsonResponse({ error: "Index out of bounds" }, 400) };
+        }
+        if (state.freeMiddle && cellIndex === bingoMiddleIndex(state.size)) {
+          return { error: jsonResponse({ error: "The free middle cell cannot be toggled" }, 400) };
+        }
+        const next = [...state.checked];
+        // With `checked` the cell ends up the way the caller saw it change, even if someone
+        // else marked it a moment earlier; a plain toggle would undo their mark instead.
+        next[cellIndex] = checked ?? !next[cellIndex];
+        return { state: { checked: next } };
       });
+      if (failure) return failure;
 
-      const updatedOverlay = await publishOverlay(server, overlayId);
+      const updatedOverlay = await publishOverlay(server, resolved.context.overlayId, writeIdOf(req));
 
-      return jsonResponse(updatedOverlay);
+      return jsonResponse(updatedOverlay, 200, revisionHeaders(updatedOverlay));
     } catch (error) {
       console.error("POST /api/bingo/:elementId/toggle Error:", error);
       return jsonResponse({ error: "Invalid request" }, 400);

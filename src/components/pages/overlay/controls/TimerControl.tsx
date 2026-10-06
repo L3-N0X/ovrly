@@ -12,7 +12,7 @@ interface TimerControlProps {
   handleTimerReset: (elementId: string) => void;
   handleTimerUpdate: (
     elementId: string,
-    update: { duration?: number; countDown?: boolean }
+    update: { countDown: boolean }
   ) => void;
   handleTimerAddTime: (elementId: string, timeToAdd: number) => void;
 }

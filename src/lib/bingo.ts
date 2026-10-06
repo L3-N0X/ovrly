@@ -13,7 +13,16 @@ export interface BingoData {
   checked: boolean[];
 }
 
-export type BingoDataUpdate = Partial<BingoData>;
+// An object `{ [cellIndex]: value }` for `fields` or `checked` changes only those cells, so
+// people editing or marking different cells at the same time don't overwrite each other.
+export type BingoCellPatch<T> = Record<number, T>;
+
+export interface BingoDataUpdate {
+  size?: number;
+  freeMiddle?: boolean;
+  fields?: string[] | BingoCellPatch<string>;
+  checked?: boolean[] | BingoCellPatch<boolean>;
+}
 
 export const bingoCellCount = (size: number) => size * size;
 
@@ -85,12 +94,25 @@ export const applyBingoDataUpdate = (current: BingoData, update: BingoDataUpdate
   const size = isValidBingoSize(update.size) ? update.size : current.size;
   const isResize = size !== current.size;
 
+  const fields = isResize ? resizeBingoFields(current.fields, size) : current.fields;
+  const checked: boolean[] = isResize ? new Array(bingoCellCount(size)).fill(false) : current.checked;
+
   return {
     size,
     freeMiddle: size % 2 === 1 && (update.freeMiddle ?? current.freeMiddle),
-    fields: isResize ? resizeBingoFields(current.fields, size) : (update.fields ?? current.fields),
-    checked: isResize ? new Array(bingoCellCount(size)).fill(false) : (update.checked ?? current.checked),
+    fields: applyCells(fields, update.fields),
+    checked: applyCells(checked, update.checked),
   };
+};
+
+const applyCells = <T>(cells: T[], update: T[] | BingoCellPatch<T> | undefined): T[] => {
+  if (!update) return cells;
+  if (Array.isArray(update)) return update;
+  const next = [...cells];
+  for (const [index, value] of Object.entries(update)) {
+    if (Number(index) < next.length) next[Number(index)] = value;
+  }
+  return next;
 };
 
 export const defaultBingoStyle: Required<

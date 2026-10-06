@@ -17,7 +17,7 @@ interface TimerEditModalProps {
   element: PrismaElement;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: (elementId: string, update: { duration?: number; countDown?: boolean }) => void;
+  onUpdate: (elementId: string, update: { countDown: boolean }) => void;
   onAddTime: (elementId: string, timeToAdd: number) => void;
 }
 

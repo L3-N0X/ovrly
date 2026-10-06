@@ -10,7 +10,15 @@ import {
 } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
 import { hasRole, higherRole, personKey, type AccessRole } from "../lib/sharing";
-import { findOverlayWithElements, overlayElementsInclude } from "../services/overlay-query";
+import {
+  findOverlayWithElements,
+  overlayElementsInclude,
+  publishOverlay,
+  revisionHeaders,
+  writeIdOf,
+} from "../services/overlay-query";
+import { lockOverlay } from "../services/locks";
+import { isStyleObject, mergeStyle } from "../lib/style";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ElementSeed = any;
@@ -187,27 +195,37 @@ export const handleOverlaysRoutes = async (
         if (description === null || typeof description === "string") {
           dataToUpdate.description = description || null;
         }
-        if (globalStyle && typeof globalStyle === "object" && !Array.isArray(globalStyle)) {
-          dataToUpdate.globalStyle = globalStyle;
-        }
+        const globalStylePatch = isStyleObject(globalStyle) ? globalStyle : null;
 
-        if (Object.keys(dataToUpdate).length === 0) {
+        if (Object.keys(dataToUpdate).length === 0 && !globalStylePatch) {
           return new Response(JSON.stringify({ error: "No valid fields to update" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        const updatedOverlay = await prisma.overlay.update({
-          where: { id: overlayId },
-          data: dataToUpdate,
-          include: overlayElementsInclude,
+        await prisma.$transaction(async (tx) => {
+          // `globalStyle` is a patch (see mergeStyle), merged into the stored style under the
+          // overlay's lock so concurrent changes to different properties are all kept.
+          if (globalStylePatch) {
+            await lockOverlay(tx, overlayId);
+            const current = await tx.overlay.findUnique({
+              where: { id: overlayId },
+              select: { globalStyle: true },
+            });
+            dataToUpdate.globalStyle = mergeStyle(current?.globalStyle, globalStylePatch);
+          }
+          await tx.overlay.update({ where: { id: overlayId }, data: dataToUpdate });
         });
 
-        server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
+        const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
 
         return new Response(JSON.stringify(updatedOverlay), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: {
+            ...corsHeaders,
+            ...revisionHeaders(updatedOverlay),
+            "Content-Type": "application/json",
+          },
         });
       } catch (e) {
         console.error("PATCH /api/overlays/:id Error:", e);
@@ -224,6 +242,8 @@ export const handleOverlaysRoutes = async (
         return json({ error: forbiddenMessage("OWNER"), requiredRole: "OWNER" }, 403);
       }
       await prisma.overlay.delete({ where: { id: overlayId } });
+      // Others who have it open would otherwise keep editing an overlay that's gone.
+      server.publish(`overlay-${overlayId}`, JSON.stringify({ type: "deleted" }));
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
