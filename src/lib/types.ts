@@ -117,6 +117,9 @@ export const DEFAULT_GROUP_HEIGHT = OVERLAY_HEIGHT;
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
   height?: number;
+  // Hides whatever sticks out of the group. Off by default, so elements can be moved past
+  // its edges (and the overlay's).
+  clip?: boolean;
   backgroundColor?: string;
   radius?: number;
 }

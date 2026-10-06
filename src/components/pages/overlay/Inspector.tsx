@@ -7,7 +7,6 @@ import {
   ElementPositionEditor,
   ElementStyleEditor,
 } from "@/components/overlay/editor/elementlist/ElementInspector";
-import type { OnStructureChange } from "@/components/overlay/editor/elementlist/ElementListEditor";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
 import { flattenTree, isInGroup } from "@/components/overlay/editor/elementlist/tree";
 import { cn } from "@/lib/utils";
@@ -27,7 +26,8 @@ interface InspectorProps {
   selectedId: EditorSelection;
   onSelect: (selection: EditorSelection) => void;
   onOverlayChange: OnOverlayChange;
-  onStructureChange: OnStructureChange;
+  // Asks for confirmation before deleting the element (and everything inside it).
+  onRequestDelete: (elementId: string) => void;
   content: ContentHandlers;
 }
 
@@ -39,7 +39,7 @@ const Inspector: React.FC<InspectorProps> = ({
   selectedId,
   onSelect,
   onOverlayChange,
-  onStructureChange,
+  onRequestDelete,
   content,
 }) => {
   if (selectedId === OVERLAY_SELECTION) {
@@ -67,9 +67,8 @@ const Inspector: React.FC<InspectorProps> = ({
         key={selected.id}
         element={selected}
         overlay={overlay}
-        onSelect={onSelect}
         onOverlayChange={onOverlayChange}
-        onStructureChange={onStructureChange}
+        onRequestDelete={onRequestDelete}
         content={content}
       />
     );
@@ -118,27 +117,10 @@ const Inspector: React.FC<InspectorProps> = ({
 const ElementPanel = ({
   element,
   overlay,
-  onSelect,
   onOverlayChange,
-  onStructureChange,
+  onRequestDelete,
   content,
-}: Omit<InspectorProps, "selectedId"> & { element: PrismaElement }) => {
-  // Deletes the element together with everything nested inside it.
-  const deleteElement = () => {
-    const findChildren = (parentId: string): string[] =>
-      overlay.elements
-        .filter((e) => e.parentId === parentId)
-        .flatMap((child) => [child.id, ...findChildren(child.id)]);
-    const ids = [element.id, ...findChildren(element.id)];
-
-    onSelect(null);
-    onStructureChange(
-      (current) => ({ ...current, elements: current.elements.filter((e) => !ids.includes(e.id)) }),
-      `delete:${element.id}`,
-      { url: "/api/elements/delete", method: "DELETE", body: { ids } }
-    );
-  };
-
+}: Omit<InspectorProps, "selectedId" | "onSelect"> & { element: PrismaElement }) => {
   return (
     <>
       <PanelHeader>
@@ -156,9 +138,9 @@ const ElementPanel = ({
           <Button
             variant="destructiveGhost"
             size="icon-sm"
-            title="Delete"
+            title="Delete (Del)"
             aria-label="Delete element"
-            onClick={deleteElement}
+            onClick={() => onRequestDelete(element.id)}
           >
             <Trash2 />
           </Button>

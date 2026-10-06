@@ -218,3 +218,13 @@
 .animate-fadeIn {
   animation: fadeIn 0.6s ease-out forwards;
 }
+
+/* A bar that runs out over the element's animation duration (e.g. the time left to undo). */
+@keyframes countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

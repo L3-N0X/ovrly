@@ -49,6 +49,13 @@ export const isInSubtree = (elements: PrismaElement[], id: string | null, ancest
   return false;
 };
 
+// The element followed by everything nested inside it.
+export const subtreeOf = (elements: PrismaElement[], id: string): PrismaElement[] => {
+  const element = elements.find((e) => e.id === id);
+  if (!element) return [];
+  return [element, ...elements.filter((e) => e.parentId === id).flatMap((e) => subtreeOf(elements, e.id))];
+};
+
 export const resolveDrop = (
   elements: PrismaElement[],
   sourceId: string,

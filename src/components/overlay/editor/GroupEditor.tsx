@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_GROUP_HEIGHT,
   DEFAULT_GROUP_WIDTH,
@@ -13,14 +14,15 @@ import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import React from "react";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 
-// Whole pixels only; an empty or invalid field leaves the value untouched.
+// Whole pixels only; an empty or invalid field leaves the value untouched. Without `min`,
+// negative values are allowed too.
 const PixelInput: React.FC<{
   id: string;
   label: string;
   value: number;
   min?: number;
   onChange: (value: number) => void;
-}> = ({ id, label, value, min = 0, onChange }) => (
+}> = ({ id, label, value, min, onChange }) => (
   <div className="space-y-2">
     <Label htmlFor={id}>{label}</Label>
     <Input
@@ -30,14 +32,15 @@ const PixelInput: React.FC<{
       value={value}
       onChange={(e) => {
         const val = parseInt(e.target.value, 10);
-        if (!isNaN(val)) onChange(Math.max(min, val));
+        if (!isNaN(val)) onChange(min === undefined ? val : Math.max(min, val));
       }}
       className="h-10"
     />
   </div>
 );
 
-// X/Y of an element that sits directly inside a group, for placing it precisely.
+// X/Y of an element that sits directly inside a group, for placing it precisely. Measured
+// from the group's top left corner; negative or large values place it outside the group.
 export const GroupPositionEditor: React.FC<{
   element: PrismaElement;
   onChange: (position: { x: number; y: number }) => void;
@@ -68,7 +71,7 @@ export const GroupEditor: React.FC<{
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Elements in a group are placed freely. Pick the Move tool (M) above the canvas to drag
-        them into position.
+        them into position, even past the group's edges or outside the overlay.
       </p>
       <div className="grid grid-cols-2 gap-4">
         <PixelInput
@@ -85,6 +88,19 @@ export const GroupEditor: React.FC<{
           value={style.height ?? DEFAULT_GROUP_HEIGHT}
           onChange={(height) => updateStyle({ height })}
         />
+      </div>
+      <div className="flex items-center space-x-2">
+        <Switch
+          id={`${element.id}-clip`}
+          checked={!!style.clip}
+          onCheckedChange={(clip) => updateStyle({ clip })}
+        />
+        <Label htmlFor={`${element.id}-clip`}>
+          Clip content
+          <span className="ml-1 font-normal text-muted-foreground">
+            (hide what sticks out of the group)
+          </span>
+        </Label>
       </div>
       <div className="space-y-2">
         <Label>Background</Label>

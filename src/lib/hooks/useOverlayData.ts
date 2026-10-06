@@ -5,6 +5,9 @@ import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 
 const DEBOUNCE_MS = 500;
+// How long a deletion can be undone. The elements only disappear locally until then; the
+// request is sent once the time is up (or right away when the page is left).
+export const UNDO_DELETE_MS = 8000;
 
 type TimerState = NonNullable<PrismaElement["timer"]>;
 
@@ -335,6 +338,54 @@ export const useOverlayData = () => {
     [queueWrite, setOverlay, dropWritesForRemoved]
   );
 
+  // Hides the elements right away but holds the request back for UNDO_DELETE_MS, so undoing
+  // only has to cancel it. Queued edits to the elements are kept: they still exist on the
+  // server, and undo brings them back with those edits. Returns the key to undo it with.
+  const handleDeleteElements = useCallback(
+    (ids: string[]) => {
+      const current = overlayRef.current;
+      if (!current || ids.length === 0) return null;
+      const removed = new Set(ids);
+      const apply = (target: PrismaOverlay) => {
+        target.elements = target.elements.filter((el) => !removed.has(el.id));
+      };
+      const next: PrismaOverlay = { ...current, elements: current.elements };
+      apply(next);
+      setOverlay(next);
+      const key = `delete:${ids.join(",")}`;
+      queueWrite(
+        key,
+        { url: "/api/elements/delete", method: "DELETE", body: { ids } },
+        apply,
+        UNDO_DELETE_MS
+      );
+      return { key, elements: current.elements.filter((el) => removed.has(el.id)) };
+    },
+    [queueWrite, setOverlay]
+  );
+
+  // Puts the elements back, unless the deletion has already been sent. Returns whether it
+  // could be undone.
+  const handleUndoDelete = useCallback(
+    (deletion: { key: string; elements: PrismaElement[] }) => {
+      const write = pendingWrites.current.get(deletion.key);
+      const current = overlayRef.current;
+      if (!current || !write || write.inFlight || !write.timer) return false;
+      clearTimeout(write.timer);
+      pendingWrites.current.delete(deletion.key);
+      const present = new Set(current.elements.map((el) => el.id));
+      setOverlay({
+        ...current,
+        elements: [...current.elements, ...deletion.elements.filter((el) => !present.has(el.id))],
+      });
+      // Broadcasts were filtered while the deletion was pending, so the server's copies of
+      // the elements (possibly changed by someone else meanwhile) are fetched again.
+      refreshOverlay();
+      return true;
+    },
+    [setOverlay, refreshOverlay]
+  );
+
   const handleCounterChange = useCallback(
     (elementId: string, value: number) => {
       updateElement(
@@ -503,6 +554,8 @@ export const useOverlayData = () => {
     error,
     handleOverlayChange,
     handleStructureChange,
+    handleDeleteElements,
+    handleUndoDelete,
     handleCounterChange,
     handleImmediateCounterChange,
     handleTitleChange,

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Maximize, Minus, MousePointer2, Move, Plus } from "lucide-react";
+import { Maximize, Minus, MousePointer2, Move, Plus, SquarePlus } from "lucide-react";
+import { AddElementModal } from "@/components/overlay/editor/AddElementModal";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 import type { CanvasEditing } from "@/components/overlay/canvasEditing";
 import type { CanvasSelection } from "@/components/overlay/canvasSelection";
@@ -61,6 +62,8 @@ interface EditorCanvasProps {
   onOverlayChange: OnOverlayChange;
   selectedId: EditorSelection;
   onSelect: (selection: EditorSelection) => void;
+  // Delete / Backspace asks to delete the selected element.
+  onRequestDelete: (elementId: string) => void;
 }
 
 // An endless canvas around the overlay that can be panned and zoomed. Elements outside the
@@ -70,10 +73,12 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onOverlayChange,
   selectedId,
   onSelect,
+  onRequestDelete,
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [tool, setTool] = useState<Tool>("select");
+  const [isAddOpen, setAddOpen] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const spaceHeldRef = useRef(false);
@@ -196,12 +201,16 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         }
         return;
       }
-      if (e.shiftKey && e.code === "Digit1") fitToScreen();
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (!selectedId || selectedId === OVERLAY_SELECTION) return;
+        onRequestDelete(selectedId);
+      } else if (e.shiftKey && e.code === "Digit1") fitToScreen();
       else if (e.shiftKey && e.code === "Digit0") zoomAtCenter(() => 1);
       else if (e.key === "+" || e.key === "=") zoomAtCenter((zoom) => zoom * ZOOM_STEP);
       else if (e.key === "-") zoomAtCenter((zoom) => zoom / ZOOM_STEP);
       else if (e.key.toLowerCase() === "v") setTool("select");
       else if (e.key.toLowerCase() === "m") setTool("move");
+      else if (e.key.toLowerCase() === "a") setAddOpen(true);
       else return;
       e.preventDefault();
     };
@@ -220,7 +229,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", releaseSpace);
     };
-  }, [fitToScreen, zoomAtCenter, onSelect]);
+  }, [fitToScreen, zoomAtCenter, onSelect, selectedId, onRequestDelete]);
 
   const startPanning = (pointerId: number) => {
     if (!gesture.current) return;
@@ -456,13 +465,26 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         >
           <Move />
         </ToolButton>
+        <div className="mx-1 h-5 w-px bg-border" />
+        <AddElementModal
+          overlay={overlay}
+          onOverlayChange={onOverlayChange}
+          onAdded={onSelect}
+          open={isAddOpen}
+          onOpenChange={setAddOpen}
+        >
+          <Button variant="ghost" size="sm" title="Add element (A)">
+            <SquarePlus />
+            Add element
+          </Button>
+        </AddElementModal>
       </div>
 
       <p className="pointer-events-none absolute bottom-4 left-4 hidden max-w-[calc(100%-16rem)] text-xs text-muted-foreground sm:block">
         {tool === "select"
-          ? "Click to select · Drag or scroll to pan · Ctrl + scroll to zoom"
+          ? "Click to select · Drag or scroll to pan · Ctrl + scroll to zoom · A to add · Del to delete"
           : hasGroups
-            ? "Drag elements inside a group to place them · Arrow keys nudge (Shift: 10px) · Drag a group's corner to resize"
+            ? "Drag elements inside a group to place them, even outside it · Arrow keys nudge (Shift: 10px) · Drag a group's corner to resize"
             : "Add a Group element to place elements freely, then drag them here."}
       </p>
 

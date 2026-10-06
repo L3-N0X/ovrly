@@ -1,15 +1,20 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
-import { useOverlayData } from "@/lib/hooks/useOverlayData";
+import { UNDO_DELETE_MS, useOverlayData } from "@/lib/hooks/useOverlayData";
 import { ElementListEditor } from "@/components/overlay/editor/elementlist/ElementListEditor";
+import { subtreeOf } from "@/components/overlay/editor/elementlist/tree";
 import OverlayHeader from "@/components/pages/overlay/OverlayHeader";
 import EditorCanvas from "@/components/pages/overlay/EditorCanvas";
 import Inspector from "@/components/pages/overlay/Inspector";
 import type { ContentHandlers } from "@/components/pages/overlay/controls/ElementContentControl";
 import type { EditorSelection } from "@/components/pages/overlay/editorSelection";
 import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
+import {
+  DeleteElementDialog,
+  UndoDeleteToast,
+} from "@/components/pages/overlay/ElementDeletion";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -19,6 +24,8 @@ const OverlayPage: React.FC = () => {
     error,
     handleOverlayChange,
     handleStructureChange,
+    handleDeleteElements,
+    handleUndoDelete,
     handleCounterChange,
     handleImmediateCounterChange,
     handleTitleChange,
@@ -34,6 +41,12 @@ const OverlayPage: React.FC = () => {
   // Shared by the canvas, the layers panel and the inspector.
   const [selectedId, setSelectedId] = useState<EditorSelection>(null);
   const inspectorRef = useRef<HTMLElement>(null);
+  // The element waiting for the user to confirm its deletion.
+  const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
+  // The latest deletion, while it can still be undone.
+  const [lastDeletion, setLastDeletion] = useState<NonNullable<
+    ReturnType<typeof handleDeleteElements>
+  > | null>(null);
 
   const content = useMemo<ContentHandlers>(
     () => ({
@@ -64,6 +77,27 @@ const OverlayPage: React.FC = () => {
   useEffect(() => {
     inspectorRef.current?.scrollTo({ top: 0 });
   }, [selectedId]);
+
+  const deleteRequest = useMemo(
+    () => (overlay && deleteRequestId ? subtreeOf(overlay.elements, deleteRequestId) : []),
+    [overlay, deleteRequestId]
+  );
+
+  const confirmDelete = () => {
+    setDeleteRequestId(null);
+    const deletion = handleDeleteElements(deleteRequest.map((el) => el.id));
+    if (!deletion) return;
+    if (deletion.elements.some((el) => el.id === selectedId)) setSelectedId(null);
+    setLastDeletion(deletion);
+  };
+
+  const undoDelete = useCallback(() => {
+    if (!lastDeletion) return;
+    if (handleUndoDelete(lastDeletion)) setSelectedId(lastDeletion.elements[0]?.id ?? null);
+    setLastDeletion(null);
+  }, [lastDeletion, handleUndoDelete]);
+
+  const dismissUndo = useCallback(() => setLastDeletion(null), []);
 
   const handleToggleShareModal = () => {
     setShareModalOpen(!isShareModalOpen);
@@ -133,6 +167,7 @@ const OverlayPage: React.FC = () => {
               onOverlayChange={handleOverlayChange}
               selectedId={selectedId}
               onSelect={setSelectedId}
+              onRequestDelete={setDeleteRequestId}
             />
           </main>
           <aside
@@ -145,12 +180,27 @@ const OverlayPage: React.FC = () => {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onOverlayChange={handleOverlayChange}
-              onStructureChange={handleStructureChange}
+              onRequestDelete={setDeleteRequestId}
               content={content}
             />
           </aside>
         </div>
       </div>
+      <DeleteElementDialog
+        elements={deleteRequest.length > 0 ? deleteRequest : null}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteRequestId(null)}
+      />
+      {lastDeletion && (
+        <UndoDeleteToast
+          // A new deletion restarts the countdown.
+          key={lastDeletion.key}
+          name={lastDeletion.elements[0]?.name ?? "element"}
+          duration={UNDO_DELETE_MS}
+          onUndo={undoDelete}
+          onDismiss={dismissUndo}
+        />
+      )}
       <ShareOverlayModal
         overlayId={id}
         isOpen={isShareModalOpen}

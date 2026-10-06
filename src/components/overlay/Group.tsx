@@ -13,8 +13,6 @@ const MIN_GROUP_SIZE = 20;
 const toNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
 // Holding Shift snaps to a 10px grid.
 const snap = (value: number, shiftKey: boolean) =>
   shiftKey ? Math.round(value / 10) * 10 : Math.round(value);
@@ -29,8 +27,6 @@ interface DragStart {
   x: number;
   y: number;
   scale: number;
-  maxX: number;
-  maxY: number;
 }
 
 // A direct child of a group, placed at its own x/y. Draggable only while move mode is on.
@@ -58,12 +54,6 @@ const FreeItem: React.FC<{ element: PrismaElement; children: React.ReactNode }> 
     return <div style={positionStyle}>{children}</div>;
   }
 
-  // Keeps the element inside the group as long as it fits.
-  const bounds = (el: HTMLElement) => ({
-    maxX: Math.max(0, (el.parentElement?.clientWidth ?? 0) - el.offsetWidth),
-    maxY: Math.max(0, (el.parentElement?.clientHeight ?? 0) - el.offsetHeight),
-  });
-
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     // In nested groups the innermost element under the pointer is the one that moves.
@@ -78,16 +68,16 @@ const FreeItem: React.FC<{ element: PrismaElement; children: React.ReactNode }> 
       x,
       y,
       scale: canvasScale(el),
-      ...bounds(el),
     };
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = dragStart.current;
     if (!start) return;
+    // Not limited to the group: elements may stick out of it, even past the overlay's edge.
     setDragPosition({
-      x: clamp(snap(start.x + (e.clientX - start.pointerX) / start.scale, e.shiftKey), 0, start.maxX),
-      y: clamp(snap(start.y + (e.clientY - start.pointerY) / start.scale, e.shiftKey), 0, start.maxY),
+      x: snap(start.x + (e.clientX - start.pointerX) / start.scale, e.shiftKey),
+      y: snap(start.y + (e.clientY - start.pointerY) / start.scale, e.shiftKey),
     });
   };
 
@@ -116,12 +106,7 @@ const FreeItem: React.FC<{ element: PrismaElement; children: React.ReactNode }> 
     if (!delta) return;
     e.preventDefault();
     e.stopPropagation();
-    const { maxX, maxY } = bounds(e.currentTarget);
-    const next = {
-      x: clamp(x + delta[0], 0, Math.max(maxX, x)),
-      y: clamp(y + delta[1], 0, Math.max(maxY, y)),
-    };
-    if (next.x !== x || next.y !== y) editing.onMove(element.id, next);
+    editing.onMove(element.id, { x: x + delta[0], y: y + delta[1] });
   };
 
   return (
@@ -213,7 +198,8 @@ const Group: React.FC<GroupProps> = ({ element, childElements, renderChild }) =>
         width: `${size.width}px`,
         height: `${size.height}px`,
         flexShrink: 0,
-        overflow: "hidden",
+        // Elements may stick out of the group unless it clips them.
+        overflow: style.clip ? "hidden" : "visible",
         backgroundColor: style.backgroundColor,
         borderRadius: typeof style.radius === "number" ? `${style.radius}px` : undefined,
       }}
