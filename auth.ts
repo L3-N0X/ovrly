@@ -14,6 +14,10 @@ const prisma = new PrismaClient({ adapter });
 
 const appBaseUrl = process.env.APP_BASE_URL as string;
 
+// Email/password sign-in exists only so coding agents can log in as the local test user
+// (see CLAUDE.md). Real users sign in with Twitch, so it stays off unless this is set.
+const emailPasswordEnabled = process.env.AUTH_EMAIL_PASSWORD === "true";
+
 export const auth = betterAuth({
   secret: process.env.AUTH_SECRET as string,
   baseURL: appBaseUrl,
@@ -53,6 +57,7 @@ export const auth = betterAuth({
       },
     },
   },
+  emailAndPassword: { enabled: emailPasswordEnabled },
   socialProviders: {
     twitch: {
       clientId: process.env.AUTH_TWITCH_ID as string,
