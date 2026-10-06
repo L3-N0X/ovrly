@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trash2, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
 import type { PrismaElement } from "@/lib/types";
 
@@ -28,40 +21,33 @@ export const DeleteElementDialog = ({
 
   const [element, ...nested] = shown ?? [];
   return (
-    <Dialog open={!!elements} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Delete “{element?.name}”?</DialogTitle>
-          <DialogDescription>
-            {nested.length > 0
-              ? `Everything inside it goes with it: ${nested.length} nested ${
-                  nested.length === 1 ? "element" : "elements"
-                }. You can undo this for a few seconds afterwards.`
-              : "You can undo this for a few seconds afterwards."}
-          </DialogDescription>
-        </DialogHeader>
-        {nested.length > 0 && (
-          <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md border bg-muted/40 p-2 text-sm">
-            {nested.map((child) => (
-              <li key={child.id} className="flex items-center gap-2">
-                <ElementTypeIcon element={child} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{child.name}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          {/* Focused first, so Enter confirms (the dialog was opened on purpose). */}
-          <Button variant="destructive" onClick={onConfirm} autoFocus>
-            <Trash2 />
-            Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={!!elements}
+      onOpenChange={(open) => !open && onCancel()}
+      title={<>Delete “{element?.name}”?</>}
+      description={
+        nested.length > 0
+          ? `Everything inside it goes with it: ${nested.length} nested ${
+              nested.length === 1 ? "element" : "elements"
+            }. You can undo this for a few seconds afterwards.`
+          : "You can undo this for a few seconds afterwards."
+      }
+      confirmLabel="Delete"
+      icon={<Trash2 />}
+      destructive
+      onConfirm={onConfirm}
+    >
+      {nested.length > 0 && (
+        <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md border bg-muted/40 p-2 text-sm">
+          {nested.map((child) => (
+            <li key={child.id} className="flex items-center gap-2">
+              <ElementTypeIcon element={child} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">{child.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </ConfirmDialog>
   );
 };
 

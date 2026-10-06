@@ -19,6 +19,7 @@ import {
 } from "../services/overlay-query";
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
+import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
 
 // The canvas size bounds, shared with the editor so both clamp the same values.
 const MIN_CANVAS_SIZE = 16;
@@ -109,6 +110,24 @@ function toElementTree<T extends { id: string; parentId: string | null; position
       .map((element, index) => ({ ...element, position: index, children: build(element.id) }));
   return build(null);
 }
+
+interface OverlayPreset {
+  id: string;
+  name: string;
+  globalStyle?: Prisma.InputJsonValue;
+  elements?: ElementSeed[];
+  width?: unknown;
+  height?: unknown;
+  canvasMode?: unknown;
+}
+
+const loadPresets = async (): Promise<OverlayPreset[]> => {
+  const presetsPath = `${process.cwd()}/public/presets/overlay-presets.json`;
+  const { presets } = JSON.parse(await Bun.file(presetsPath).text()) as {
+    presets: OverlayPreset[];
+  };
+  return presets;
+};
 
 // The canvas size and placement a preset asks for, when it asks for a valid one.
 function presetCanvas(preset: {
@@ -380,110 +399,51 @@ export const handleOverlaysRoutes = async (
 
     if (req.method === "POST") {
       try {
-        const { name, description, type, elementName, presetId } = (await req.json()) as {
-          name?: string;
-          description?: string;
-          type?: string;
-          elementName?: string;
-          presetId?: string;
+        const { name, description, presetId } = (await req.json()) as {
+          name?: unknown;
+          description?: unknown;
+          presetId?: unknown;
         };
 
-        // If presetId is provided, create overlay based on preset
-        if (presetId) {
-          // Load the preset
-          const presetsPath = `${process.cwd()}/public/presets/overlay-presets.json`;
-          const presetsContent = await Bun.file(presetsPath).text();
-          const presets = JSON.parse(presetsContent);
-
-          const selectedPreset = presets.presets.find((p: { id: string }) => p.id === presetId);
-          if (!selectedPreset) {
-            return new Response(JSON.stringify({ error: "Invalid preset ID" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          if (!name) {
-            return new Response(JSON.stringify({ error: "Name is required" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          // A preset may bring its own canvas size and placement; anything it leaves out
-          // falls back to the column defaults (1920x1080, free placement).
-          const canvas = presetCanvas(selectedPreset);
-          const newOverlay = await createOverlayWithElements(
-            {
-              name,
-              description,
-              userId: session.user.id,
-              globalStyle: selectedPreset.globalStyle || {},
-              ...canvas,
-            },
-            selectedPreset.elements
-          );
-
-          const overlayWithElements = await findOverlayWithElements(newOverlay.id);
-
-          return new Response(JSON.stringify(overlayWithElements), {
-            status: 201,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+        // A template to start from. Without one, the overlay starts as an empty canvas.
+        let preset: OverlayPreset | null = null;
+        if (presetId !== undefined) {
+          const presets = await loadPresets();
+          preset = presets.find((p) => p.id === presetId) ?? null;
+          if (!preset) return json({ error: "Invalid preset ID" }, 400);
         }
-        // Otherwise, use the legacy method with a single element
-        else if (name && type && elementName) {
-          const elementCreateData: {
-            name: string;
-            type: "TITLE" | "COUNTER" | "CONTAINER";
-            style: object;
-            title?: { create: { text: string } };
-            counter?: { create: { value: number } };
-          } = {
-            name: elementName,
-            type: type as "TITLE" | "COUNTER" | "CONTAINER",
-            style: {}, // Initialize with empty style object instead of null
-          };
 
-          if (type === "TITLE") {
-            elementCreateData.title = { create: { text: "New Title" } };
-          } else if (type === "COUNTER") {
-            elementCreateData.counter = { create: { value: 0 } };
-          } else {
-            return new Response(JSON.stringify({ error: "Invalid element type" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          const newOverlay = await prisma.overlay.create({
-            data: {
-              name,
-              description,
-              userId: session.user.id,
-              globalStyle: {},
-              elements: {
-                create: [elementCreateData],
-              },
-            },
-            include: overlayElementsInclude,
+        // Nobody knows what to call an overlay before building it, so the name is optional:
+        // it defaults to the template's name (or "Untitled"), numbered like Figma does when
+        // one of that name already exists.
+        let overlayName = typeof name === "string" ? name.trim() : "";
+        if (!overlayName) {
+          const own = await prisma.overlay.findMany({
+            where: { userId: session.user.id },
+            select: { name: true },
           });
-
-          return new Response(JSON.stringify(newOverlay), {
-            status: 201,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        } else {
-          return new Response(
-            JSON.stringify({
-              error: "Either presetId or name, type, and elementName are required",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
+          overlayName = nextDefaultName(
+            preset?.name ?? UNTITLED_OVERLAY_NAME,
+            own.map((o) => o.name)
           );
         }
+
+        // A preset may bring its own canvas size and placement; anything it leaves out
+        // falls back to the column defaults (1920x1080, free placement).
+        const newOverlay = await createOverlayWithElements(
+          {
+            name: overlayName,
+            description:
+              typeof description === "string" && description.trim() ? description.trim() : null,
+            userId: session.user.id,
+            globalStyle: preset?.globalStyle || {},
+            ...(preset ? presetCanvas(preset) : {}),
+          },
+          preset?.elements ?? []
+        );
+
+        const overlayWithElements = await findOverlayWithElements(newOverlay.id);
+        return json(overlayWithElements, 201);
       } catch (e) {
         console.error(e);
         return new Response(JSON.stringify({ error: "Invalid request body" }), {

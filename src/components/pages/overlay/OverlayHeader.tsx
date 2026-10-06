@@ -1,12 +1,6 @@
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InlineRename } from "@/components/ui/inline-rename";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +18,7 @@ import {
   Copy,
   Download,
   Ellipsis,
+  FileText,
   Pencil,
   Trash2,
   UserPlus,
@@ -61,7 +56,7 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
   const publicUrl = `${window.location.origin}/public/overlay/${id}`;
 
   const handleCopyToClipboard = async () => {
@@ -72,35 +67,30 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
     }, 2000);
   };
 
-  const handleEditSave = async (name: string, description: string) => {
-    if (!onOverlayUpdate) return;
+  const saveDetails = async (details: { name: string; description?: string | null }) => {
+    const response = await fetch(`/api/overlays/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(details),
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Failed to update overlay");
+    // Built from the latest state: `overlay` is from before the request and may be stale.
+    onOverlayUpdate?.((current) => ({ ...current, ...details }));
+  };
 
-    setIsSaving(true);
+  const handleEditSave = (name: string, description: string) =>
+    saveDetails({ name, description: description || null });
+
+  // Renamed in place: shown right away, and put back if it can't be saved.
+  const handleRename = async (name: string) => {
+    const previous = overlay.name;
+    onOverlayUpdate?.((current) => ({ ...current, name }));
     try {
-      // Update the overlay via API
-      const response = await fetch(`/api/overlays/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          description: description || null,
-        }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update overlay");
-      }
-
-      // Built from the latest state: `overlay` is from before the request and may be stale.
-      onOverlayUpdate((current) => ({ ...current, name, description: description || null }));
+      await saveDetails({ name });
     } catch (error) {
-      console.error("Failed to update overlay:", error);
-      throw error;
-    } finally {
-      setIsSaving(false);
+      console.error("Failed to rename overlay:", error);
+      onOverlayUpdate?.((current) => ({ ...current, name: previous }));
     }
   };
 
@@ -114,23 +104,36 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
       <img src={ovrlyLogo} alt="" className="h-6 w-6 shrink-0 dark:invert" />
       <div className="mx-1 h-5 w-px shrink-0 bg-border" />
 
-      <button
-        type="button"
-        onClick={() => setIsEditModalOpen(true)}
-        disabled={!canEdit}
-        title={canEdit ? "Edit name and description" : undefined}
-        className="group flex min-w-0 items-baseline gap-2 rounded-md px-1.5 py-1 enabled:cursor-pointer enabled:hover:bg-accent"
-      >
-        <h1 className="truncate text-sm font-semibold">{overlay.name}</h1>
-        {overlay.description && (
-          <span className="hidden truncate text-xs text-muted-foreground md:inline">
-            {overlay.description}
-          </span>
-        )}
-        {canEdit && (
-          <Pencil className="h-3 w-3 shrink-0 self-center text-muted-foreground opacity-0 group-hover:opacity-100" />
-        )}
-      </button>
+      {isRenaming ? (
+        <InlineRename
+          value={overlay.name}
+          aria-label="Overlay name"
+          className="h-7 max-w-72 text-sm font-semibold"
+          onDone={(name) => {
+            setIsRenaming(false);
+            if (name) handleRename(name);
+          }}
+        />
+      ) : (
+        // Clicking the name renames it in place, like a file name in Figma.
+        <button
+          type="button"
+          onClick={() => setIsRenaming(true)}
+          disabled={!canEdit}
+          title={canEdit ? "Rename" : undefined}
+          className="group flex min-w-0 items-baseline gap-2 rounded-md px-1.5 py-1 outline-none enabled:cursor-text enabled:hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <h1 className="truncate text-sm font-semibold">{overlay.name}</h1>
+          {overlay.description && (
+            <span className="hidden truncate text-xs text-muted-foreground md:inline">
+              {overlay.description}
+            </span>
+          )}
+          {canEdit && (
+            <Pencil className="h-3 w-3 shrink-0 self-center text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+          )}
+        </button>
+      )}
       {!isOwner && <RoleBadge role={role} verb className="hidden sm:inline-flex" />}
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
@@ -164,9 +167,13 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
+              <DropdownMenuItem onSelect={() => setIsRenaming(true)}>
                 <Pencil />
-                Edit name and description
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}>
+                <FileText />
+                Edit details
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportOverlay(overlay)}>
                 <Download />
@@ -178,7 +185,7 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
-                    onClick={() => setIsDeleteDialogOpen(true)}
+                    onSelect={() => setIsDeleteDialogOpen(true)}
                   >
                     <Trash2 />
                     Delete overlay
@@ -196,33 +203,20 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSave={handleEditSave}
-        isLoading={isSaving}
       />
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete “{overlay.name}”?</DialogTitle>
-            <DialogDescription>
-              The overlay and all of its elements are removed for good. OBS sources pointing to
-              it will show nothing.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setIsDeleteDialogOpen(false);
-                onDelete();
-              }}
-            >
-              Delete overlay
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title={<>Delete “{overlay.name}”?</>}
+        description="The overlay and all of its elements are deleted for everyone with access. OBS sources using it will stop showing anything. This can't be undone."
+        confirmLabel="Delete overlay"
+        icon={<Trash2 />}
+        destructive
+        onConfirm={() => {
+          setIsDeleteDialogOpen(false);
+          onDelete();
+        }}
+      />
     </header>
   );
 };

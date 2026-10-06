@@ -1,12 +1,5 @@
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,21 +30,6 @@ import OverlayCard from "@/components/OverlayCard";
 import CreateOverlayModal from "@/components/CreateOverlayModal";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 
-interface Element {
-  id: string;
-  name: string;
-  type: string;
-  style?: Record<string, unknown>;
-}
-
-interface OverlayPreset {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  elements: Element[];
-}
-
 type Filter = "all" | "mine" | "shared";
 type Sort = "newest" | "oldest" | "name";
 
@@ -71,19 +49,17 @@ const HomePage: React.FC = () => {
   const { data: user, isPending: isSessionPending } = authClient.useSession();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newOverlayName, setNewOverlayName] = useState("");
-  const [newOverlayDescription, setNewOverlayDescription] = useState("");
-  const [selectedPreset, setSelectedPreset] = useState<OverlayPreset | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [modalError, setModalError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>(readStoredSort);
   const [deleteTarget, setDeleteTarget] = useState<OverlaySummary | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Kept while the dialog animates out, after `deleteTarget` has been cleared.
+  const [shownDeleteTarget, setShownDeleteTarget] = useState(deleteTarget);
+  if (deleteTarget && deleteTarget !== shownDeleteTarget) setShownDeleteTarget(deleteTarget);
   const [shareOverlayId, setShareOverlayId] = useState<string | null>(null);
 
   const userId = user?.user.id;
@@ -96,28 +72,14 @@ const HomePage: React.FC = () => {
       return response.json();
     },
   });
-  const presetsQuery = useQuery({
-    queryKey: ["overlay-presets"],
-    queryFn: async (): Promise<OverlayPreset[]> => {
-      const response = await fetch("/presets/overlay-presets.json");
-      if (!response.ok) throw new Error("Failed to fetch presets");
-      const data = await response.json();
-      return data.presets;
-    },
-  });
   const overlays = useMemo(() => overlaysQuery.data ?? [], [overlaysQuery.data]);
   const hasLoaded = overlaysQuery.data !== undefined;
   const isLoading = overlaysQuery.isFetching;
-  const presets = presetsQuery.data ?? [];
   const queryError = overlaysQuery.error
     ? overlaysQuery.error.message.includes("fetch")
       ? "Unable to connect to the server. Please check your internet connection and try again."
       : `Failed to load overlays: ${overlaysQuery.error.message}`
-    : presetsQuery.error
-      ? presetsQuery.error.message.includes("fetch")
-        ? "Unable to load overlay templates. Please check your connection and refresh the page."
-        : `Failed to load templates: ${presetsQuery.error.message}`
-      : null;
+    : null;
   const displayedError = error ?? queryError;
   const fetchOverlays = () => {
     setError(null);
@@ -204,62 +166,7 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleCreateOverlay = async () => {
-    // Clear any previous modal errors
-    setModalError(null);
-
-    if (!newOverlayName.trim()) {
-      setModalError("Overlay name is required.");
-      return;
-    }
-
-    if (!selectedPreset) {
-      setModalError("Please select a template for your overlay.");
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const response = await fetch("/api/overlays", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newOverlayName.trim(),
-          description: newOverlayDescription.trim(),
-          presetId: selectedPreset.id,
-        }),
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to create overlay");
-      }
-      fetchOverlays(); // Refresh the list after creating a new one.
-      setIsDialogOpen(false); // Close the dialog
-      setNewOverlayName(""); // Reset form
-      setNewOverlayDescription(""); // Reset form
-      setSelectedPreset(null); // Reset form
-      setModalError(null); // Clear any errors
-    } catch (err) {
-      setModalError(
-        err instanceof Error ? err.message : "An unknown error occurred while creating the overlay"
-      );
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handlePresetSelect = (preset: OverlayPreset) => {
-    setSelectedPreset(preset);
-  };
-
-  const handleCreateNewOverlay = () => {
-    setSelectedPreset(null);
-    setNewOverlayName("");
-    setNewOverlayDescription("");
-    setModalError(null);
-    setIsDialogOpen(true);
-  };
+  const openCreate = () => setIsCreateOpen(true);
 
   const handleTwitchSignIn = async () => {
     // Every sign-in attempt overwrites the OAuth state cookie, so a second click
@@ -316,22 +223,11 @@ const HomePage: React.FC = () => {
             </p>
           </div>
         </div>
-        <CreateOverlayModal
-          isDialogOpen={isDialogOpen}
-          setIsDialogOpen={setIsDialogOpen}
-          selectedPreset={selectedPreset}
-          setSelectedPreset={setSelectedPreset}
-          presets={presets}
-          newOverlayName={newOverlayName}
-          setNewOverlayName={setNewOverlayName}
-          newOverlayDescription={newOverlayDescription}
-          setNewOverlayDescription={setNewOverlayDescription}
-          isCreating={isCreating}
-          onCreateOverlay={handleCreateOverlay}
-          onPresetSelect={handlePresetSelect}
-          onCreateNewOverlay={handleCreateNewOverlay}
-          modalError={modalError}
-        />
+        <Button onClick={openCreate}>
+          <Plus />
+          New overlay
+        </Button>
+        <CreateOverlayModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       </header>
 
       <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -413,10 +309,7 @@ const HomePage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              void fetchOverlays();
-              void presetsQuery.refetch();
-            }}
+            onClick={() => void fetchOverlays()}
           >
             Try again
           </Button>
@@ -430,7 +323,7 @@ const HomePage: React.FC = () => {
           ))}
         </OverlayGrid>
       ) : hasLoaded && overlays.length === 0 ? (
-        <EmptyState onCreate={handleCreateNewOverlay} />
+        <EmptyState onCreate={openCreate} />
       ) : visibleOverlays.length > 0 ? (
         <OverlayGrid>
           {visibleOverlays.map((overlay) => (
@@ -447,7 +340,7 @@ const HomePage: React.FC = () => {
           {filter !== "shared" && !search && (
             <button
               type="button"
-              onClick={handleCreateNewOverlay}
+              onClick={openCreate}
               className="group flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/5 hover:text-foreground"
             >
               <span className="flex size-12 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
@@ -476,26 +369,17 @@ const HomePage: React.FC = () => {
         </div>
       ) : null}
 
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete “{deleteTarget?.name}”?</DialogTitle>
-            <DialogDescription>
-              The overlay and all of its elements are deleted for everyone with access. OBS
-              sources using it will stop showing anything. This can't be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteOverlay} disabled={isDeleting}>
-              {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+        title={<>Delete “{shownDeleteTarget?.name}”?</>}
+        description="The overlay and all of its elements are deleted for everyone with access. OBS sources using it will stop showing anything. This can't be undone."
+        confirmLabel="Delete"
+        icon={<Trash2 />}
+        destructive
+        busy={isDeleting}
+        onConfirm={handleDeleteOverlay}
+      />
 
       {shareOverlayId && (
         <ShareDialog
@@ -551,8 +435,8 @@ const EmptyState: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
       </span>
       <h2 className="text-xl font-semibold">Create your first overlay</h2>
       <p className="text-muted-foreground">
-        Start from a template with titles, counters, timers or a bingo card, then add it to OBS
-        as a browser source.
+        Start from an empty canvas or a template with a timer, counter or bingo card, then add
+        it to OBS as a browser source.
       </p>
       <Button size="lg" className="mt-2" onClick={onCreate}>
         <Plus />

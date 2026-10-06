@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Monitor, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CanvasEditor } from "@/components/overlay/editor/CanvasEditor";
 import { GlobalStyleEditor } from "@/components/overlay/editor/GlobalStyleEditor";
-import { RenameElementModal } from "@/components/overlay/editor/RenameElementModal";
+import { renameElement } from "@/components/overlay/editor/renameElement";
+import { InlineRename } from "@/components/ui/inline-rename";
 import {
   ElementPositionEditor,
   ElementStyleEditor,
@@ -130,20 +131,49 @@ const ElementPanel = ({
   onRequestDelete,
   content,
 }: Omit<InspectorProps, "selectedId" | "onSelect"> & { element: PrismaElement }) => {
+  // The element whose name is being edited, so selecting another one ends it.
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const isRenaming = renamingId === element.id;
+
   return (
     <>
       <PanelHeader>
         <ElementTypeIcon element={element} className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="truncate text-sm font-semibold">{element.name}</span>
-        <span className="shrink-0 text-[10px] tracking-wide text-muted-foreground uppercase">
-          {element.type}
-        </span>
+        {isRenaming ? (
+          <InlineRename
+            value={element.name}
+            aria-label="Element name"
+            onDone={(name) => {
+              setRenamingId(null);
+              if (name) renameElement(element.id, element.name, name, onOverlayChange);
+            }}
+          />
+        ) : (
+          <>
+            <span
+              className="cursor-text truncate text-sm font-semibold"
+              title="Double-click to rename"
+              onDoubleClick={() => setRenamingId(element.id)}
+            >
+              {element.name}
+            </span>
+            <span className="shrink-0 text-[10px] tracking-wide text-muted-foreground uppercase">
+              {element.type}
+            </span>
+          </>
+        )}
         <div className="ml-auto flex shrink-0 items-center">
-          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
-            <Button variant="ghost" size="icon-sm" title="Rename" aria-label="Rename element">
+          {!isRenaming && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Rename"
+              aria-label="Rename element"
+              onClick={() => setRenamingId(element.id)}
+            >
               <Pencil />
             </Button>
-          </RenameElementModal>
+          )}
           <Button
             variant="destructiveGhost"
             size="icon-sm"

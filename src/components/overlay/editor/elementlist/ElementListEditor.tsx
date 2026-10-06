@@ -16,6 +16,7 @@ import { OVERLAY_SELECTION } from "@/components/pages/overlay/editorSelection";
 import { ChevronsDownUp, ChevronsUpDown, Monitor } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AddElementModal } from "../AddElementModal";
+import { renameElement } from "../renameElement";
 import { DropLine, ElementTreeItem, INDENT } from "./ElementTreeItem";
 import {
   applyPlacement,
@@ -63,6 +64,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(() => loadCollapsed(overlay.id));
   const [isDragging, setIsDragging] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const treeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -209,6 +211,10 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
       case "Escape":
         setSelectedId(null);
         break;
+      case "F2":
+        setSelectedId(element.id);
+        setRenamingId(element.id);
+        break;
       default:
         return;
     }
@@ -289,6 +295,15 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
                     }
                     onExpand={() => setCollapsedFor(element.id, false)}
                     onKeyDown={handleKeyDown(index)}
+                    renaming={element.id === renamingId}
+                    onStartRename={() => {
+                      setSelectedId(element.id);
+                      setRenamingId(element.id);
+                    }}
+                    onRenamed={(name) => {
+                      setRenamingId(null);
+                      if (name) renameElement(element.id, element.name, name, onOverlayChange);
+                    }}
                   />
                   {isOpenEmptyParent && (
                     <AppendZone parentId={element.id} depth={depth + 1} getElements={getElements}>

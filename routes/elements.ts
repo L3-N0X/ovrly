@@ -12,6 +12,7 @@ import { lockElement, lockOverlay } from "../services/locks";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { applyTimerAction, parseTimerActions, type TimerState } from "../lib/timer";
+import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
@@ -79,15 +80,21 @@ export const handleElementsRoutes = async (
 
     try {
       const { name, type } = (await req.json()) as { name?: unknown; type?: unknown };
-      if (typeof name !== "string" || !name.trim() || typeof type !== "string" || !ELEMENT_TYPES.includes(type)) {
-        return new Response(JSON.stringify({ error: "Name and a valid type are required" }), {
+      if (
+        (name !== undefined && typeof name !== "string") ||
+        typeof type !== "string" ||
+        !ELEMENT_TYPES.includes(type)
+      ) {
+        return new Response(JSON.stringify({ error: "A valid type is required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+      // Without a name, the element gets the next one in its type's series ("Counter 2"),
+      // which is picked below under the overlay's lock.
       const elementCreateData: Prisma.ElementUncheckedCreateInput = {
-        name: name,
+        name: name?.trim() ?? "",
         type: type,
         overlayId: overlayId,
         style: {}, // Initialize with empty style object instead of null
@@ -132,9 +139,22 @@ export const handleElementsRoutes = async (
           where: { overlayId: overlayId, parentId: null },
           _max: { position: true },
         });
+        const siblingsOfType = elementCreateData.name
+          ? []
+          : await tx.element.findMany({
+              where: { overlayId: overlayId, type: elementCreateData.type },
+              select: { name: true },
+            });
         await tx.element.create({
           data: {
             ...elementCreateData,
+            name:
+              elementCreateData.name ||
+              nextDefaultName(
+                ELEMENT_TYPE_NAMES[type],
+                siblingsOfType.map((el) => el.name),
+                { numberFirst: true }
+              ),
             style: canvas ? { width: canvas.width, height: canvas.height } : elementCreateData.style,
             position: (maxPosition._max.position ?? -1) + 1,
           },

@@ -8,11 +8,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { ElementTypeEnum, type ElementType, type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
-import { Frame, Grid3x3, Hash, Image, Loader2, Plus, Rows3, Timer, Type } from "lucide-react";
+import { GRID_ITEM_ATTRIBUTE, handleGridKeyDown } from "@/lib/gridNavigation";
+import {
+  AlertCircle,
+  Frame,
+  Grid3x3,
+  Hash,
+  Image,
+  Loader2,
+  Plus,
+  Rows3,
+  Timer,
+  Type,
+} from "lucide-react";
 
 interface ElementOption {
   type: ElementType;
@@ -154,8 +164,6 @@ const LAYOUT_OPTIONS: ElementOption[] = [
   },
 ];
 
-const ALL_OPTIONS = [...CONTENT_OPTIONS, ...LAYOUT_OPTIONS];
-
 interface AddElementModalProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
@@ -178,27 +186,23 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
 }) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
-  const [name, setName] = useState("");
-  const [type, setType] = useState<ElementType>(ElementTypeEnum.TITLE);
-  const [isAdding, setIsAdding] = useState(false);
+  // The type being added, while its request is on the way.
+  const [adding, setAdding] = useState<ElementType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedOption = ALL_OPTIONS.find((option) => option.type === type) ?? ALL_OPTIONS[0];
-  const defaultName = `${selectedOption.label} Element`;
-
   const setOpen = (next: boolean) => {
-    if (!next) {
-      setName("");
-      setError(null);
-    }
+    // Held open while adding, so the new element doesn't show up out of the blue.
+    if (!next && adding) return;
+    if (!next) setError(null);
     setInternalOpen(next);
     onOpenChange?.(next);
   };
 
-  const handleAddElement = async (elementType: ElementType = type) => {
-    if (isAdding) return;
-    const option = ALL_OPTIONS.find((o) => o.type === elementType) ?? selectedOption;
-    setIsAdding(true);
+  // Adds the element right away. It's named after its type ("Counter 2"), like a new layer
+  // in Figma, and can be renamed once it's clear what it is for.
+  const handleAddElement = async (elementType: ElementType) => {
+    if (adding) return;
+    setAdding(elementType);
     setError(null);
     try {
       const response = await fetch(`/api/overlays/${overlay.id}/elements`, {
@@ -207,10 +211,7 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          name: name.trim() || `${option.label} Element`,
-          type: elementType,
-        }),
+        body: JSON.stringify({ type: elementType }),
       });
       if (!response.ok) throw new Error(`Failed to add element (${response.status})`);
 
@@ -225,44 +226,55 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
         return { ...current, elements: [...current.elements, ...added] };
       });
       if (newElement) onAdded?.(newElement.id);
-      setOpen(false);
+      setAdding(null);
+      setInternalOpen(false);
+      onOpenChange?.(false);
     } catch (err) {
       console.error(err);
       setError("The element couldn't be added. Please try again.");
-    } finally {
-      setIsAdding(false);
+      setAdding(null);
     }
   };
 
-  const renderOptions = (title: string, options: ElementOption[]) => (
+  const renderOptions = (title: string, options: ElementOption[], autoFocusFirst = false) => (
     <section className="space-y-3">
       <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         {title}
       </h3>
       <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 md:grid-cols-3">
-        {options.map((option) => {
-          const selected = option.type === type;
+        {options.map((option, index) => {
           const Icon = option.icon;
+          const isAdding = adding === option.type;
           return (
             <button
               key={option.type}
               type="button"
-              aria-pressed={selected}
-              onClick={() => setType(option.type)}
-              // A double click adds the element straight away.
-              onDoubleClick={() => handleAddElement(option.type)}
+              {...{ [GRID_ITEM_ATTRIBUTE]: "" }}
+              // Enter adds the first option straight away.
+              autoFocus={autoFocusFirst && index === 0}
+              onClick={() => handleAddElement(option.type)}
+              aria-disabled={!!adding}
               className={cn(
-                "group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card text-left transition-all outline-none",
-                "focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                selected
-                  ? "border-primary ring-2 ring-primary/40"
-                  : "hover:border-foreground/30 hover:shadow-md"
+                "group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all outline-none",
+                "focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                adding ? "cursor-default" : "cursor-pointer hover:border-primary/50 hover:shadow-md",
+                adding && !isAdding && "opacity-50"
               )}
             >
-              <div className="aspect-[16/9] w-full overflow-hidden border-b">
-                <div className="h-full w-full transition-transform duration-300 group-hover:scale-105">
+              <div className="relative aspect-[16/9] w-full overflow-hidden border-b">
+                <div
+                  className={cn(
+                    "h-full w-full transition-transform duration-300",
+                    !adding && "group-hover:scale-105"
+                  )}
+                >
                   {option.preview}
                 </div>
+                {isAdding && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <Loader2 className="size-6 animate-spin text-white" />
+                  </div>
+                )}
               </div>
               <div className="space-y-1 p-3">
                 <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -291,43 +303,29 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
         <DialogHeader className="border-b px-6 pt-6 pb-4">
           <DialogTitle>Add an element</DialogTitle>
           <DialogDescription>
-            Pick what to add. It's placed at the end of the overlay and selected, so you can style
-            it right away.
+            Click one to add it. It's selected right away, so you can style and rename it.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-          {renderOptions("Content", CONTENT_OPTIONS)}
+        <div
+          className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5"
+          onKeyDown={handleGridKeyDown}
+        >
+          {error && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              <AlertCircle className="size-4 shrink-0" />
+              {error}
+            </p>
+          )}
+          {renderOptions("Content", CONTENT_OPTIONS, true)}
           {renderOptions("Layout", LAYOUT_OPTIONS)}
         </div>
-
-        <form
-          className="flex flex-col gap-3 border-t bg-muted/30 px-6 py-4 sm:flex-row sm:items-end"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleAddElement();
-          }}
-        >
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="element-name">Name (optional)</Label>
-            <Input
-              id="element-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={defaultName}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isAdding} className="min-w-36">
-              {isAdding ? <Loader2 className="animate-spin" /> : <Plus />}
-              Add {selectedOption.label}
-            </Button>
-          </div>
-        </form>
-        {error && <p className="bg-muted/30 px-6 pb-4 text-sm text-destructive">{error}</p>}
+        <p className="hidden border-t bg-muted/30 px-6 py-2.5 text-xs text-muted-foreground sm:block">
+          Arrow keys to move between elements · Enter to add · Esc to close
+        </p>
       </DialogContent>
     </Dialog>
   );
