@@ -50,6 +50,7 @@ const HomePage: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<OverlayPreset | null>(null);
   const [presets, setPresets] = useState<OverlayPreset[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -217,7 +218,17 @@ const HomePage: React.FC = () => {
   };
 
   const handleTwitchSignIn = async () => {
-    await authClient.signIn.social({ provider: "twitch" });
+    // Every sign-in attempt overwrites the OAuth state cookie, so a second click
+    // while the first redirect is in flight makes the callback fail with state_mismatch.
+    if (isSigningIn) return;
+    setIsSigningIn(true);
+    try {
+      const { error } = await authClient.signIn.social({ provider: "twitch" });
+      if (error) setIsSigningIn(false);
+    } catch (error) {
+      setIsSigningIn(false);
+      throw error;
+    }
   };
 
   if (isSessionPending) {
@@ -308,7 +319,11 @@ const HomePage: React.FC = () => {
             <p className="text-muted-foreground mt-2">
               Your one-stop solution for stream overlays.
             </p>
-            <Button onClick={handleTwitchSignIn} className="w-full max-w-xs mt-8">
+            <Button
+              onClick={handleTwitchSignIn}
+              disabled={isSigningIn}
+              className="w-full max-w-xs mt-8"
+            >
               Sign in with Twitch
             </Button>
           </div>
