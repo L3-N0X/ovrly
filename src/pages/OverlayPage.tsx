@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Loader2, ShieldOff } from "lucide-react";
 import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
@@ -10,7 +12,10 @@ import EditorCanvas from "@/components/pages/overlay/EditorCanvas";
 import Inspector from "@/components/pages/overlay/Inspector";
 import type { ContentHandlers } from "@/components/pages/overlay/controls/ElementContentControl";
 import type { EditorSelection } from "@/components/pages/overlay/editorSelection";
-import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
+import ControlView from "@/components/pages/overlay/ControlView";
+import { ShareDialog } from "@/components/sharing/ShareDialog";
+import { Button } from "@/components/ui/button";
+import { hasRole } from "@/lib/sharing";
 import {
   DeleteElementDialog,
   UndoDeleteToast,
@@ -20,6 +25,8 @@ const OverlayPage: React.FC = () => {
   const {
     id,
     overlay,
+    access,
+    role,
     isLoading,
     error,
     handleOverlayChange,
@@ -37,6 +44,7 @@ const OverlayPage: React.FC = () => {
     handleTimerAddTime,
     handleDeleteOverlay,
   } = useOverlayData();
+  const navigate = useNavigate();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   // Shared by the canvas, the layers panel and the inspector.
   const [selectedId, setSelectedId] = useState<EditorSelection>(null);
@@ -127,16 +135,34 @@ const OverlayPage: React.FC = () => {
   };
 
   if (isLoading)
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  if (error)
     return (
-      <div className="flex items-center justify-center min-h-screen text-destructive">{error}</div>
+      <div className="flex min-h-dvh items-center justify-center text-muted-foreground">
+        <Loader2 className="size-6 animate-spin" />
+      </div>
     );
-  if (!overlay || !id)
-    return <div className="flex items-center justify-center min-h-screen">Overlay not found</div>;
+  if (error || !overlay || !id || !role)
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full border bg-card">
+          <ShieldOff className="size-5 text-muted-foreground" />
+        </span>
+        <div>
+          <p className="font-medium">Can't open this overlay</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            {error ?? "This overlay doesn't exist, or it isn't shared with you."}
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link to="/">Back to overlays</Link>
+        </Button>
+      </div>
+    );
 
-  return (
-    <BingoDataProvider onBingoDataChange={handleBingoDataChange}>
+  const canEdit = hasRole(role, "EDITOR");
+  const canControl = hasRole(role, "CONTROLLER");
+
+  const page = (
+    <>
       {loadOverlayFonts(overlay)}
       {/* Full screen on large displays, with each panel scrolling on its own. Smaller screens
           stack canvas, inspector and layers and scroll as a whole. */}
@@ -144,47 +170,58 @@ const OverlayPage: React.FC = () => {
         <OverlayHeader
           overlay={overlay}
           id={id}
+          role={role}
+          memberCount={access ? access.members.length + 1 : undefined}
           onShare={handleToggleShareModal}
           onOverlayUpdate={handleOverlayChange}
           onDelete={handleDeleteOverlay}
         />
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <aside
-            aria-label="Layers"
-            className="order-3 shrink-0 border-t bg-background lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
-          >
-            <ElementListEditor
-              overlay={overlay}
-              onOverlayChange={handleOverlayChange}
-              onStructureChange={handleStructureChange}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-            />
-          </aside>
-          <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">
-            <EditorCanvas
-              overlay={overlay}
-              onOverlayChange={handleOverlayChange}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onRequestDelete={setDeleteRequestId}
-            />
-          </main>
-          <aside
-            ref={inspectorRef}
-            aria-label="Inspector"
-            className="order-2 shrink-0 border-t bg-background lg:order-3 lg:w-[340px] lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-[360px]"
-          >
-            <Inspector
-              overlay={overlay}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onOverlayChange={handleOverlayChange}
-              onRequestDelete={setDeleteRequestId}
-              content={content}
-            />
-          </aside>
-        </div>
+        {!canEdit ? (
+          <ControlView
+            overlay={overlay}
+            role={canControl ? "CONTROLLER" : "VIEWER"}
+            content={content}
+            ownerName={access?.owner.name}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+            <aside
+              aria-label="Layers"
+              className="order-3 shrink-0 border-t bg-background lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
+            >
+              <ElementListEditor
+                overlay={overlay}
+                onOverlayChange={handleOverlayChange}
+                onStructureChange={handleStructureChange}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            </aside>
+            <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">
+              <EditorCanvas
+                overlay={overlay}
+                onOverlayChange={handleOverlayChange}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onRequestDelete={setDeleteRequestId}
+              />
+            </main>
+            <aside
+              ref={inspectorRef}
+              aria-label="Inspector"
+              className="order-2 shrink-0 border-t bg-background lg:order-3 lg:w-[340px] lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-[360px]"
+            >
+              <Inspector
+                overlay={overlay}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onOverlayChange={handleOverlayChange}
+                onRequestDelete={setDeleteRequestId}
+                content={content}
+              />
+            </aside>
+          </div>
+        )}
       </div>
       <DeleteElementDialog
         elements={deleteRequest.length > 0 ? deleteRequest : null}
@@ -201,12 +238,21 @@ const OverlayPage: React.FC = () => {
           onDismiss={dismissUndo}
         />
       )}
-      <ShareOverlayModal
+      <ShareDialog
         overlayId={id}
-        isOpen={isShareModalOpen}
-        onClose={handleToggleShareModal}
+        overlayName={overlay.name}
+        open={isShareModalOpen}
+        onOpenChange={setShareModalOpen}
+        onLeft={() => navigate("/")}
       />
-    </BingoDataProvider>
+    </>
+  );
+
+  // Without the provider the canvas treats bingo cards as read only.
+  return canControl ? (
+    <BingoDataProvider onBingoDataChange={handleBingoDataChange}>{page}</BingoDataProvider>
+  ) : (
+    page
   );
 };
 

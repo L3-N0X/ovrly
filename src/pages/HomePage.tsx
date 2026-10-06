@@ -34,7 +34,7 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import OverlayCard from "@/components/OverlayCard";
 import CreateOverlayModal from "@/components/CreateOverlayModal";
-import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
+import { ShareDialog } from "@/components/sharing/ShareDialog";
 
 interface Element {
   id: string;
@@ -447,7 +447,6 @@ const HomePage: React.FC = () => {
             <OverlayCard
               key={overlay.id}
               overlay={overlay}
-              isOwner={overlay.userId === userId}
               isCopied={copiedId === overlay.id}
               onCopyPublicUrl={handleCopyPublicUrl}
               onDuplicate={handleDuplicateOverlay}
@@ -477,7 +476,7 @@ const HomePage: React.FC = () => {
           <p className="text-sm text-muted-foreground">
             {search
               ? "Try a different search or filter."
-              : "When someone adds you as an editor, their overlays show up here."}
+              : "When someone shares an overlay with you, or adds you to their team, it shows up here."}
           </p>
           {search && (
             <Button variant="outline" size="sm" className="mt-2" onClick={() => setSearch("")}>
@@ -509,10 +508,12 @@ const HomePage: React.FC = () => {
       </Dialog>
 
       {shareOverlayId && (
-        <ShareOverlayModal
+        <ShareDialog
           overlayId={shareOverlayId}
-          isOpen
-          onClose={() => {
+          overlayName={overlays.find((o) => o.id === shareOverlayId)?.name}
+          open
+          onOpenChange={(open) => {
+            if (open) return;
             setShareOverlayId(null);
             // The list of people with access may have changed.
             fetchOverlays();

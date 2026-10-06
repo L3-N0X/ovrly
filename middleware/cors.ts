@@ -11,3 +11,9 @@ export const handleCors = (req: Request) => {
   }
   return null;
 };
+
+export const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });

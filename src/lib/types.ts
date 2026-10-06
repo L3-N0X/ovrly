@@ -1,3 +1,5 @@
+import type { AccessRole } from "./sharing";
+
 export const ElementTypeEnum = {
   COUNTER: "COUNTER",
   TITLE: "TITLE",
@@ -198,12 +200,14 @@ export interface PrismaOverlay {
 export type OverlayChange = PrismaOverlay | ((current: PrismaOverlay) => PrismaOverlay);
 export type OnOverlayChange = (change: OverlayChange) => void;
 
-// Someone who can open an overlay: its owner, an editor it was shared with, or one of the
-// owner's global editors.
+// Someone who can open an overlay: its owner, or someone it was shared with (directly or
+// through the owner's team).
 export interface OverlayMember {
   name: string;
   image: string | null;
-  role: "owner" | "editor" | "global";
+  role: AccessRole;
+  // Invited by Twitch name, but hasn't signed in yet.
+  pending: boolean;
 }
 
 // An overlay as listed on the home page.
@@ -211,4 +215,6 @@ export interface OverlaySummary extends PrismaOverlay {
   createdAt: string;
   updatedAt: string;
   members: OverlayMember[];
+  // What the current user may do with it.
+  myRole: AccessRole;
 }

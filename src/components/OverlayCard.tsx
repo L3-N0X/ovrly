@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import AvatarStack, { Avatar } from "@/components/home/AvatarStack";
-import { ROLE_LABELS } from "@/components/home/members";
+import { PendingBadge, RoleBadge } from "@/components/sharing/RoleBadge";
 import OverlayPreview from "@/components/home/OverlayPreview";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { hasRole, ROLE_INFO } from "@/lib/sharing";
 import type { OverlaySummary } from "@/lib/types";
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -48,7 +49,6 @@ const timeAgo = (date: string) => {
 
 interface OverlayCardProps {
   overlay: OverlaySummary;
-  isOwner: boolean;
   isCopied: boolean;
   onCopyPublicUrl: (id: string) => void;
   onDuplicate: (id: string) => void;
@@ -58,7 +58,6 @@ interface OverlayCardProps {
 
 const OverlayCard: React.FC<OverlayCardProps> = ({
   overlay,
-  isOwner,
   isCopied,
   onCopyPublicUrl,
   onDuplicate,
@@ -66,7 +65,16 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
   onManageAccess,
 }) => {
   const editorUrl = `/overlay/${overlay.id}`;
-  const owner = overlay.members.find((m) => m.role === "owner");
+  const role = overlay.myRole;
+  const isOwner = role === "OWNER";
+  const canEdit = hasRole(role, "EDITOR");
+  // Editors open the editor; controllers and viewers get the live controls.
+  const openLabel = canEdit
+    ? "Open editor"
+    : hasRole(role, "CONTROLLER")
+      ? "Open controls"
+      : "View live";
+  const owner = overlay.members.find((m) => m.role === "OWNER");
   const elementCount = overlay.elements.length;
 
   return (
@@ -79,15 +87,19 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
         {/* Fades in on hover to show what clicking the card does. */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
           <span className="flex items-center gap-2 rounded-full bg-background/95 px-4 py-2 text-sm font-medium text-foreground shadow-lg">
-            <Pencil className="size-4" />
-            Open editor
+            {(() => {
+              const Icon = canEdit ? Pencil : ROLE_INFO[role].icon;
+              return <Icon className="size-4" />;
+            })()}
+            {openLabel}
           </span>
         </div>
         <div className="pointer-events-none absolute top-3 left-3 flex gap-1.5">
           {!isOwner && (
             <span className="flex items-center gap-1.5 rounded-full bg-black/60 py-1 pr-2.5 pl-1 text-xs font-medium text-white backdrop-blur">
               {owner ? <Avatar member={owner} className="size-5 text-[10px]" /> : <Users className="size-3.5" />}
-              Shared by {owner?.name ?? "someone"}
+              {owner?.name ?? "Shared"}
+              <span className="text-white/60">· {ROLE_INFO[role].verb}</span>
             </span>
           )}
         </div>
@@ -134,7 +146,7 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
                 <DropdownMenuItem asChild>
                   <Link to={editorUrl}>
                     <Pencil />
-                    Open editor
+                    {openLabel}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -149,13 +161,16 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onManageAccess(overlay.id)}>
-                  <UserPlus />
-                  {isOwner ? "Manage access" : "View access"}
+                  {isOwner ? <UserPlus /> : <Users />}
+                  {isOwner ? "Share" : "People with access"}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDuplicate(overlay.id)}>
-                  <CopyPlus />
-                  Duplicate
-                </DropdownMenuItem>
+                {/* A copy takes the whole design along, so it's for editors. */}
+                {canEdit && (
+                  <DropdownMenuItem onClick={() => onDuplicate(overlay.id)}>
+                    <CopyPlus />
+                    Duplicate
+                  </DropdownMenuItem>
+                )}
                 {/* Only the owner may delete an overlay. */}
                 {isOwner && (
                   <>
@@ -187,18 +202,23 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
                 )}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-64 p-0">
+            <PopoverContent align="start" className="w-72 p-0">
               <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
                 People with access
               </div>
               <ul className="max-h-60 space-y-0.5 overflow-y-auto p-1.5">
                 {overlay.members.map((member) => (
                   <li key={member.name} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5">
-                    <Avatar member={member} className="size-7" />
+                    <Avatar
+                      member={member}
+                      className={member.pending ? "size-7 opacity-60" : "size-7"}
+                    />
                     <span className="min-w-0 flex-1 truncate text-sm">{member.name}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {ROLE_LABELS[member.role]}
-                    </span>
+                    {member.pending ? (
+                      <PendingBadge />
+                    ) : (
+                      <RoleBadge role={member.role} />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -209,8 +229,8 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
                   className="w-full justify-start"
                   onClick={() => onManageAccess(overlay.id)}
                 >
-                  <UserPlus />
-                  {isOwner ? "Manage access" : "View details"}
+                  {isOwner ? <UserPlus /> : <Users />}
+                  {isOwner ? "Share" : "View details"}
                 </Button>
               </div>
             </PopoverContent>

@@ -1,5 +1,5 @@
 import { prisma } from "../auth";
-import { authenticate, authorize } from "../middleware/authMiddleware";
+import { authenticate, requireOverlayRole } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 import {
   bingoMiddleIndex,
@@ -24,7 +24,8 @@ interface BingoElementContext {
 type BingoElementResult = { context: BingoElementContext; error?: never } | { error: Response };
 
 /**
- * Loads a bingo element on behalf of the current user.
+ * Loads a bingo element on behalf of the current user, who needs to be able to control
+ * the overlay: marking and shuffling cells is part of running it live.
  *
  * Missing elements and elements owned by somebody else both answer 404 so the
  * endpoint cannot be used to discover which element IDs exist.
@@ -47,8 +48,14 @@ const resolveBingoElement = async (
     return { error: jsonResponse({ error: "Bingo element not found" }, 404) };
   }
 
-  if (!(await authorize(session.user, element.overlayId))) {
-    return { error: jsonResponse({ error: "Bingo element not found" }, 404) };
+  const check = await requireOverlayRole(
+    session.user,
+    element.overlayId,
+    "CONTROLLER",
+    "Bingo element not found"
+  );
+  if (check.error) {
+    return { error: check.error };
   }
 
   return {

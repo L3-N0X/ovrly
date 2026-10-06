@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/toggle";
+import { RoleBadge } from "@/components/sharing/RoleBadge";
+import { hasRole, type AccessRole } from "@/lib/sharing";
 import type { PrismaOverlay, OnOverlayChange } from "@/lib/types";
 import {
   Check,
@@ -23,8 +25,9 @@ import {
   Download,
   Ellipsis,
   Pencil,
-  Share2,
   Trash2,
+  UserPlus,
+  UsersRound,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -35,6 +38,9 @@ import { exportOverlay } from "./exportOverlay";
 interface OverlayHeaderProps {
   overlay: PrismaOverlay;
   id: string;
+  role: AccessRole;
+  // How many people can open the overlay, owner included.
+  memberCount?: number;
   onShare: () => void;
   onOverlayUpdate?: OnOverlayChange;
   onDelete: () => void;
@@ -44,10 +50,14 @@ interface OverlayHeaderProps {
 const OverlayHeader: React.FC<OverlayHeaderProps> = ({
   overlay,
   id,
+  role,
+  memberCount,
   onShare,
   onOverlayUpdate,
   onDelete,
 }) => {
+  const isOwner = role === "OWNER";
+  const canEdit = hasRole(role, "EDITOR");
   const [isCopied, setIsCopied] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -107,8 +117,9 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
       <button
         type="button"
         onClick={() => setIsEditModalOpen(true)}
-        title="Edit name and description"
-        className="group flex min-w-0 cursor-pointer items-baseline gap-2 rounded-md px-1.5 py-1 hover:bg-accent"
+        disabled={!canEdit}
+        title={canEdit ? "Edit name and description" : undefined}
+        className="group flex min-w-0 items-baseline gap-2 rounded-md px-1.5 py-1 enabled:cursor-pointer enabled:hover:bg-accent"
       >
         <h1 className="truncate text-sm font-semibold">{overlay.name}</h1>
         {overlay.description && (
@@ -116,8 +127,11 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
             {overlay.description}
           </span>
         )}
-        <Pencil className="h-3 w-3 shrink-0 self-center text-muted-foreground opacity-0 group-hover:opacity-100" />
+        {canEdit && (
+          <Pencil className="h-3 w-3 shrink-0 self-center text-muted-foreground opacity-0 group-hover:opacity-100" />
+        )}
       </button>
+      {!isOwner && <RoleBadge role={role} verb className="hidden sm:inline-flex" />}
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <Button
@@ -129,32 +143,51 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
           {isCopied ? <Check className="text-green-400" /> : <Copy />}
           <span className="hidden sm:inline">{isCopied ? "Copied!" : "Copy for OBS"}</span>
         </Button>
-        <Button onClick={onShare} size="sm" aria-label="Share">
-          <Share2 />
-          <span className="hidden sm:inline">Share</span>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" title="More" aria-label="More actions">
-              <Ellipsis />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
-              <Pencil />
-              Edit name and description
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => exportOverlay(overlay)}>
-              <Download />
-              Export to JSON
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
-              <Trash2 />
-              Delete overlay
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isOwner ? (
+          <Button onClick={onShare} size="sm" aria-label="Share">
+            <UserPlus />
+            <span className="hidden sm:inline">Share</span>
+          </Button>
+        ) : (
+          <Button onClick={onShare} variant="outline" size="sm" aria-label="People with access">
+            <UsersRound />
+            <span className="hidden sm:inline">
+              {memberCount ? `${memberCount} with access` : "Access"}
+            </span>
+          </Button>
+        )}
+        {canEdit && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" title="More" aria-label="More actions">
+                <Ellipsis />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
+                <Pencil />
+                Edit name and description
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportOverlay(overlay)}>
+                <Download />
+                Export to JSON
+              </DropdownMenuItem>
+              {/* Editors may change an overlay, but only its owner may delete it. */}
+              {isOwner && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <Trash2 />
+                    Delete overlay
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <ModeToggle />
       </div>
 

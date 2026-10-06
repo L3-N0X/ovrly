@@ -1,5 +1,5 @@
 import { prisma } from "../auth";
-import { authenticate, authorize } from "../middleware/authMiddleware";
+import { authenticate, requireOverlayRole } from "../middleware/authMiddleware";
 import { corsHeaders } from "../middleware/cors";
 import { publishOverlay } from "../services/overlay-query";
 
@@ -34,12 +34,8 @@ export const handleReorderRoutes = async (
         });
       }
 
-      if (!(await authorize(session.user, overlayId))) {
-        return new Response(JSON.stringify({ error: "Overlay not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+      if (check.error) return check.error;
 
       // Every element being moved, and every parent it is moved under, must belong to the
       // overlay the caller was authorized for. Otherwise an editor of one overlay could

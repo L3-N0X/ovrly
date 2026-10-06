@@ -1,4 +1,7 @@
 import { auth, prisma } from "../auth";
+import { hasRole, higherRole, type AccessRole } from "../lib/sharing";
+import type { ShareRole } from "../src/generated/prisma/client";
+import { json } from "./cors";
 
 export const authenticate = async (req: Request) => {
   return auth.api.getSession({ headers: req.headers });
@@ -9,22 +12,31 @@ export interface SessionUser {
   name: string;
 }
 
-// An editor entry matches a user either through the linked account or, for invitations that
-// haven't been linked yet (added by Twitch name before the user ever signed in), by name.
-// Twitch names are case-insensitive.
-const editorMatch = (user: SessionUser) => ({
+// A share matches a user either through the linked account or, for invitations that haven't
+// been linked yet (added by Twitch name before the user ever signed in), by name. Twitch
+// names are case-insensitive.
+export const shareMatch = (user: SessionUser) => ({
   OR: [
-    { editorId: user.id },
-    { editorId: null, editorTwitchName: { equals: user.name, mode: "insensitive" as const } },
+    { userId: user.id },
+    { userId: null, twitchName: { equals: user.name, mode: "insensitive" as const } },
   ],
 });
 
+export interface OverlayAccess {
+  overlay: { id: string; userId: string };
+  role: AccessRole;
+  isOwner: boolean;
+}
+
 /**
- * Resolves what the user may do with an overlay. Access is granted to the owner, to editors
- * the overlay was shared with directly, and to the owner's global editors (Settings page).
- * Returns null when the overlay doesn't exist or the user has no access to it.
+ * Resolves what the user may do with an overlay: the owner can do everything, anyone else
+ * gets the higher of the roles from a share of this overlay and from an account share of its
+ * owner. Returns null when the overlay doesn't exist or the user has no access to it.
  */
-export const getOverlayAccess = async (user: SessionUser, overlayId: string) => {
+export const getOverlayAccess = async (
+  user: SessionUser,
+  overlayId: string
+): Promise<OverlayAccess | null> => {
   const overlay = await prisma.overlay.findUnique({
     where: { id: overlayId },
     select: { id: true, userId: true },
@@ -32,39 +44,90 @@ export const getOverlayAccess = async (user: SessionUser, overlayId: string) => 
   if (!overlay) return null;
 
   if (overlay.userId === user.id) {
-    return { overlay, isOwner: true };
+    return { overlay, role: "OWNER", isOwner: true };
   }
 
-  const [overlayEditor, globalEditor] = await Promise.all([
-    prisma.overlayEditor.findFirst({
-      where: { overlayId, ...editorMatch(user) },
-      select: { id: true },
+  const [overlayShare, accountShare] = await Promise.all([
+    prisma.overlayShare.findFirst({
+      where: { overlayId, ...shareMatch(user) },
+      select: { role: true },
     }),
-    prisma.editor.findFirst({
-      where: { ownerId: overlay.userId, ...editorMatch(user) },
-      select: { id: true },
+    prisma.accountShare.findFirst({
+      where: { ownerId: overlay.userId, ...shareMatch(user) },
+      select: { role: true },
     }),
   ]);
 
-  return overlayEditor || globalEditor ? { overlay, isOwner: false } : null;
+  const roles = [overlayShare?.role, accountShare?.role].filter((r): r is ShareRole => !!r);
+  if (roles.length === 0) return null;
+  return { overlay, role: roles.reduce(higherRole), isOwner: false };
 };
 
-export const authorize = async (user: SessionUser, overlayId: string) => {
-  return (await getOverlayAccess(user, overlayId)) !== null;
+export type AccessCheck = { access: OverlayAccess; error?: never } | { error: Response };
+
+/**
+ * Checks that the user has at least `required` on the overlay. Without any access the
+ * overlay answers 404, so ids can't be probed; with too little it answers 403.
+ */
+export const requireOverlayRole = async (
+  user: SessionUser,
+  overlayId: string,
+  required: AccessRole,
+  notFoundMessage = "Overlay not found"
+): Promise<AccessCheck> => {
+  const access = await getOverlayAccess(user, overlayId);
+  if (!access) {
+    return { error: json({ error: notFoundMessage }, 404) };
+  }
+  if (!hasRole(access.role, required)) {
+    return { error: json({ error: forbiddenMessage(required), requiredRole: required }, 403) };
+  }
+  return { access };
 };
 
-// Ids of every overlay shared with the user, directly or through a global editor entry.
-export const getSharedOverlayIds = async (user: SessionUser) => {
-  const [overlayEditors, globalEditors] = await Promise.all([
-    prisma.overlayEditor.findMany({ where: editorMatch(user), select: { overlayId: true } }),
-    prisma.editor.findMany({ where: editorMatch(user), select: { ownerId: true } }),
+export const forbiddenMessage = (required: AccessRole) => {
+  switch (required) {
+    case "OWNER":
+      return "Only the owner can do this";
+    case "EDITOR":
+      return "You need editor access to change this overlay";
+    case "CONTROLLER":
+      return "You need control access to change this overlay";
+    default:
+      return "Forbidden";
+  }
+};
+
+// The role the user has on every overlay shared with them, directly or through an account
+// share of its owner.
+export const getSharedOverlayRoles = async (user: SessionUser) => {
+  const [overlayShares, accountShares] = await Promise.all([
+    prisma.overlayShare.findMany({
+      where: shareMatch(user),
+      select: { overlayId: true, role: true },
+    }),
+    prisma.accountShare.findMany({
+      where: { ...shareMatch(user), ownerId: { not: user.id } },
+      select: { ownerId: true, role: true },
+    }),
   ]);
 
-  const ownerIds = globalEditors.map((e) => e.ownerId).filter((id) => id !== user.id);
-  const ownedByOwners =
-    ownerIds.length > 0
-      ? await prisma.overlay.findMany({ where: { userId: { in: ownerIds } }, select: { id: true } })
-      : [];
+  const roles = new Map<string, ShareRole>();
+  const grant = (overlayId: string, role: ShareRole) => {
+    const current = roles.get(overlayId);
+    roles.set(overlayId, current ? higherRole(current, role) : role);
+  };
 
-  return [...new Set([...overlayEditors.map((e) => e.overlayId), ...ownedByOwners.map((o) => o.id)])];
+  overlayShares.forEach((share) => grant(share.overlayId, share.role));
+
+  if (accountShares.length > 0) {
+    const roleByOwner = new Map(accountShares.map((share) => [share.ownerId, share.role]));
+    const overlays = await prisma.overlay.findMany({
+      where: { userId: { in: [...roleByOwner.keys()] } },
+      select: { id: true, userId: true },
+    });
+    overlays.forEach((overlay) => grant(overlay.id, roleByOwner.get(overlay.userId)!));
+  }
+
+  return roles;
 };

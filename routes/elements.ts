@@ -1,11 +1,37 @@
 import { prisma } from "../auth";
-import { authenticate, authorize } from "../middleware/authMiddleware";
-import { corsHeaders } from "../middleware/cors";
+import {
+  authenticate,
+  forbiddenMessage,
+  getOverlayAccess,
+  requireOverlayRole,
+} from "../middleware/authMiddleware";
+import { corsHeaders, json } from "../middleware/cors";
+import { hasRole } from "../lib/sharing";
 import { publishOverlay } from "../services/overlay-query";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
+// Bingo data a controller may change while live. Size and the free middle cell shape the
+// card, so they are part of its design.
+const BINGO_CONTENT_KEYS = ["fields", "checked"];
+
+// Controllers run an overlay: they change what elements show (`data`), not how they look or
+// where they are. Anything beyond that needs an editor.
+const requiredRoleForPatch = (body: Record<string, unknown>, elementType: string) => {
+  const designKeys = ["name", "style", "position", "parentId"];
+  if (designKeys.some((key) => body[key] !== undefined)) return "EDITOR" as const;
+  const data = body.data;
+  if (
+    elementType === "BINGO" &&
+    data &&
+    typeof data === "object" &&
+    Object.keys(data).some((key) => !BINGO_CONTENT_KEYS.includes(key))
+  ) {
+    return "EDITOR" as const;
+  }
+  return "CONTROLLER" as const;
+};
 
 async function getAllDescendantIds(prisma: PrismaClient, initialIds: string[]): Promise<string[]> {
   const allIds = new Set<string>(initialIds);
@@ -43,12 +69,8 @@ export const handleElementsRoutes = async (
     }
 
     const overlayId = addElementMatch[1];
-    if (!(await authorize(session.user, overlayId))) {
-      return new Response(JSON.stringify({ error: "Overlay not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
 
     try {
       const { name, type } = (await req.json()) as { name?: unknown; type?: unknown };
@@ -146,12 +168,8 @@ export const handleElementsRoutes = async (
         return new Response(null, { status: 204, headers: corsHeaders });
       }
 
-      if (!(await authorize(session.user, firstElement.overlayId))) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      const check = await requireOverlayRole(session.user, firstElement.overlayId, "EDITOR");
+      if (check.error) return check.error;
 
       const elements = await prisma.element.findMany({
         where: { id: { in: ids } },
@@ -235,16 +253,22 @@ export const handleElementsRoutes = async (
       include: { bingo: true },
     });
 
-    if (!element || !(await authorize(session.user, element.overlayId))) {
-      return new Response(JSON.stringify({ error: "Element not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const access = element ? await getOverlayAccess(session.user, element.overlayId) : null;
+    if (!element || !access) {
+      return json({ error: "Element not found" }, 404);
     }
 
     if (req.method === "PATCH") {
       try {
-        const { name, style, data, position, parentId } = (await req.json()) as {
+        const body = (await req.json()) as Record<string, unknown> | null;
+        if (!body || typeof body !== "object") {
+          return json({ error: "Invalid request body" }, 400);
+        }
+        const required = requiredRoleForPatch(body, element.type);
+        if (!hasRole(access.role, required)) {
+          return json({ error: forbiddenMessage(required), requiredRole: required }, 403);
+        }
+        const { name, style, data, position, parentId } = body as {
           name?: string;
           style?: unknown;
           data?: {
@@ -381,6 +405,9 @@ export const handleElementsRoutes = async (
     }
 
     if (req.method === "DELETE") {
+      if (!hasRole(access.role, "EDITOR")) {
+        return json({ error: forbiddenMessage("EDITOR"), requiredRole: "EDITOR" }, 403);
+      }
       // Children go with it through the parent relation's cascade.
       await prisma.element.delete({ where: { id: elementId } });
       await publishOverlay(server, element.overlayId);

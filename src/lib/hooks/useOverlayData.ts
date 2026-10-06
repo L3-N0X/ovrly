@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
+import { ApiError, sharingApi, type OverlayAccess } from "@/lib/sharing";
 
 const DEBOUNCE_MS = 500;
 // How long a deletion can be undone. The elements only disappear locally until then; the
@@ -51,6 +52,8 @@ export const useOverlayData = () => {
   const [overlay, setOverlayState] = useState<PrismaOverlay | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // What the user may do with the overlay (and who else has access). Null until it's known.
+  const [access, setAccess] = useState<OverlayAccess | null>(null);
 
   // Mirrors `overlay` synchronously so handlers invoked from stale closures (debounced
   // editors, drag and drop monitors, socket callbacks) always build on the latest state.
@@ -82,11 +85,31 @@ export const useOverlayData = () => {
     [setOverlay]
   );
 
+  // Re-read whenever access to the overlay changes, so someone demoted or removed while the
+  // page is open sees it right away instead of when their next change fails.
+  const refreshAccess = useCallback(async () => {
+    if (!id) return;
+    try {
+      setAccess(await sharingApi.overlayAccess(id));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setAccess(null);
+        setError("You no longer have access to this overlay.");
+      } else {
+        console.error("Failed to refresh access", err);
+      }
+    }
+  }, [id]);
+
   const fetchOverlayData = useCallback(async () => {
     const revision = serverRevision.current;
     const response = await fetch(`/api/overlays/${id}`, { credentials: "include" });
     if (!response.ok) {
-      throw new Error("Failed to fetch overlay");
+      throw new Error(
+        response.status === 404
+          ? "This overlay doesn't exist, or it isn't shared with you."
+          : "Failed to fetch overlay"
+      );
     }
     const data: PrismaOverlay = await response.json();
     return revision === serverRevision.current ? data : null;
@@ -205,8 +228,13 @@ export const useOverlayData = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await fetchOverlayData();
-        if (!disposed && data) applyServerOverlay(data);
+        const [data, initialAccess] = await Promise.all([
+          fetchOverlayData(),
+          sharingApi.overlayAccess(id),
+        ]);
+        if (disposed) return;
+        setAccess(initialAccess);
+        if (data) applyServerOverlay(data);
       } catch (err) {
         if (!disposed) {
           setError(err instanceof Error ? err.message : "An unknown error occurred");
@@ -225,6 +253,7 @@ export const useOverlayData = () => {
         applyServerOverlay(updatedOverlay);
       },
       onOpen: refreshOverlay,
+      onAccessChange: refreshAccess,
     });
 
     const writes = pendingWrites.current;
@@ -247,7 +276,7 @@ export const useOverlayData = () => {
       writes.clear();
       setOverlay(null);
     };
-  }, [id, fetchOverlayData, applyServerOverlay, refreshOverlay, setOverlay]);
+  }, [id, fetchOverlayData, applyServerOverlay, refreshOverlay, refreshAccess, setOverlay]);
 
   // Elements that are gone locally must not receive their queued writes any more (they
   // would only fail with a 404 once the delete has gone through).
@@ -549,6 +578,9 @@ export const useOverlayData = () => {
   return {
     id,
     overlay,
+    access,
+    role: access?.role ?? null,
+    refreshAccess,
     setOverlay,
     isLoading,
     error,

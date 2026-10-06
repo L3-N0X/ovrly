@@ -1,7 +1,7 @@
 import React from "react";
 import type { OverlayMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { ROLE_LABELS } from "./members";
+import { ROLE_INFO } from "@/lib/sharing";
 
 // Background colours for people without a profile picture, picked from their name so the
 // same person always gets the same one.
@@ -62,7 +62,7 @@ const AvatarStack: React.FC<AvatarStackProps> = ({ members, max = 4, className }
       {visible.map((member, index) => (
         <span
           key={member.name}
-          title={`${member.name} · ${ROLE_LABELS[member.role]}`}
+          title={`${member.name} · ${ROLE_INFO[member.role].label}${member.pending ? " (pending)" : ""}`}
           className={cn(
             "relative rounded-full ring-2 ring-card transition-[margin] duration-200",
             index > 0 && "-ml-2.5 group-hover/stack:-ml-1"

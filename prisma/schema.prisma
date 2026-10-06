@@ -20,9 +20,11 @@ model User {
   Account               Account[]
   Overlay               Overlay[]
   Image                 Image[]
-  globalEditors         Editor[]        @relation("GlobalEditors")
-  editorFor             Editor[]        @relation("EditorFor")
-  overlaysSharedWithMe  OverlayEditor[]
+  // People this user gave access to all of their overlays.
+  accountShares         AccountShare[]  @relation("AccountShareOwner")
+  // Access other users gave this user, to all of their overlays or to single ones.
+  accountSharesWithMe   AccountShare[]  @relation("AccountShareMember")
+  overlaySharesWithMe   OverlayShare[]
 }
 
 model Image {
@@ -37,20 +39,33 @@ model Image {
   @@index([userId])
 }
 
-model Editor {
-  id               String   @id @default(cuid())
-  ownerId          String
-  editorId         String?
-  owner            User     @relation("GlobalEditors", fields: [ownerId], references: [id], onDelete: Cascade)
-  editor           User?    @relation("EditorFor", fields: [editorId], references: [id], onDelete: Cascade)
-  editorTwitchName String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+// What someone an overlay is shared with may do. Ordered from least to most access; the
+// owner can always do everything, including sharing and deleting.
+enum ShareRole {
+  // Sees the overlay and its live state.
+  VIEWER
+  // Also runs it: counters, timers, titles, images and bingo cards.
+  CONTROLLER
+  // Also changes its design: elements, layout and styles.
+  EDITOR
+}
 
-  @@unique([ownerId, editorTwitchName])
+// Access to every overlay of `owner`, including ones created later.
+model AccountShare {
+  id         String    @id @default(cuid())
+  ownerId    String
+  owner      User      @relation("AccountShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  // Null until someone with this Twitch name signs in (linked in auth.ts).
+  userId     String?
+  user       User?     @relation("AccountShareMember", fields: [userId], references: [id], onDelete: Cascade)
+  twitchName String
+  role       ShareRole @default(EDITOR)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  @@index([editorId])
-  @@index([editorTwitchName])
+  @@unique([ownerId, twitchName])
+  @@index([userId])
+  @@index([twitchName])
 }
 
 model Overlay {
@@ -61,25 +76,29 @@ model Overlay {
   userId      String
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   elements    Element[]
-  editors     OverlayEditor[]
+  shares      OverlayShare[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([userId])
 }
 
-model OverlayEditor {
-  id               String   @id @default(cuid())
-  overlayId        String
-  editorId         String?
-  editorTwitchName String
-  overlay          Overlay  @relation(fields: [overlayId], references: [id], onDelete: Cascade)
-  editor           User?    @relation(fields: [editorId], references: [id], onDelete: Cascade)
+// Access to a single overlay. Someone with an account share as well gets the higher role.
+model OverlayShare {
+  id         String    @id @default(cuid())
+  overlayId  String
+  overlay    Overlay   @relation(fields: [overlayId], references: [id], onDelete: Cascade)
+  // Null until someone with this Twitch name signs in (linked in auth.ts).
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twitchName String
+  role       ShareRole @default(EDITOR)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  @@unique([overlayId, editorTwitchName])
-
-  @@index([editorId])
-  @@index([editorTwitchName])
+  @@unique([overlayId, twitchName])
+  @@index([userId])
+  @@index([twitchName])
 }
 
 model Element {

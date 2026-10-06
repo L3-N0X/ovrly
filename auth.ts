@@ -27,8 +27,8 @@ export const auth = betterAuth({
   databaseHooks: {
     session: {
       create: {
-        // Link pending editor invitations (added by Twitch name before the user
-        // existed) once per sign-in instead of on every authenticated request.
+        // Link pending invitations (added by Twitch name before the user existed) once
+        // per sign-in instead of on every authenticated request.
         after: async (session) => {
           try {
             const user = await prisma.user.findUnique({
@@ -38,16 +38,16 @@ export const auth = betterAuth({
             if (!user) return;
             // Twitch names are case-insensitive, invitations may be typed in any case.
             const where = {
-              editorTwitchName: { equals: user.name, mode: "insensitive" as const },
-              editorId: null,
+              twitchName: { equals: user.name, mode: "insensitive" as const },
+              userId: null,
             };
-            const data = { editorId: user.id };
+            const data = { userId: user.id };
             await Promise.all([
-              prisma.editor.updateMany({ where, data }),
-              prisma.overlayEditor.updateMany({ where, data }),
+              prisma.accountShare.updateMany({ where, data }),
+              prisma.overlayShare.updateMany({ where, data }),
             ]);
           } catch (error) {
-            console.error("[AUTH] Failed to link pending editor entries:", error);
+            console.error("[AUTH] Failed to link pending invitations:", error);
           }
         },
       },

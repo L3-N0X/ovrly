@@ -3,13 +3,12 @@ import { handleCors } from "./middleware/cors";
 import { handleAuthRoutes } from "./routes/auth";
 import { handlePresetsRoutes } from "./routes/presets";
 import { handlePublicOverlaysRoutes } from "./routes/publicOverlays";
-import { handleEditorsRoutes } from "./routes/editors";
 import { handleFilesRoutes, handleUploadsRoutes } from "./routes/files";
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
-import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
+import { handleSharingRoutes } from "./routes/sharing";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
 import type { WebSocketData } from "./types";
@@ -132,16 +131,10 @@ const server = Bun.serve<WebSocketData>({
         return publicOverlayResponse;
       }
 
-      // Handle editor routes
-      const editorResponse = await handleEditorsRoutes(req, reqPath);
-      if (editorResponse) {
-        return editorResponse;
-      }
-
-      // Handle overlay editor routes
-      const overlayEditorResponse = await handleOverlayEditorsRoutes(req, reqPath);
-      if (overlayEditorResponse) {
-        return overlayEditorResponse;
+      // Handle sharing routes (who has access to what, and with which role)
+      const sharingResponse = await handleSharingRoutes(req, server, reqPath);
+      if (sharingResponse) {
+        return sharingResponse;
       }
 
       // Handle preset routes

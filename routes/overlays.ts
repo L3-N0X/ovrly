@@ -1,8 +1,15 @@
 import type { Prisma } from "../src/generated/prisma/client";
 import { normalizeBingoState } from "../lib/bingo";
 import { prisma } from "../auth";
-import { authenticate, getOverlayAccess, getSharedOverlayIds } from "../middleware/authMiddleware";
-import { corsHeaders } from "../middleware/cors";
+import {
+  authenticate,
+  forbiddenMessage,
+  getOverlayAccess,
+  getSharedOverlayRoles,
+  requireOverlayRole,
+} from "../middleware/authMiddleware";
+import { corsHeaders, json } from "../middleware/cors";
+import { hasRole, higherRole, personKey, type AccessRole } from "../lib/sharing";
 import { findOverlayWithElements, overlayElementsInclude } from "../services/overlay-query";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,7 +19,9 @@ type ElementSeed = any;
 interface OverlayMember {
   name: string;
   image: string | null;
-  role: "owner" | "editor" | "global";
+  role: AccessRole;
+  // Invited by Twitch name, but hasn't signed in to ovrly yet.
+  pending: boolean;
 }
 
 // Builds the nested create input for a sibling list. Children are created through Prisma's
@@ -103,15 +112,13 @@ export const handleOverlaysRoutes = async (
     }
 
     const overlayId = duplicateMatch[1];
-    // Only someone who can open the overlay may copy it into their own account.
-    const access = await getOverlayAccess(session.user, overlayId);
-    const originalOverlay = access ? await findOverlayWithElements(overlayId) : null;
+    // Copying an overlay takes its whole design along, so it's reserved for editors.
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
+    const originalOverlay = await findOverlayWithElements(overlayId);
 
     if (!originalOverlay) {
-      return new Response(JSON.stringify({ error: "Overlay not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Overlay not found" }, 404);
     }
 
     const newOverlay = await createOverlayWithElements(
@@ -160,6 +167,9 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "PATCH") {
+      if (!hasRole(access.role, "EDITOR")) {
+        return json({ error: forbiddenMessage("EDITOR"), requiredRole: "EDITOR" }, 403);
+      }
       try {
         const body = (await req.json()) as {
           name?: unknown;
@@ -211,10 +221,7 @@ export const handleOverlaysRoutes = async (
     if (req.method === "DELETE") {
       // Editors may change an overlay, but only its owner may delete it.
       if (!access.isOwner) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ error: forbiddenMessage("OWNER"), requiredRole: "OWNER" }, 403);
       }
       await prisma.overlay.delete({ where: { id: overlayId } });
       return new Response(null, { status: 204, headers: corsHeaders });
@@ -237,53 +244,66 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "GET") {
-      const sharedOverlayIds = await getSharedOverlayIds(session.user);
+      const sharedRoles = await getSharedOverlayRoles(session.user);
       const overlays = await prisma.overlay.findMany({
         where: {
-          OR: [{ userId: session.user.id }, { id: { in: sharedOverlayIds } }],
+          OR: [{ userId: session.user.id }, { id: { in: [...sharedRoles.keys()] } }],
         },
         include: {
           ...overlayElementsInclude,
           user: { select: { name: true, image: true } },
-          editors: {
-            select: { editorTwitchName: true, editor: { select: { name: true, image: true } } },
+          shares: {
+            select: { twitchName: true, role: true, user: { select: { name: true, image: true } } },
           },
         },
       });
 
-      // Global editors can open every overlay of their owner, so they belong to each one's
-      // list of people with access.
+      // Account shares reach every overlay of their owner, so they belong to each one's list
+      // of people with access.
       const ownerIds = [...new Set(overlays.map((o) => o.userId))];
-      const globalEditors = await prisma.editor.findMany({
+      const accountShares = await prisma.accountShare.findMany({
         where: { ownerId: { in: ownerIds } },
         select: {
           ownerId: true,
-          editorTwitchName: true,
-          editor: { select: { name: true, image: true } },
+          twitchName: true,
+          role: true,
+          user: { select: { name: true, image: true } },
         },
       });
 
-      const withMembers = overlays.map(({ user, editors, ...overlay }) => {
-        const members: OverlayMember[] = [{ name: user.name, image: user.image, role: "owner" }];
-        const add = (
-          entry: { editorTwitchName: string; editor: { name: string; image: string | null } | null },
-          role: OverlayMember["role"]
-        ) => {
-          const name = entry.editor?.name ?? entry.editorTwitchName;
-          // Twitch names are case-insensitive; someone listed twice is only shown once.
-          if (members.some((m) => m.name.toLowerCase() === name.toLowerCase())) return;
-          members.push({ name, image: entry.editor?.image ?? null, role });
+      const withMembers = overlays.map(({ user, shares, ...overlay }) => {
+        const owner: OverlayMember = {
+          name: user.name,
+          image: user.image,
+          role: "OWNER",
+          pending: false,
         };
-        editors.forEach((entry) => add(entry, "editor"));
-        globalEditors
-          .filter((entry) => entry.ownerId === overlay.userId)
-          .forEach((entry) => add(entry, "global"));
-        return { ...overlay, members };
+        const members = new Map<string, OverlayMember>([[personKey(user.name), owner]]);
+        const add = (share: (typeof shares)[number]) => {
+          const name = share.user?.name ?? share.twitchName;
+          const existing = members.get(personKey(name));
+          // Someone shared twice (directly and through the account) is listed once, with the
+          // role that allows more.
+          if (existing) {
+            existing.role = higherRole(existing.role, share.role);
+            return;
+          }
+          members.set(personKey(name), {
+            name,
+            image: share.user?.image ?? null,
+            role: share.role,
+            pending: !share.user,
+          });
+        };
+        shares.forEach(add);
+        accountShares.filter((share) => share.ownerId === overlay.userId).forEach(add);
+
+        const myRole: AccessRole =
+          overlay.userId === session.user.id ? "OWNER" : sharedRoles.get(overlay.id)!;
+        return { ...overlay, members: [...members.values()], myRole };
       });
 
-      return new Response(JSON.stringify(withMembers), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json(withMembers);
     }
 
     if (req.method === "POST") {

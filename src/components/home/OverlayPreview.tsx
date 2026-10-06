@@ -9,12 +9,14 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// A live, read-only thumbnail of an overlay. It is only rendered once it scrolls into view,
-// so a long list doesn't mount (and tick the timers of) every overlay at once.
-const OverlayPreview: React.FC<{ overlay: PrismaOverlay; className?: string }> = ({
-  overlay,
-  className,
-}) => {
+// A live, scaled down rendering of an overlay. It is only rendered once it scrolls into
+// view, so a long list doesn't mount (and tick the timers of) every overlay at once. It is
+// read-only unless `interactive` is set (bingo cells can then be clicked, for example).
+const OverlayPreview: React.FC<{
+  overlay: PrismaOverlay;
+  className?: string;
+  interactive?: boolean;
+}> = ({ overlay, className, interactive = false }) => {
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -53,9 +55,9 @@ const OverlayPreview: React.FC<{ overlay: PrismaOverlay; className?: string }> =
   return (
     <div
       ref={frameRef}
-      aria-hidden
+      aria-hidden={!interactive}
       // `inert` keeps bingo cells and the like out of the tab order and away from the pointer.
-      inert
+      inert={!interactive}
       className={cn(
         "relative aspect-[4/3] w-full overflow-hidden bg-neutral-900 select-none",
         className
