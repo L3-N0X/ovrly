@@ -13,7 +13,7 @@ Ovrly is a free and open-source web application that allows you to create highly
 * **Versatile Elements:** Create timers, counters, titles, images, and more. Combine them to build unique overlays.
 * **Real-time Collaboration:** Share your overlays with your broadcast team or moderators. Changes are reflected in real-time.
 * **Twitch Integration:** Secure login with your Twitch account. No extra passwords to remember.
-* **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. The default size is 800x600px.
+* **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. Every overlay has its own canvas size (1920x1080 by default), set in the editor.
 
 > [!IMPORTANT]  
 > Ovrly is currently in an **alpha** state. This means it's under active development, and you might encounter bugs or breaking changes. We appreciate your feedback and contributions to make Ovrly better!
@@ -27,16 +27,34 @@ All Elements are editable to change their content.
 * **Timer:** Count up or down for speedruns, events, or breaks.
 * **Image:** Add player photos, logos, or more.
 * **Bingo:** A 3x3 to 7x7 card. Mark cells as the game is called, with an optional free middle and a shuffle button.
-* **Container:** Group and organize elements within your overlay.
+* **Container:** Group and organize elements within your overlay, lining them up in a row or column.
+* **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.
 
 ## 📺 Usage in OBS
 
 1. Create and customize your overlay in the Ovrly web interface.
-2. Click the "Copy for OBS" button for your overlay.
-3. In OBS, add a new "Browser" source.
-4. Paste the copied URL into the "URL" field.
-5. Set the "Width" to `800` and "Height" to `600` (if not already set).
-6. Click "OK" and position your new overlay in your scene.
+2. Select the canvas to see its size, and change it if you like (see *The canvas* below).
+3. Click the "Copy for OBS" button for your overlay.
+4. In OBS, add a new "Browser" source.
+5. Paste the copied URL into the "URL" field.
+6. Set the "Width" and "Height" to the canvas size shown in the Ovrly canvas panel.
+7. Click "OK" and position your new overlay in your scene.
+
+## 🖼️ The canvas
+
+Every overlay is drawn on a canvas, which is sized per overlay (1920×1080 for new ones) and
+is also the group its elements live in. Select the canvas in the editor — click the empty
+canvas, the frame label or the "Canvas" row — to change it:
+
+* **Size** is what OBS is set to. Pick a preset (1080p, 720p, 1440p, 4K, vertical, the old
+  800×600) or type any width and height.
+* **Placement** decides how the elements directly on the canvas are positioned. *Auto layout*
+  arranges them in a row or column, with the gap, padding and alignment from the layout
+  settings. *Free placement* lets you drag every one of them to where you want it with the
+  move tool (M), arrows nudge them, and they may stick out past the canvas edges.
+
+Containers and groups still work inside either mode, for arranging a few elements while
+everything else is placed freely.
 
 ## 🔮 Future Plans
 

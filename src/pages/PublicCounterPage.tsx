@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import OverlayCanvas from "../components/overlay/OverlayCanvas";
 import FontLoader from "../components/FontLoader";
-import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
+import {
+  DEFAULT_CANVAS_HEIGHT,
+  DEFAULT_CANVAS_WIDTH,
+  type PrismaOverlay,
+  type BaseElementStyle,
+} from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 
 const PublicCounterPage = () => {
@@ -78,8 +83,8 @@ const PublicCounterPage = () => {
   };
 
   if (!overlay) {
-    // Render a blank 800x600 box while loading
-    return <div style={{ width: "800px", height: "600px" }} />;
+    // A blank box of the default size while loading, so OBS doesn't flash a collapsed source.
+    return <div style={{ width: DEFAULT_CANVAS_WIDTH, height: DEFAULT_CANVAS_HEIGHT }} />;
   }
 
   return (

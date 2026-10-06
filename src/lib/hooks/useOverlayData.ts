@@ -468,6 +468,21 @@ export const useOverlayData = () => {
       if (!current) return;
       const updatedOverlay = resolveChange(change, current);
 
+      // The canvas itself: its size and how it places the elements on it. Only the changed
+      // keys are sent, like with globalStyle.
+      const canvas: Record<string, unknown> = {};
+      for (const key of ["width", "height", "canvasMode"] as const) {
+        if (current[key] !== updatedOverlay[key]) canvas[key] = updatedOverlay[key];
+      }
+      if (Object.keys(canvas).length > 0) {
+        queueWrite(
+          "overlay:canvas",
+          { url: `/api/overlays/${current.id}`, body: canvas },
+          (target) => Object.assign(target, canvas),
+          { delay: DEBOUNCE_MS, combine: (queued) => ({ ...(queued as object), ...canvas }) }
+        );
+      }
+
       // Only the changed keys are sent, so someone else changing another property at the
       // same time keeps their change.
       const globalStyle = diffStyle(current.globalStyle, updatedOverlay.globalStyle);

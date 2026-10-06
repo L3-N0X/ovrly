@@ -20,6 +20,12 @@ import {
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 
+// The canvas size bounds, shared with the editor so both clamp the same values.
+const MIN_CANVAS_SIZE = 16;
+const MAX_CANVAS_SIZE = 7680;
+
+type CanvasMode = "AUTO" | "FREE";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ElementSeed = any;
 
@@ -104,6 +110,27 @@ function toElementTree<T extends { id: string; parentId: string | null; position
   return build(null);
 }
 
+// The canvas size and placement a preset asks for, when it asks for a valid one.
+function presetCanvas(preset: {
+  width?: unknown;
+  height?: unknown;
+  canvasMode?: unknown;
+}): Pick<Prisma.OverlayUncheckedCreateInput, "width" | "height" | "canvasMode"> {
+  const size = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.min(MAX_CANVAS_SIZE, Math.max(MIN_CANVAS_SIZE, Math.round(value)))
+      : undefined;
+  const width = size(preset.width);
+  const height = size(preset.height);
+  const canvasMode: CanvasMode | undefined =
+    preset.canvasMode === "AUTO" || preset.canvasMode === "FREE" ? preset.canvasMode : undefined;
+  return {
+    ...(width !== undefined ? { width } : {}),
+    ...(height !== undefined ? { height } : {}),
+    ...(canvasMode ? { canvasMode } : {}),
+  };
+}
+
 export const handleOverlaysRoutes = async (
   req: Request,
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
@@ -133,6 +160,9 @@ export const handleOverlaysRoutes = async (
       {
         name: `Copy of ${originalOverlay.name}`,
         description: originalOverlay.description,
+        width: originalOverlay.width,
+        height: originalOverlay.height,
+        canvasMode: originalOverlay.canvasMode,
         userId: session.user.id,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         globalStyle: originalOverlay.globalStyle as any,
@@ -183,10 +213,19 @@ export const handleOverlaysRoutes = async (
           name?: unknown;
           description?: unknown;
           globalStyle?: unknown;
+          width?: unknown;
+          height?: unknown;
+          canvasMode?: unknown;
         } | null;
-        const { name, description, globalStyle } = body ?? {};
-        const dataToUpdate: { name?: string; description?: string | null; globalStyle?: object } =
-          {};
+        const { name, description, globalStyle, width, height, canvasMode } = body ?? {};
+        const dataToUpdate: {
+          name?: string;
+          description?: string | null;
+          globalStyle?: object;
+          width?: number;
+          height?: number;
+          canvasMode?: CanvasMode;
+        } = {};
 
         if (typeof name === "string" && name.trim()) {
           dataToUpdate.name = name.trim();
@@ -194,6 +233,19 @@ export const handleOverlaysRoutes = async (
         // An empty string or null clears the description.
         if (description === null || typeof description === "string") {
           dataToUpdate.description = description || null;
+        }
+        // The canvas size OBS is set to. Bounded so a bad value can't produce an overlay
+        // nothing can be placed in.
+        for (const [key, value] of [
+          ["width", width],
+          ["height", height],
+        ] as const) {
+          if (typeof value === "number" && Number.isFinite(value)) {
+            dataToUpdate[key] = Math.min(MAX_CANVAS_SIZE, Math.max(MIN_CANVAS_SIZE, Math.round(value)));
+          }
+        }
+        if (canvasMode === "AUTO" || canvasMode === "FREE") {
+          dataToUpdate.canvasMode = canvasMode;
         }
         const globalStylePatch = isStyleObject(globalStyle) ? globalStyle : null;
 
@@ -358,12 +410,16 @@ export const handleOverlaysRoutes = async (
             });
           }
 
+          // A preset may bring its own canvas size and placement; anything it leaves out
+          // falls back to the column defaults (1920x1080, free placement).
+          const canvas = presetCanvas(selectedPreset);
           const newOverlay = await createOverlayWithElements(
             {
               name,
               description,
               userId: session.user.id,
               globalStyle: selectedPreset.globalStyle || {},
+              ...canvas,
             },
             selectedPreset.elements
           );

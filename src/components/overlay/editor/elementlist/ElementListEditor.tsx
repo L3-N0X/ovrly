@@ -1,9 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  canvasSize,
   isParentType,
-  OVERLAY_HEIGHT,
-  OVERLAY_WIDTH,
   type OnOverlayChange,
   type OverlayChange,
   type PrismaOverlay,
@@ -221,6 +220,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   };
 
   const overlaySelected = selectedId === OVERLAY_SELECTION;
+  const { width: canvasWidth, height: canvasHeight } = canvasSize(overlay);
 
   return (
     <div className="flex flex-col">
@@ -262,7 +262,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           <Monitor className="ml-[22px] h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-medium">Canvas</span>
           <span className="ml-auto shrink-0 pr-1 text-[10px] text-muted-foreground tabular-nums">
-            {OVERLAY_WIDTH} × {OVERLAY_HEIGHT}
+            {canvasWidth} × {canvasHeight}
           </span>
         </button>
         <div className="mx-1 my-1 border-b" />

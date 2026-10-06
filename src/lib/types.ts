@@ -25,9 +25,19 @@ export const hasContent = (type: ElementType) =>
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
+// How the elements that sit directly on the canvas are placed. The canvas itself is the
+// overlay's root group: in AUTO mode its children are laid out by the global arrangement (a
+// flex row or column with gaps), in FREE mode each one is placed by its own x/y.
+export const CanvasModeEnum = {
+  AUTO: "AUTO",
+  FREE: "FREE",
+} as const;
+
+export type CanvasMode = (typeof CanvasModeEnum)[keyof typeof CanvasModeEnum];
+
 // Global styles for the overlay container
 export interface GlobalStyle {
-  // For the outer container (overall alignment in 800x600 space)
+  // For the outer container (overall alignment in canvas space)
   outerJustifyContent?: "flex-start" | "center" | "flex-end";
   outerAlignItems?: "flex-start" | "center" | "flex-end" | "baseline";
 
@@ -107,13 +117,27 @@ export interface ContainerStyle extends BaseElementStyle {
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
 }
 
-// The size of the overlay as OBS renders it.
-export const OVERLAY_WIDTH = 800;
-export const OVERLAY_HEIGHT = 600;
+// The size a canvas has when an overlay says nothing: 1920x1080, the usual stream size.
+export const DEFAULT_CANVAS_WIDTH = 1920;
+export const DEFAULT_CANVAS_HEIGHT = 1080;
 
-// Groups start out covering the whole canvas.
-export const DEFAULT_GROUP_WIDTH = OVERLAY_WIDTH;
-export const DEFAULT_GROUP_HEIGHT = OVERLAY_HEIGHT;
+// A canvas smaller than this has no room to place anything in.
+export const MIN_CANVAS_SIZE = 16;
+// Large enough for an 8K source.
+export const MAX_CANVAS_SIZE = 7680;
+
+// The canvas size of an overlay, falling back to the default when it has none stored.
+export const canvasSize = (overlay: {
+  width?: number | null;
+  height?: number | null;
+}) => ({
+  width: overlay.width ?? DEFAULT_CANVAS_WIDTH,
+  height: overlay.height ?? DEFAULT_CANVAS_HEIGHT,
+});
+
+// Groups start out covering the whole canvas they are added to, which the overlay decides.
+export const DEFAULT_GROUP_WIDTH = DEFAULT_CANVAS_WIDTH;
+export const DEFAULT_GROUP_HEIGHT = DEFAULT_CANVAS_HEIGHT;
 
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
@@ -192,6 +216,11 @@ export interface PrismaOverlay {
   globalStyle: GlobalStyle | null;
   elements: PrismaElement[];
   userId: string;
+  // The size of the canvas as OBS renders it.
+  width: number;
+  height: number;
+  // Whether the elements directly on the canvas are laid out or placed freely.
+  canvasMode: CanvasMode;
   // Increases with every broadcast of the overlay; a lower one is older state.
   revision: number;
 }

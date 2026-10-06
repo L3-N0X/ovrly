@@ -1,13 +1,22 @@
 import React, { useMemo, useRef } from "react";
-import { OVERLAY_HEIGHT, OVERLAY_WIDTH, type PrismaOverlay } from "@/lib/types";
+import {
+  canvasSize,
+  CanvasModeEnum,
+  type PrismaElement,
+  type PrismaOverlay,
+} from "@/lib/types";
 import ElementDisplay from "./ElementDisplay";
+// Only the editor ever gets a selection context, so the marker it selects with comes along
+// with it.
+import { OVERLAY_SELECTION } from "@/components/pages/overlay/editorSelection";
 import { CanvasEditingContext, type CanvasEditing } from "./canvasEditing";
 import { CanvasSelectionContext, type CanvasSelection } from "./canvasSelection";
+import FreeItem from "./FreeItem";
 import { SelectionLayer } from "./SelectionLayer";
 
 interface OverlayCanvasProps {
   overlay: PrismaOverlay;
-  // Makes elements inside groups movable. Left out on the public page.
+  // Makes elements movable. Left out on the public page.
   editing?: CanvasEditing | null;
   // Lets elements be selected by clicking them. Left out on the public page.
   selection?: CanvasSelection | null;
@@ -16,6 +25,8 @@ interface OverlayCanvasProps {
   clip?: boolean;
 }
 
+// The overlay as OBS renders it: the canvas, which is the overlay's own root group, and
+// everything on it.
 const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
   overlay,
   editing = null,
@@ -23,6 +34,7 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
   clip = true,
 }) => {
   const { globalStyle, elements } = overlay;
+  const { width, height } = canvasSize(overlay);
   const rootRef = useRef<HTMLDivElement>(null);
   // A ref rather than state: hovering shouldn't re-render the whole canvas, and the
   // selection layer reads it every frame anyway.
@@ -54,8 +66,8 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
     justifyContent: outerJustifyContent, // Horizontal alignment of inner container
     alignItems: outerAlignItems, // Vertical alignment of inner container
     overflow: clip ? "hidden" : "visible",
-    width: `${OVERLAY_WIDTH}px`,
-    height: `${OVERLAY_HEIGHT}px`,
+    width: `${width}px`,
+    height: `${height}px`,
   };
 
   // Inner container handles alignment of elements within the group
@@ -74,22 +86,43 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
     .filter((element) => !element.parentId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
+  const renderChild = (element: PrismaElement) => (
+    <ElementDisplay element={element} elements={elements} />
+  );
+
+  // The canvas is the overlay's root group, and its mode decides how the elements on it are
+  // placed: laid out with the global arrangement, or freely at their own x/y. Either way it
+  // is the overlay itself, so it is never an element of its own and can't be removed.
+  const content =
+    overlay.canvasMode === CanvasModeEnum.FREE ? (
+      <div className="relative" style={{ width: `${width}px`, height: `${height}px` }}>
+        {rootElements.map((element, index) => (
+          <FreeItem key={element.id} element={element} fallbackIndex={index}>
+            {renderChild(element)}
+          </FreeItem>
+        ))}
+      </div>
+    ) : (
+      <div style={innerStyle}>
+        {rootElements.map((element) => (
+          <React.Fragment key={element.id}>{renderChild(element)}</React.Fragment>
+        ))}
+      </div>
+    );
+
   return (
     <CanvasEditingContext.Provider value={editing}>
       <CanvasSelectionContext.Provider value={selectionContext}>
         <div
           ref={rootRef}
           style={outerStyle}
-          // Elements stop these events themselves, so they only arrive here for empty space.
-          onClick={selection ? () => selection.onSelect(null) : undefined}
+          // Elements stop these events themselves, so they only arrive here for the empty
+          // canvas, which is the overlay itself: clicking it opens the canvas settings.
+          onClick={selection ? () => selection.onSelect(OVERLAY_SELECTION) : undefined}
           onPointerOver={selection ? () => (hoveredIdRef.current = null) : undefined}
           onPointerLeave={selection ? () => (hoveredIdRef.current = null) : undefined}
         >
-          <div style={innerStyle}>
-            {rootElements.map((element) => (
-              <ElementDisplay key={element.id} element={element} elements={elements} />
-            ))}
-          </div>
+          {content}
           {selection && (
             <SelectionLayer
               rootRef={rootRef}

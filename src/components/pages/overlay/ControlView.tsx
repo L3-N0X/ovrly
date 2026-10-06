@@ -3,7 +3,7 @@ import { Eye } from "lucide-react";
 import OverlayPreview from "@/components/home/OverlayPreview";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
 import { flattenTree } from "@/components/overlay/editor/elementlist/tree";
-import { hasContent, type PrismaOverlay } from "@/lib/types";
+import { canvasSize, hasContent, type PrismaOverlay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ElementContentControl, type ContentHandlers } from "./controls/ElementContentControl";
 
@@ -18,6 +18,7 @@ interface ControlViewProps {
 // of its elements. Controllers run it from here, viewers only watch.
 const ControlView: React.FC<ControlViewProps> = ({ overlay, role, content, ownerName }) => {
   const canControl = role === "CONTROLLER";
+  const { width, height } = canvasSize(overlay);
   // Same order as the layers panel in the editor.
   const elements = flattenTree(overlay.elements, new Set())
     .map((row) => row.element)
@@ -26,7 +27,11 @@ const ControlView: React.FC<ControlViewProps> = ({ overlay, role, content, owner
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <main className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 bg-muted/20 p-4 sm:p-8">
-        <div className="w-full max-w-[min(100%,calc((100dvh-10rem)*4/3))] overflow-hidden rounded-xl border shadow-sm">
+        {/* Wide enough for the overlay's own aspect ratio to fit the available height. */}
+        <div
+          className="w-full overflow-hidden rounded-xl border shadow-sm"
+          style={{ maxWidth: `min(100%, calc((100dvh - 10rem) * ${width} / ${height}))` }}
+        >
           <OverlayPreview overlay={overlay} interactive={canControl} />
         </div>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">

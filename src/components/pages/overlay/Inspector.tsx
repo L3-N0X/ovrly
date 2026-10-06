@@ -1,6 +1,7 @@
 import React from "react";
 import { Monitor, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CanvasEditor } from "@/components/overlay/editor/CanvasEditor";
 import { GlobalStyleEditor } from "@/components/overlay/editor/GlobalStyleEditor";
 import { RenameElementModal } from "@/components/overlay/editor/RenameElementModal";
 import {
@@ -8,12 +9,12 @@ import {
   ElementStyleEditor,
 } from "@/components/overlay/editor/elementlist/ElementInspector";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
-import { flattenTree, isInGroup } from "@/components/overlay/editor/elementlist/tree";
+import { flattenTree, isPlacedFreely } from "@/components/overlay/editor/elementlist/tree";
 import { cn } from "@/lib/utils";
 import {
+  canvasSize,
+  CanvasModeEnum,
   hasContent,
-  OVERLAY_HEIGHT,
-  OVERLAY_WIDTH,
   type OnOverlayChange,
   type PrismaElement,
   type PrismaOverlay,
@@ -43,18 +44,26 @@ const Inspector: React.FC<InspectorProps> = ({
   content,
 }) => {
   if (selectedId === OVERLAY_SELECTION) {
+    const { width, height } = canvasSize(overlay);
     return (
       <>
         <PanelHeader>
           <Monitor className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate text-sm font-semibold">Canvas</span>
           <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-            {OVERLAY_WIDTH} × {OVERLAY_HEIGHT}
+            {width} × {height}
           </span>
         </PanelHeader>
-        <PanelSection title="Layout">
-          <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
+        <PanelSection title="Canvas">
+          <CanvasEditor overlay={overlay} onOverlayChange={onOverlayChange} />
         </PanelSection>
+        {/* The arrangement only places what sits directly on the canvas, so it is only shown
+            when the canvas arranges those elements. */}
+        {overlay.canvasMode === CanvasModeEnum.AUTO && (
+          <PanelSection title="Layout">
+            <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
+          </PanelSection>
+        )}
       </>
     );
   }
@@ -151,7 +160,7 @@ const ElementPanel = ({
           <ElementContentControl element={element} handlers={content} />
         </PanelSection>
       )}
-      {isInGroup(overlay.elements, element) && (
+      {isPlacedFreely(overlay, element) && (
         <PanelSection title="Position">
           <ElementPositionEditor
             element={element}

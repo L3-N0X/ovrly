@@ -74,7 +74,7 @@ Conventions shared with the rest of the API:
 
 - `src/components/overlay/Bingo.tsx` draws the grid. The card is sized in pixels
   from `BingoStyle.width` / `height` (default 320×320) so it fits inside the
-  800×600 canvas instead of filling it. Grid tracks use `minmax(0, 1fr)` so cells
+  overlay's own canvas instead of filling it. Grid tracks use `minmax(0, 1fr)` so cells
   can shrink below their content.
 - `src/components/overlay/BingoCell.tsx` renders one cell and autofits the label
   with a binary search that never exceeds `BingoStyle.fontSize`. It searches with

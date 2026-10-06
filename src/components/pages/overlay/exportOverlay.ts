@@ -53,6 +53,11 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
 
   const exportData = {
     name: overlay.name,
+    // The canvas travels with the elements, so an exported overlay keeps its size and how it
+    // places them.
+    width: overlay.width,
+    height: overlay.height,
+    canvasMode: overlay.canvasMode,
     globalStyle: overlay.globalStyle,
     elements: rootElements.map(mapElement),
   };

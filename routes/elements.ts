@@ -106,8 +106,9 @@ export const handleElementsRoutes = async (
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
       } else if (type === "GROUP") {
-        // Children are positioned freely inside it; it starts out covering the whole canvas.
-        elementCreateData.style = { width: 800, height: 600 };
+        // Children are positioned freely inside it; it starts out covering the whole canvas,
+        // whose size is filled in below, under the overlay's lock.
+        elementCreateData.style = {};
       } else {
         return new Response(JSON.stringify({ error: "Invalid element type" }), {
           status: 400,
@@ -119,12 +120,24 @@ export const handleElementsRoutes = async (
         // New elements are appended to the root level. Locked so two elements added at the
         // same time don't both get the last position.
         await lockOverlay(tx, overlayId);
+        // A new group covers the whole canvas it is added to, so it needs the canvas size.
+        const canvas =
+          type === "GROUP"
+            ? await tx.overlay.findUniqueOrThrow({
+                where: { id: overlayId },
+                select: { width: true, height: true },
+              })
+            : null;
         const maxPosition = await tx.element.aggregate({
           where: { overlayId: overlayId, parentId: null },
           _max: { position: true },
         });
         await tx.element.create({
-          data: { ...elementCreateData, position: (maxPosition._max.position ?? -1) + 1 },
+          data: {
+            ...elementCreateData,
+            style: canvas ? { width: canvas.width, height: canvas.height } : elementCreateData.style,
+            position: (maxPosition._max.position ?? -1) + 1,
+          },
         });
       });
 

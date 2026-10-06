@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
+  canvasSize,
+  CanvasModeEnum,
   ElementTypeEnum,
-  OVERLAY_HEIGHT,
-  OVERLAY_WIDTH,
   type ElementStyle,
   type OnOverlayChange,
   type PrismaOverlay,
@@ -89,28 +89,33 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const suppressClick = useRef(false);
   const touches = useRef(new Map<number, { x: number; y: number }>());
 
+  // The canvas is sized per overlay, so everything about the frame follows it.
+  const { width: canvasWidth, height: canvasHeight } = canvasSize(overlay);
+
   const fitToScreen = useCallback(() => {
     const el = viewportRef.current;
     if (!el || !el.clientWidth || !el.clientHeight) return;
     const { clientWidth: width, clientHeight: height } = el;
     const padding = Math.min(56, width / 12);
     const zoom = clamp(
-      Math.min((width - padding * 2) / OVERLAY_WIDTH, (height - padding * 2) / OVERLAY_HEIGHT),
+      Math.min((width - padding * 2) / canvasWidth, (height - padding * 2) / canvasHeight),
       MIN_ZOOM,
       MAX_ZOOM
     );
     autoFit.current = true;
     setViewport({
       zoom,
-      x: (width - OVERLAY_WIDTH * zoom) / 2,
-      y: (height - OVERLAY_HEIGHT * zoom) / 2,
+      x: (width - canvasWidth * zoom) / 2,
+      y: (height - canvasHeight * zoom) / 2,
     });
-  }, []);
+  }, [canvasWidth, canvasHeight]);
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    fitToScreen();
+    // Also runs when the canvas is resized, which only moves the view while the overlay is
+    // still fitted to the screen: panning or zooming by hand takes that over.
+    if (autoFit.current) fitToScreen();
     const observer = new ResizeObserver(() => {
       if (autoFit.current) fitToScreen();
     });
@@ -349,7 +354,11 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const { x, y, zoom } = viewport;
   const shade = SHADE_SIZE / zoom;
   const frameSelected = selectedId === OVERLAY_SELECTION;
-  const hasGroups = overlay.elements.some((e) => e.type === ElementTypeEnum.GROUP);
+  // In free mode the canvas itself places its elements, so the move tool always has something
+  // to drag; otherwise only elements inside a group can be moved.
+  const canMoveElements =
+    overlay.canvasMode === CanvasModeEnum.FREE ||
+    overlay.elements.some((e) => e.type === ElementTypeEnum.GROUP);
   const grabbing = isPanning || spaceHeld;
 
   return (
@@ -393,16 +402,16 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
             } as React.CSSProperties
           }
         >
-          <div className="relative bg-black" style={{ width: OVERLAY_WIDTH, height: OVERLAY_HEIGHT }}>
+          <div className="relative bg-black" style={{ width: canvasWidth, height: canvasHeight }}>
             {canvas}
           </div>
           {/* Shades everything outside the overlay: it exists, but OBS won't show it. */}
           <div aria-hidden className="pointer-events-none absolute inset-0 z-[5]">
             {[
-              { left: -shade, top: -shade, width: OVERLAY_WIDTH + shade * 2, height: shade },
-              { left: -shade, top: OVERLAY_HEIGHT, width: OVERLAY_WIDTH + shade * 2, height: shade },
-              { left: -shade, top: 0, width: shade, height: OVERLAY_HEIGHT },
-              { left: OVERLAY_WIDTH, top: 0, width: shade, height: OVERLAY_HEIGHT },
+              { left: -shade, top: -shade, width: canvasWidth + shade * 2, height: shade },
+              { left: -shade, top: canvasHeight, width: canvasWidth + shade * 2, height: shade },
+              { left: -shade, top: 0, width: shade, height: canvasHeight },
+              { left: canvasWidth, top: 0, width: shade, height: canvasHeight },
             ].map((rect, i) => (
               <div
                 key={i}
@@ -418,8 +427,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
               frameSelected ? "outline-sky-400" : "outline-neutral-400/60 dark:outline-neutral-600"
             )}
             style={{
-              width: OVERLAY_WIDTH,
-              height: OVERLAY_HEIGHT,
+              width: canvasWidth,
+              height: canvasHeight,
               outlineWidth: `calc(${frameSelected ? 2 : 1}px / var(--canvas-zoom))`,
             }}
           />
@@ -435,7 +444,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           style={{
             left: x,
             top: y,
-            maxWidth: Math.max(OVERLAY_WIDTH * zoom, 120),
+            maxWidth: Math.max(canvasWidth * zoom, 120),
             transform: "translateY(-100%)",
           }}
           onPointerDown={(e) => e.stopPropagation()}
@@ -443,7 +452,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         >
           <span className="truncate font-medium">{overlay.name}</span>
           <span className="shrink-0 tabular-nums opacity-70">
-            {OVERLAY_WIDTH} × {OVERLAY_HEIGHT}
+            {canvasWidth} × {canvasHeight}
           </span>
         </button>
       </div>
@@ -460,7 +469,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         <ToolButton
           active={tool === "move"}
           onClick={() => setTool("move")}
-          label="Move elements in groups"
+          label="Move elements freely"
           shortcut="M"
         >
           <Move />
@@ -483,9 +492,9 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       <p className="pointer-events-none absolute bottom-4 left-4 hidden max-w-[calc(100%-16rem)] text-xs text-muted-foreground sm:block">
         {tool === "select"
           ? "Click to select · Drag or scroll to pan · Ctrl + scroll to zoom · A to add · Del to delete"
-          : hasGroups
-            ? "Drag elements inside a group to place them, even outside it · Arrow keys nudge (Shift: 10px) · Drag a group's corner to resize"
-            : "Add a Group element to place elements freely, then drag them here."}
+          : canMoveElements
+            ? "Drag elements to place them, even outside the canvas · Arrow keys nudge (Shift: 10px) · Drag a group's corner to resize"
+            : "Switch the canvas to Free placement in the canvas panel, then drag elements here."}
       </p>
 
       <div className="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">

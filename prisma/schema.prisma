@@ -68,11 +68,23 @@ model AccountShare {
   @@index([twitchName])
 }
 
+// How the elements that sit directly on the canvas are placed: laid out by the global
+// arrangement (a flex row or column with gaps), or freely by dragging them.
+enum CanvasMode {
+  AUTO
+  FREE
+}
+
 model Overlay {
   id          String          @id @default(cuid())
   name        String
   description String?
   globalStyle Json?
+  // The size of the canvas as OBS renders it. Set per overlay, since a browser source is
+  // sized to match.
+  width       Int             @default(1920)
+  height      Int             @default(1080)
+  canvasMode  CanvasMode      @default(FREE)
   userId      String
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   elements    Element[]
