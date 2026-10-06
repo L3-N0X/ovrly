@@ -152,23 +152,33 @@ export interface GroupStyle extends BaseElementStyle {
 
 // Specific style for a Bingo element
 export interface BingoStyle extends BaseElementStyle {
-  /** Card size in pixels. Both are required for a predictable grid, so the
-   * editor exposes sliders rather than letting the card fill its parent. */
+  /** Card width in pixels. The height follows from it, so that every cell is square. */
   width?: number;
+  /** No longer used: cards saved before cells were always square may still carry it. */
   height?: number;
   backgroundColor?: string;
+  /** URL of an image drawn behind the cells, above the background colour. */
+  backgroundImage?: string;
+  backgroundImageFit?: "cover" | "contain" | "fill";
+  /** 0–100. */
+  backgroundImageOpacity?: number;
   borderColor?: string;
   borderWidth?: number;
   borderRadius?: number;
   padding?: number;
   gap?: number;
-  checkedBackgroundColor?: string;
-  checkedColor?: string;
-  /** Colour of the cross drawn over a marked cell. Kept separate from
-   * `checkedColor` so the mark stays legible against the cell background. */
+  /** Draws table lines between all cells. The cells then sit directly on the lines, so
+   * `gap` is replaced by `gridLineWidth` and `padding` is not used. */
+  gridLines?: boolean;
+  gridLineColor?: string;
+  gridLineWidth?: number;
+  /** Colour of the cross drawn behind the label of a marked cell. */
   checkedCrossColor?: string;
-  /** Cross thickness in pixels. */
-  crossWidth?: number;
+  /** Cross thickness in percent of the cell size. */
+  crossThickness?: number;
+  /** 0–100, so the label stays readable on top of the cross. */
+  crossOpacity?: number;
+  crossStyle?: "brush" | "line";
 }
 
 // A union of all possible element style types
@@ -194,7 +204,8 @@ export interface PrismaElement {
   image?: { id: string; src: string } | null;
   bingo?: {
     id: string;
-    size: number;
+    rows: number;
+    columns: number;
     freeMiddle: boolean;
     fields: string[];
     checked: boolean[];

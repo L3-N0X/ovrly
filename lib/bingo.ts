@@ -1,18 +1,20 @@
-export const BINGO_MIN_SIZE = 3;
-export const BINGO_MAX_SIZE = 7;
+export const BINGO_MIN_SIZE = 1;
+export const BINGO_MAX_SIZE = 10;
 export const DEFAULT_BINGO_SIZE = 5;
 export const BINGO_MAX_FIELD_LENGTH = 120;
 export const FREE_SPACE_LABEL = "FREE";
 
 export interface BingoState {
-  size: number;
+  rows: number;
+  columns: number;
   freeMiddle: boolean;
   fields: string[];
   checked: boolean[];
 }
 
 export interface BingoDataUpdate {
-  size?: number;
+  rows?: number;
+  columns?: number;
   freeMiddle?: boolean;
   // An array replaces every cell, an object `{ "3": ... }` changes only the cells it names.
   fields?: string[] | Record<string, string>;
@@ -23,7 +25,7 @@ export type BingoUpdateResult =
   | { ok: true; value: BingoState }
   | { ok: false; error: string };
 
-const BINGO_UPDATE_KEYS = ["size", "freeMiddle", "fields", "checked"];
+const BINGO_UPDATE_KEYS = ["rows", "columns", "freeMiddle", "fields", "checked"];
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -34,10 +36,13 @@ export const isValidBingoSize = (value: unknown): value is number =>
   value >= BINGO_MIN_SIZE &&
   value <= BINGO_MAX_SIZE;
 
-export const bingoCellCount = (size: number) => size * size;
+export const bingoCellCount = (rows: number, columns: number) => rows * columns;
 
-export const bingoMiddleIndex = (size: number) =>
-  size % 2 === 1 ? Math.floor(bingoCellCount(size) / 2) : -1;
+/** Only a card with an odd number of rows and columns has a centre cell. */
+export const hasBingoMiddle = (rows: number, columns: number) => rows % 2 === 1 && columns % 2 === 1;
+
+export const bingoMiddleIndex = (rows: number, columns: number) =>
+  hasBingoMiddle(rows, columns) ? Math.floor(rows / 2) * columns + Math.floor(columns / 2) : -1;
 
 /**
  * Turns any incoming value into a printable single-line cell label.
@@ -57,28 +62,40 @@ export const sanitizeBingoField = (value: unknown): string => {
     .slice(0, BINGO_MAX_FIELD_LENGTH);
 };
 
-const blankState = (size: number): BingoState => ({
-  size,
-  freeMiddle: false,
-  fields: Array.from({ length: bingoCellCount(size) }, () => ""),
-  checked: Array.from({ length: bingoCellCount(size) }, () => false),
-});
-
 export const createBingoState = (
-  size: number = DEFAULT_BINGO_SIZE,
+  rows: number = DEFAULT_BINGO_SIZE,
+  columns: number = rows,
   freeMiddle = false
 ): BingoState => {
-  const state = blankState(isValidBingoSize(size) ? size : DEFAULT_BINGO_SIZE);
-  state.freeMiddle = state.size % 2 === 1 && freeMiddle === true;
-  return state;
+  const r = isValidBingoSize(rows) ? rows : DEFAULT_BINGO_SIZE;
+  const c = isValidBingoSize(columns) ? columns : DEFAULT_BINGO_SIZE;
+  return {
+    rows: r,
+    columns: c,
+    freeMiddle: hasBingoMiddle(r, c) && freeMiddle === true,
+    fields: Array.from({ length: bingoCellCount(r, c) }, () => ""),
+    checked: Array.from({ length: bingoCellCount(r, c) }, () => false),
+  };
 };
 
-export const resizeBingoFields = (fields: unknown, nextSize: number): string[] => {
-  const source = Array.isArray(fields) ? fields : [];
-  return Array.from({ length: bingoCellCount(nextSize) }, (_, index) =>
-    sanitizeBingoField(source[index])
-  );
-};
+/**
+ * Moves row-major cells onto a card of another shape. Every cell keeps its row and column,
+ * so adding a column doesn't shift the labels of the rows below; cells that no longer fit
+ * are dropped and new ones are `blank`.
+ */
+export const resizeBingoCells = <T>(
+  cells: T[],
+  from: { rows: number; columns: number },
+  to: { rows: number; columns: number },
+  blank: T
+): T[] =>
+  Array.from({ length: bingoCellCount(to.rows, to.columns) }, (_, index) => {
+    const row = Math.floor(index / to.columns);
+    const column = index % to.columns;
+    return row < from.rows && column < from.columns
+      ? (cells[row * from.columns + column] ?? blank)
+      : blank;
+  });
 
 /**
  * Coerces a stored or user supplied bingo payload into a state that is safe to
@@ -90,14 +107,19 @@ export const normalizeBingoState = (raw: unknown, fallbackSize = DEFAULT_BINGO_S
     return createBingoState(fallbackSize);
   }
 
-  const size = isValidBingoSize(raw.size) ? raw.size : fallbackSize;
-  const cellCount = bingoCellCount(size);
+  // `size` is the edge length of the square cards from before rows and columns existed;
+  // presets and exports may still carry it.
+  const legacySize = isValidBingoSize(raw.size) ? raw.size : fallbackSize;
+  const rows = isValidBingoSize(raw.rows) ? raw.rows : legacySize;
+  const columns = isValidBingoSize(raw.columns) ? raw.columns : legacySize;
+  const cellCount = bingoCellCount(rows, columns);
   const sourceFields = Array.isArray(raw.fields) ? raw.fields : [];
   const sourceChecked = Array.isArray(raw.checked) ? raw.checked : [];
 
   return {
-    size,
-    freeMiddle: size % 2 === 1 && raw.freeMiddle === true,
+    rows,
+    columns,
+    freeMiddle: hasBingoMiddle(rows, columns) && raw.freeMiddle === true,
     fields: Array.from({ length: cellCount }, (_, index) => sanitizeBingoField(sourceFields[index])),
     checked: Array.from({ length: cellCount }, (_, index) => sourceChecked[index] === true),
   };
@@ -145,9 +167,9 @@ const applyCellPatch = <T>(cells: T[], patch: Map<number, T>) => {
 /**
  * Validates a PATCH payload for a bingo element against its current state.
  *
- * The returned update is always complete: `size` changes are applied to
- * `fields`/`checked` here so callers never have to resize arrays themselves,
- * and `freeMiddle` is forced off for cards without a centre cell.
+ * The returned update is always complete: `rows`/`columns` changes are applied to
+ * `fields`/`checked` here (each cell keeps its row and column) so callers never have to
+ * resize arrays themselves, and `freeMiddle` is forced off for cards without a centre cell.
  */
 export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdateResult => {
   if (!isPlainObject(data)) {
@@ -158,23 +180,26 @@ export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdat
   if (keys.length === 0 || keys.some((key) => !BINGO_UPDATE_KEYS.includes(key))) {
     return {
       ok: false,
-      error: "Bingo data accepts only size, freeMiddle, fields and checked",
+      error: "Bingo data accepts only rows, columns, freeMiddle, fields and checked",
     };
   }
 
-  const nextSize = data.size === undefined ? current.size : data.size;
-  if (!isValidBingoSize(nextSize)) {
+  const rows = data.rows === undefined ? current.rows : data.rows;
+  const columns = data.columns === undefined ? current.columns : data.columns;
+  if (!isValidBingoSize(rows) || !isValidBingoSize(columns)) {
     return {
       ok: false,
-      error: `size must be an integer between ${BINGO_MIN_SIZE} and ${BINGO_MAX_SIZE}`,
+      error: `rows and columns must be integers between ${BINGO_MIN_SIZE} and ${BINGO_MAX_SIZE}`,
     };
   }
 
-  const cellCount = bingoCellCount(nextSize);
-  const isResize = nextSize !== current.size;
+  const cellCount = bingoCellCount(rows, columns);
+  const shape = `${rows}x${columns}`;
+  const isResize = rows !== current.rows || columns !== current.columns;
+  const next = { rows, columns };
 
-  let fields = isResize ? resizeBingoFields(current.fields, nextSize) : undefined;
-  let checked = isResize ? new Array(cellCount).fill(false) : undefined;
+  let fields = isResize ? resizeBingoCells(current.fields, current, next, "") : undefined;
+  let checked = isResize ? resizeBingoCells(current.checked, current, next, false) : undefined;
 
   if (isPlainObject(data.fields)) {
     const patch = parseCellPatch(data.fields, cellCount, (entry) =>
@@ -192,7 +217,7 @@ export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdat
     if (parsed.length !== cellCount) {
       return {
         ok: false,
-        error: `fields must contain exactly ${cellCount} entries for a ${nextSize}x${nextSize} card`,
+        error: `fields must contain exactly ${cellCount} entries for a ${shape} card`,
       };
     }
     fields = parsed;
@@ -214,7 +239,7 @@ export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdat
     if (parsed.length !== cellCount) {
       return {
         ok: false,
-        error: `checked must contain exactly ${cellCount} entries for a ${nextSize}x${nextSize} card`,
+        error: `checked must contain exactly ${cellCount} entries for a ${shape} card`,
       };
     }
     checked = parsed;
@@ -228,8 +253,9 @@ export const parseBingoUpdate = (data: unknown, current: BingoState): BingoUpdat
   return {
     ok: true,
     value: {
-      size: nextSize,
-      freeMiddle: nextSize % 2 === 1 && requestedFreeMiddle,
+      rows,
+      columns,
+      freeMiddle: hasBingoMiddle(rows, columns) && requestedFreeMiddle,
       fields: fields ?? current.fields,
       checked: checked ?? current.checked,
     },

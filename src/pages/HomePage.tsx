@@ -470,9 +470,6 @@ const Landing: React.FC<{ onSignIn: () => void; isSigningIn: boolean }> = ({
 }) => (
   <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-16 py-16 text-center sm:py-24">
     <div className="flex flex-col items-center gap-6">
-      <span className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-        Stream overlays, made simple
-      </span>
       <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
         Overlays your whole team can{" "}
         <span className="bg-gradient-to-r from-primary to-fuchsia-500 bg-clip-text text-transparent">

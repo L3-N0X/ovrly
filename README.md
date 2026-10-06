@@ -26,7 +26,7 @@ All Elements are editable to change their content.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
 * **Timer:** Count up or down for speedruns, events, or breaks.
 * **Image:** Add player photos, logos, or more.
-* **Bingo:** A 3x3 to 7x7 card. Mark cells as the game is called, with an optional free middle and a shuffle button.
+* **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
 * **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.
 

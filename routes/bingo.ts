@@ -43,7 +43,8 @@ const updateBingo = async (
     if (!bingo) return jsonResponse({ error: "Bingo element not found" }, 404);
     const result = change(
       normalizeBingoState({
-        size: bingo.size,
+        rows: bingo.rows,
+        columns: bingo.columns,
         freeMiddle: bingo.freeMiddle,
         fields: bingo.fields,
         checked: bingo.checked,
@@ -170,7 +171,7 @@ export const handleBingoRoutes = async (
         if (cellIndex < 0 || cellIndex >= state.checked.length) {
           return { error: jsonResponse({ error: "Index out of bounds" }, 400) };
         }
-        if (state.freeMiddle && cellIndex === bingoMiddleIndex(state.size)) {
+        if (state.freeMiddle && cellIndex === bingoMiddleIndex(state.rows, state.columns)) {
           return { error: jsonResponse({ error: "The free middle cell cannot be toggled" }, 400) };
         }
         const next = [...state.checked];

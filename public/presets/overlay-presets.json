@@ -113,10 +113,13 @@
               "style": {
                 "width": 520,
                 "height": 520,
-                "fontSize": 18
+                "fontSize": 40,
+                "gridLines": true,
+                "padding": 0
               },
               "bingo": {
-                "size": 5,
+                "rows": 5,
+                "columns": 5,
                 "freeMiddle": true,
                 "fields": [
                   "Chat says W",

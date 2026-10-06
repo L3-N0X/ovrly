@@ -659,7 +659,8 @@ export const useOverlayData = () => {
   // marking or editing different cells don't overwrite each other.
   const handleBingoDataChange = useCallback(
     (elementId: string, data: BingoDataUpdate) => {
-      const reshapesCard = data.size !== undefined || data.freeMiddle !== undefined;
+      const reshapesCard =
+        data.rows !== undefined || data.columns !== undefined || data.freeMiddle !== undefined;
       updateElement(
         elementId,
         reshapesCard ? "bingoCard" : "bingoCells",
@@ -667,7 +668,8 @@ export const useOverlayData = () => {
         (el) => {
           if (!el.bingo) return;
           const next = applyBingoDataUpdate(normalizeBingoData(el.bingo), data);
-          el.bingo.size = next.size;
+          el.bingo.rows = next.rows;
+          el.bingo.columns = next.columns;
           el.bingo.freeMiddle = next.freeMiddle;
           el.bingo.fields = next.fields;
           el.bingo.checked = next.checked;

@@ -51,16 +51,16 @@ const Stage = ({ className, children }: { className?: string; children: React.Re
 const BingoPreview = () => {
   const marked = new Set([0, 6, 8, 12, 16, 18, 24]);
   return (
-    <div className="grid grid-cols-5 gap-0.5 rounded-sm bg-white/15 p-0.5">
+    <div className="grid grid-cols-5 gap-px overflow-hidden rounded-sm border border-white/40 bg-white/40">
       {Array.from({ length: 25 }, (_, i) => (
         <div
           key={i}
           className={cn(
-            "flex h-3.5 w-3.5 items-center justify-center text-[9px] leading-none font-bold",
-            marked.has(i) ? "bg-emerald-500/80 text-white" : "bg-neutral-800 text-white/30"
+            "flex h-3.5 w-3.5 items-center justify-center bg-neutral-900 text-[11px] leading-none font-black",
+            marked.has(i) ? "text-red-500/85" : "text-transparent"
           )}
         >
-          {marked.has(i) ? "✕" : ""}
+          ✕
         </div>
       ))}
     </div>

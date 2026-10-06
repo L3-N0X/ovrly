@@ -184,7 +184,8 @@ model ImageElement {
 
 model Bingo {
   id         String  @id @default(cuid())
-  size       Int     @default(5)
+  rows       Int     @default(5)
+  columns    Int     @default(5)
   freeMiddle Boolean @default(false)
   fields     Json
   checked    Json

@@ -16,7 +16,7 @@ import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
-// Bingo data a controller may change while live. Size and the free middle cell shape the
+// Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
 const BINGO_CONTENT_KEYS = ["fields", "checked"];
 
@@ -451,7 +451,8 @@ export const handleElementsRoutes = async (
               }
 
               const currentState = normalizeBingoState({
-                size: current.bingo.size,
+                rows: current.bingo.rows,
+                columns: current.bingo.columns,
                 freeMiddle: current.bingo.freeMiddle,
                 fields: current.bingo.fields,
                 checked: current.bingo.checked,
@@ -462,9 +463,9 @@ export const handleElementsRoutes = async (
                 return { error: json({ error: parsed.error }, 400) };
               }
 
-              const { size, freeMiddle, fields, checked } = parsed.value;
+              const { rows, columns, freeMiddle, fields, checked } = parsed.value;
               elementUpdateData.bingo = {
-                update: { size, freeMiddle, fields, checked },
+                update: { rows, columns, freeMiddle, fields, checked },
               };
             }
           }
