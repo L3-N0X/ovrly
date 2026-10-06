@@ -22,9 +22,15 @@ import { Plus } from "lucide-react";
 interface AddElementModalProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
+  // Called with the id of the new element, e.g. to select it.
+  onAdded?: (elementId: string) => void;
 }
 
-export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOverlayChange }) => {
+export const AddElementModal: React.FC<AddElementModalProps> = ({
+  overlay,
+  onOverlayChange,
+  onAdded,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<ElementType>(ElementTypeEnum.TITLE);
@@ -47,11 +53,14 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
       // Only the new element is taken from the response. Adopting the whole response would
       // revert local edits that haven't been saved yet (and save the older values again).
       const updatedOverlay: PrismaOverlay = await response.json();
+      const known = new Set(overlay.elements.map((el) => el.id));
+      const newElement = updatedOverlay.elements.find((el) => !known.has(el.id));
       onOverlayChange((current) => {
         const known = new Set(current.elements.map((el) => el.id));
         const added = updatedOverlay.elements.filter((el) => !known.has(el.id));
         return { ...current, elements: [...current.elements, ...added] };
       });
+      if (newElement) onAdded?.(newElement.id);
       setIsOpen(false);
       setName("");
     }
@@ -60,9 +69,8 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({ overlay, onOve
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">
+        <Button variant="ghost" size="icon-sm" title="Add element" aria-label="Add element">
           <Plus />
-          Add Element
         </Button>
       </DialogTrigger>
       <DialogContent>

@@ -2,13 +2,10 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { type BingoStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
+import { type BingoStyle, type PrismaElement } from "@/lib/types";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
-import { Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
-import { RenameElementModal } from "./RenameElementModal";
 import {
   Select,
   SelectContent,
@@ -114,11 +111,9 @@ const ColorControl: React.FC<{
 
 export const BingoEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: BingoStyle) => void;
   onDataChange?: (elementId: string, data: BingoDataUpdate) => void;
-  onDelete?: () => void;
-}> = ({ element, onOverlayChange, onChange, onDataChange, onDelete }) => {
+}> = ({ element, onChange, onDataChange }) => {
   const [isPickingColor, setIsPickingColor] = useState(false);
   // Optimistic value for the free-middle switch, cleared once the server state
   // for this element comes back through.
@@ -170,27 +165,7 @@ export const BingoEditor: React.FC<{
   };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
-            <Button variant="ghost" size="icon-lg" aria-label="Rename element">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          {onDelete && (
-            <Button
-              variant="destructiveGhost"
-              size="icon-lg"
-              onClick={onDelete}
-              aria-label="Delete element"
-            >
-              <Trash2 />
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-4">
 
       <div className="space-y-2">
         <Label>Bingo Settings</Label>
@@ -228,8 +203,8 @@ export const BingoEditor: React.FC<{
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Changing the size keeps the labels that still fit and clears the rest. Names are edited in
-          Data Controls.
+          Changing the size keeps the labels that still fit and clears the rest. Field labels are
+          edited in the Content section above.
         </p>
       </div>
 
@@ -321,7 +296,7 @@ export const BingoEditor: React.FC<{
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-4">
         <NumberControl
           id={`${element.id}-bingo-gap`}
           label="Gap"
@@ -339,7 +314,7 @@ export const BingoEditor: React.FC<{
           onChange={(padding) => handleStyleChange({ padding })}
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-4">
         <NumberControl
           id={`${element.id}-bingo-border-width`}
           label="Border Width"

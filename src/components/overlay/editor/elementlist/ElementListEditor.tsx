@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   isParentType,
+  OVERLAY_HEIGHT,
+  OVERLAY_WIDTH,
   type OnOverlayChange,
   type OverlayChange,
   type PrismaOverlay,
@@ -11,11 +13,10 @@ import {
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { extractInstruction } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
-import { ChevronsDownUp, ChevronsUpDown, Layers } from "lucide-react";
+import { OVERLAY_SELECTION } from "@/components/pages/overlay/editorSelection";
+import { ChevronsDownUp, ChevronsUpDown, Monitor } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BingoDataUpdate } from "@/lib/bingo";
 import { AddElementModal } from "../AddElementModal";
-import { ElementInspector } from "./ElementInspector";
 import { DropLine, ElementTreeItem, INDENT } from "./ElementTreeItem";
 import {
   applyPlacement,
@@ -37,13 +38,12 @@ export interface ElementListEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
   onStructureChange: OnStructureChange;
-  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
+  // An element id, OVERLAY_SELECTION for the overlay itself, or null.
   selectedId: string | null;
   onSelect: (elementId: string | null) => void;
-  // Scroll the settings into view when the selection changes (e.g. picked on the canvas).
-  revealSelection?: boolean;
 }
 
+// The layers panel: the element tree with drag and drop, plus the overlay itself as root.
 // Collapsed parents are remembered per overlay, so the tree looks the same after a reload.
 const collapsedStorageKey = (overlayId: string) => `ovrly:collapsed:${overlayId}`;
 
@@ -59,15 +59,12 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   overlay,
   onOverlayChange,
   onStructureChange,
-  onBingoDataChange,
   selectedId,
   onSelect: setSelectedId,
-  revealSelection = false,
 }) => {
   const [collapsed, setCollapsed] = useState(() => loadCollapsed(overlay.id));
   const [isDragging, setIsDragging] = useState(false);
   const treeRef = useRef<HTMLDivElement>(null);
-  const inspectorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     localStorage.setItem(collapsedStorageKey(overlay.id), JSON.stringify([...collapsed]));
@@ -77,7 +74,6 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     () => flattenTree(overlay.elements, collapsed),
     [overlay.elements, collapsed]
   );
-  const selected = overlay.elements.find((e) => e.id === selectedId) ?? null;
   // Without a visible selected row, the first row takes the Tab stop so the tree stays
   // reachable from the keyboard.
   const tabbableId = rows.some((r) => r.element.id === selectedId)
@@ -119,37 +115,23 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     );
   }, [selectedId, getElements]);
 
+  // Elements picked on the canvas may be far down a long tree, so their row is scrolled
+  // into view. That has to wait until the effect above has opened its ancestors and the row
+  // has rendered, and must happen only once: live updates re-render the rows all the time.
+  const pendingReveal = useRef<string | null>(null);
   useEffect(() => {
-    const inspector = inspectorRef.current;
-    if (!selectedId || !revealSelection || !inspector) return;
-    const { top } = inspector.getBoundingClientRect();
-    // Leave it alone if the top of the settings is already comfortably on screen.
-    if (top < 96 || top > window.innerHeight - 160) {
-      inspector.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [selectedId, revealSelection]);
+    pendingReveal.current = selectedId;
+  }, [selectedId]);
+  useEffect(() => {
+    const id = pendingReveal.current;
+    const row = id && treeRef.current?.querySelector(`[data-tree-item-id="${CSS.escape(id)}"]`);
+    if (!row) return;
+    pendingReveal.current = null;
+    row.scrollIntoView({ block: "nearest" });
+  }, [selectedId, rows]);
 
   const parentIds = overlay.elements.filter((e) => isParentType(e.type)).map((e) => e.id);
   const allCollapsed = parentIds.length > 0 && parentIds.every((id) => collapsed.has(id));
-
-  // Deletes an element together with everything nested inside it.
-  const deleteElement = (elementId: string) => {
-    const findChildren = (parentId: string): string[] =>
-      overlay.elements
-        .filter((e) => e.parentId === parentId)
-        .flatMap((child) => [child.id, ...findChildren(child.id)]);
-    const allIdsToDelete = [elementId, ...findChildren(elementId)];
-
-    if (selectedId && allIdsToDelete.includes(selectedId)) setSelectedId(null);
-    onStructureChange(
-      (current) => ({
-        ...current,
-        elements: current.elements.filter((e) => !allIdsToDelete.includes(e.id)),
-      }),
-      `delete:${elementId}`,
-      { url: "/api/elements/delete", method: "DELETE", body: { ids: allIdsToDelete } }
-    );
-  };
 
   useEffect(() => {
     return monitorForElements({
@@ -238,32 +220,56 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
     e.preventDefault();
   };
 
+  const overlaySelected = selectedId === OVERLAY_SELECTION;
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-2 text-lg font-medium">
-          <Layers className="h-5 w-5 text-muted-foreground" />
-          Elements
-        </h3>
-        <div className="flex items-center gap-1">
+    <div className="flex flex-col">
+      <div className="sticky top-0 z-10 flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-background px-3">
+        <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Layers
+        </h2>
+        <div className="flex items-center">
           {parentIds.length > 0 && (
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               title={allCollapsed ? "Expand all" : "Collapse all"}
               onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(parentIds))}
             >
               {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
             </Button>
           )}
-          <AddElementModal overlay={overlay} onOverlayChange={onOverlayChange} />
+          <AddElementModal
+            overlay={overlay}
+            onOverlayChange={onOverlayChange}
+            onAdded={setSelectedId}
+          />
         </div>
       </div>
 
-      <div className="rounded-lg border bg-muted/30 p-1">
+      <div className="p-2">
+        {/* The overlay itself; selecting it shows the global layout settings. */}
+        <button
+          type="button"
+          aria-pressed={overlaySelected}
+          onClick={() => setSelectedId(overlaySelected ? null : OVERLAY_SELECTION)}
+          className={cn(
+            "flex h-8 w-full cursor-pointer items-center gap-1.5 rounded-md px-1 text-sm outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ring",
+            overlaySelected ? "bg-primary/15 text-foreground" : "hover:bg-accent"
+          )}
+        >
+          <Monitor className="ml-[22px] h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate font-medium">Canvas</span>
+          <span className="ml-auto shrink-0 pr-1 text-[10px] text-muted-foreground tabular-nums">
+            {OVERLAY_WIDTH} × {OVERLAY_HEIGHT}
+          </span>
+        </button>
+        <div className="mx-1 my-1 border-b" />
+
         {rows.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-            No elements yet. Add one to get started.
+            No elements yet. Add one with the + button.
           </p>
         ) : (
           <div ref={treeRef} role="tree" aria-label="Elements">
@@ -308,24 +314,6 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
           </div>
         )}
       </div>
-
-      {selected ? (
-        <div ref={inspectorRef} className="scroll-mt-24">
-          <ElementInspector
-            element={selected}
-            overlay={overlay}
-            onOverlayChange={onOverlayChange}
-            onBingoDataChange={onBingoDataChange}
-            onDelete={() => deleteElement(selected.id)}
-          />
-        </div>
-      ) : (
-        rows.length > 0 && (
-          <p className="text-center text-sm text-muted-foreground">
-            Select an element here or in the preview to edit its settings.
-          </p>
-        )
-      )}
     </div>
   );
 };

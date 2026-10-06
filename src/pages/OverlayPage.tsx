@@ -1,13 +1,14 @@
-import React, { useCallback, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BingoDataProvider } from "@/lib/hooks/useBingoData";
-import StyleEditor from "@/components/overlay/editor/StyleEditor";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
 import { useOverlayData } from "@/lib/hooks/useOverlayData";
+import { ElementListEditor } from "@/components/overlay/editor/elementlist/ElementListEditor";
 import OverlayHeader from "@/components/pages/overlay/OverlayHeader";
-import OverlayPreview from "@/components/pages/overlay/OverlayPreview";
-import DataControls from "@/components/pages/overlay/DataControls";
-import OverlayAdditionalOptions from "@/components/pages/overlay/OverlayAdditionalOptions";
+import EditorCanvas from "@/components/pages/overlay/EditorCanvas";
+import Inspector from "@/components/pages/overlay/Inspector";
+import type { ContentHandlers } from "@/components/pages/overlay/controls/ElementContentControl";
+import type { EditorSelection } from "@/components/pages/overlay/editorSelection";
 import { ShareOverlayModal } from "@/components/pages/overlay/ShareOverlayModal";
 
 const OverlayPage: React.FC = () => {
@@ -28,24 +29,41 @@ const OverlayPage: React.FC = () => {
     handleTimerUpdate,
     handleTimerAddTime,
     handleDeleteOverlay,
-    selectedTimer,
-    setSelectedTimer,
   } = useOverlayData();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
-  // Shared by the preview and the element tree. Picking an element on the canvas also
-  // scrolls its settings into view, since they may be far below the preview.
-  const [selection, setSelection] = useState<{ id: string | null; fromCanvas: boolean }>({
-    id: null,
-    fromCanvas: false,
-  });
-  const selectFromCanvas = useCallback(
-    (id: string | null) => setSelection({ id, fromCanvas: true }),
-    []
+  // Shared by the canvas, the layers panel and the inspector.
+  const [selectedId, setSelectedId] = useState<EditorSelection>(null);
+  const inspectorRef = useRef<HTMLElement>(null);
+
+  const content = useMemo<ContentHandlers>(
+    () => ({
+      onCounterChange: handleCounterChange,
+      onImmediateCounterChange: handleImmediateCounterChange,
+      onTitleChange: handleTitleChange,
+      onImageChange: handleImageChange,
+      onBingoDataChange: handleBingoDataChange,
+      onTimerToggle: handleTimerToggle,
+      onTimerReset: handleTimerReset,
+      onTimerUpdate: handleTimerUpdate,
+      onTimerAddTime: handleTimerAddTime,
+    }),
+    [
+      handleCounterChange,
+      handleImmediateCounterChange,
+      handleTitleChange,
+      handleImageChange,
+      handleBingoDataChange,
+      handleTimerToggle,
+      handleTimerReset,
+      handleTimerUpdate,
+      handleTimerAddTime,
+    ]
   );
-  const selectFromTree = useCallback(
-    (id: string | null) => setSelection({ id, fromCanvas: false }),
-    []
-  );
+
+  // Each selection starts at the top of its settings.
+  useEffect(() => {
+    inspectorRef.current?.scrollTo({ top: 0 });
+  }, [selectedId]);
 
   const handleToggleShareModal = () => {
     setShareModalOpen(!isShareModalOpen);
@@ -86,51 +104,51 @@ const OverlayPage: React.FC = () => {
   return (
     <BingoDataProvider onBingoDataChange={handleBingoDataChange}>
       {loadOverlayFonts(overlay)}
-      <div className="container mx-auto">
+      {/* Full screen on large displays, with each panel scrolling on its own. Smaller screens
+          stack canvas, inspector and layers and scroll as a whole. */}
+      <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
         <OverlayHeader
           overlay={overlay}
           id={id}
           onShare={handleToggleShareModal}
-          onBack={() => window.history.back()}
           onOverlayUpdate={handleOverlayChange}
+          onDelete={handleDeleteOverlay}
         />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          <OverlayPreview
-            overlay={overlay}
-            onOverlayChange={handleOverlayChange}
-            selectedId={selection.id}
-            onSelect={selectFromCanvas}
-          />
-
-          <div className="space-y-8 pb-96">
-            <DataControls
-              overlay={overlay}
-              handleCounterChange={handleCounterChange}
-              handleImmediateCounterChange={handleImmediateCounterChange}
-              handleTitleChange={handleTitleChange}
-              handleImageChange={handleImageChange}
-              handleBingoDataChange={handleBingoDataChange}
-              handleTimerToggle={handleTimerToggle}
-              handleTimerReset={handleTimerReset}
-              handleTimerUpdate={handleTimerUpdate}
-              handleTimerAddTime={handleTimerAddTime}
-              selectedTimer={selectedTimer}
-              setSelectedTimer={setSelectedTimer}
-            />
-
-            <StyleEditor
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <aside
+            aria-label="Layers"
+            className="order-3 shrink-0 border-t bg-background lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
+          >
+            <ElementListEditor
               overlay={overlay}
               onOverlayChange={handleOverlayChange}
               onStructureChange={handleStructureChange}
-              onBingoDataChange={handleBingoDataChange}
-              selectedId={selection.id}
-              onSelect={selectFromTree}
-              revealSelection={selection.fromCanvas}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
             />
-
-            <OverlayAdditionalOptions handleDeleteOverlay={handleDeleteOverlay} overlay={overlay} />
-          </div>
+          </aside>
+          <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">
+            <EditorCanvas
+              overlay={overlay}
+              onOverlayChange={handleOverlayChange}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+          </main>
+          <aside
+            ref={inspectorRef}
+            aria-label="Inspector"
+            className="order-2 shrink-0 border-t bg-background lg:order-3 lg:w-[340px] lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-[360px]"
+          >
+            <Inspector
+              overlay={overlay}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onOverlayChange={handleOverlayChange}
+              onStructureChange={handleStructureChange}
+              content={content}
+            />
+          </aside>
         </div>
       </div>
       <ShareOverlayModal

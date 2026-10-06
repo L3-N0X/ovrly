@@ -12,6 +12,15 @@ export const ElementTypeEnum = {
 export const isParentType = (type: ElementType) =>
   type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
 
+// Element types with content of their own (text, a value, ...) that can be changed while
+// live. Containers and groups only arrange other elements.
+export const hasContent = (type: ElementType) =>
+  type === ElementTypeEnum.TITLE ||
+  type === ElementTypeEnum.COUNTER ||
+  type === ElementTypeEnum.TIMER ||
+  type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.BINGO;
+
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
 // Global styles for the overlay container
@@ -96,9 +105,13 @@ export interface ContainerStyle extends BaseElementStyle {
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
 }
 
-// Groups start out covering the whole 800x600 canvas.
-export const DEFAULT_GROUP_WIDTH = 800;
-export const DEFAULT_GROUP_HEIGHT = 600;
+// The size of the overlay as OBS renders it.
+export const OVERLAY_WIDTH = 800;
+export const OVERLAY_HEIGHT = 600;
+
+// Groups start out covering the whole canvas.
+export const DEFAULT_GROUP_WIDTH = OVERLAY_WIDTH;
+export const DEFAULT_GROUP_HEIGHT = OVERLAY_HEIGHT;
 
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {

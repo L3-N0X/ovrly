@@ -79,9 +79,9 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
   };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-background/50">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h4 className="font-medium">{element.name}</h4>
+        <Label htmlFor={`bingo-fields-${element.id}`}>Fields</Label>
         <Button variant="outline" size="sm" onClick={handleShuffle} disabled={isShuffling}>
           {isShuffling ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -91,8 +91,7 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
           {isShuffling ? "Shuffling..." : "Shuffle"}
         </Button>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor={`bingo-fields-${element.id}`}>Bingo Fields</Label>
+      <div>
         <div
           id={`bingo-fields-${element.id}`}
           className="grid gap-2"
@@ -108,7 +107,7 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
                 onChange={(event) => handleFieldChange(index, event.target.value)}
                 disabled={isFreeSpace}
                 aria-label={`Cell ${index + 1}`}
-                className="h-10"
+                className="h-9 px-2"
               />
             );
           })}

@@ -1,23 +1,19 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type PrismaElement, type TimerStyle, type OnOverlayChange } from "@/lib/types";
+import { type PrismaElement, type TimerStyle } from "@/lib/types";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
-import { Info, Pencil, Trash2 } from "lucide-react";
+import { Info } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { RenameElementModal } from "./RenameElementModal";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: TimerStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onOverlayChange, onChange, onDelete }) => {
+}> = ({ element, onChange }) => {
   const [style, setStyle] = useState<TimerStyle>((element.style as TimerStyle) || {});
 
   const debouncedOnChange = useDebouncedCallback(onChange, 400);
@@ -43,20 +39,7 @@ export const TimerStyleEditor: React.FC<{
   const syncedRadius = useSliderValue(typeof style?.radius === "number" ? style.radius : 0);
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Label>Time Format</Label>
@@ -180,7 +163,7 @@ export const TimerStyleEditor: React.FC<{
             </PopoverContent>
           </Popover>
         </div>
-        <div className="space-y-2">
+        <div className="col-span-2 space-y-2">
           <Label>Padding</Label>
           <div className="flex gap-4">
             <Slider
@@ -214,7 +197,7 @@ export const TimerStyleEditor: React.FC<{
             />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="col-span-2 space-y-2">
           <Label>Corner Radius</Label>
           <div className="flex gap-4">
             <Slider

@@ -64,7 +64,6 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
 
   return (
     <div>
-      <h3 className="text-lg font-medium mb-4">Global Layout</h3>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Arrangement</Label>

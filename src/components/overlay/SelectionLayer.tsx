@@ -1,6 +1,10 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { CANVAS_ELEMENT_ATTRIBUTE } from "./canvasSelection";
 
+// The editor sets `--canvas-zoom` on the zoomed canvas. Dividing by it keeps outlines and the
+// name label the same size on screen at every zoom level.
+const unzoomed = (px: number) => `calc(${px}px / var(--canvas-zoom, 1))`;
+
 // Draws the hover and selection outlines on top of the canvas. Elements move and resize
 // without React knowing (dragging, timers, fonts loading), so the boxes are measured every
 // frame and written straight to the DOM instead of going through state.
@@ -29,18 +33,15 @@ export const SelectionLayer = ({
         box.style.display = "none";
         return;
       }
-      // The preview scales the canvas down, but the boxes are drawn in canvas pixels.
+      // The editor scales the canvas, but the boxes are drawn in canvas pixels.
       const rootRect = root.getBoundingClientRect();
       const scale = rootRect.width / root.offsetWidth || 1;
       const rect = target.getBoundingClientRect();
-      const top = (rect.top - rootRect.top) / scale;
       box.style.display = "block";
       box.style.left = `${(rect.left - rootRect.left) / scale}px`;
-      box.style.top = `${top}px`;
+      box.style.top = `${(rect.top - rootRect.top) / scale}px`;
       box.style.width = `${rect.width / scale}px`;
       box.style.height = `${rect.height / scale}px`;
-      // No room for the name label above an element at the top edge
-      box.dataset.labelInside = String(top < 24);
     };
 
     let frame = 0;
@@ -56,10 +57,25 @@ export const SelectionLayer = ({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
-      <div ref={hoveredRef} className="absolute hidden outline-2 outline-sky-400/60" />
-      <div ref={selectedRef} className="group/selection absolute hidden outline-3 outline-sky-400">
+      <div
+        ref={hoveredRef}
+        className="absolute hidden outline-solid outline-sky-400/60"
+        style={{ outlineWidth: unzoomed(2) }}
+      />
+      <div
+        ref={selectedRef}
+        className="absolute hidden outline-solid outline-sky-400"
+        style={{ outlineWidth: unzoomed(2) }}
+      >
         {selectedName && (
-          <span className="absolute -top-7 -left-[3px] max-w-[300px] truncate rounded-t bg-sky-400 px-2 py-0.5 text-sm font-medium text-black group-data-[label-inside=true]/selection:top-0 group-data-[label-inside=true]/selection:left-0 group-data-[label-inside=true]/selection:rounded-t-none group-data-[label-inside=true]/selection:rounded-br">
+          // Sits on top of the box; the canvas outside the overlay is visible in the editor,
+          // so there is room even for elements at the top edge.
+          <span
+            className="absolute bottom-full left-0 max-w-[300px] origin-bottom-left truncate rounded-t bg-sky-400 px-1.5 py-0.5 text-xs font-medium text-black"
+            style={{
+              transform: `translate(${unzoomed(-2)}, ${unzoomed(-2)}) scale(calc(1 / var(--canvas-zoom, 1)))`,
+            }}
+          >
             {selectedName}
           </span>
         )}

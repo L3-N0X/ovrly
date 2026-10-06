@@ -1,17 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import moment from "moment";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Pause, Play, RotateCcw, Pencil } from "lucide-react";
 import type { PrismaElement } from "@/lib/types";
 import { useTimer } from "@/lib/hooks/useTimer";
+import { TimerEditModal } from "@/components/overlay/editor/TimerEditModal";
 
 interface TimerControlProps {
   element: PrismaElement;
   handleTimerToggle: (elementId: string) => void;
   handleTimerReset: (elementId: string) => void;
-  setSelectedTimer: (timer: PrismaElement | null) => void;
-  setIsTimerModalOpen: (isOpen: boolean) => void;
+  handleTimerUpdate: (
+    elementId: string,
+    update: { duration?: number; countDown?: boolean }
+  ) => void;
+  handleTimerAddTime: (elementId: string, timeToAdd: number) => void;
 }
 
 const formatTime = (milliseconds: number, format: string) => {
@@ -39,49 +42,52 @@ const TimerControl: React.FC<TimerControlProps> = ({
   element,
   handleTimerToggle,
   handleTimerReset,
-  setSelectedTimer,
-  setIsTimerModalOpen,
+  handleTimerUpdate,
+  handleTimerAddTime,
 }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const format = (element.style as { format?: string })?.format || "HH:mm:ss";
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
-        Timer:
-        <span className="font-normal">{element.name}</span>
-      </Label>
-      <div className="flex items-center space-x-2">
-        <div className="text-2xl font-mono bg-secondary h-14 flex items-center justify-center rounded-md px-4 flex-grow">
-          <TimerDisplay timer={element.timer} format={format} />
-        </div>
-        <Button
-          onClick={() => {
-            setSelectedTimer(element);
-            setIsTimerModalOpen(true);
-          }}
-          size="icon-lg"
-          variant="secondary"
-          className="h-14 w-14"
-        >
-          <Pencil className="w-4 h-4" />
-        </Button>
-        <Button
-          onClick={() => handleTimerToggle(element.id)}
-          size="icon-lg"
-          variant="secondary"
-          className="h-14 w-14"
-        >
-          {element.timer?.startedAt ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-        </Button>
-        <Button
-          onClick={() => handleTimerReset(element.id)}
-          size="icon-lg"
-          variant="secondary"
-          className="h-14 w-14"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </Button>
+    <div className="flex items-center space-x-2">
+      <div className="text-2xl font-mono bg-secondary h-12 flex items-center justify-center rounded-md px-3 flex-grow min-w-0">
+        <TimerDisplay timer={element.timer} format={format} />
       </div>
+      <Button
+        onClick={() => setIsModalOpen(true)}
+        title="Edit time"
+        size="icon-lg"
+        variant="secondary"
+        className="h-12 w-12"
+      >
+        <Pencil className="w-4 h-4" />
+      </Button>
+      <Button
+        onClick={() => handleTimerToggle(element.id)}
+        title={element.timer?.startedAt ? "Pause" : "Start"}
+        size="icon-lg"
+        variant="secondary"
+        className="h-12 w-12"
+      >
+        {element.timer?.startedAt ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+      </Button>
+      <Button
+        onClick={() => handleTimerReset(element.id)}
+        title="Reset"
+        size="icon-lg"
+        variant="secondary"
+        className="h-12 w-12"
+      >
+        <RotateCcw className="w-4 h-4" />
+      </Button>
+      {/* Gets the element on every render, so it always shows the current timer state. */}
+      <TimerEditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        element={element}
+        onUpdate={handleTimerUpdate}
+        onAddTime={handleTimerAddTime}
+      />
     </div>
   );
 };

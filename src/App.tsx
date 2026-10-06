@@ -20,9 +20,10 @@ function App() {
             <Route path="/settings" element={<ProtectedRoute />}>
               <Route index element={<SettingsPage />} />
             </Route>
-            <Route path="/overlay/:id" element={<ProtectedRoute />}>
-              <Route index element={<OverlayPage />} />
-            </Route>
+          </Route>
+          {/* The editor is full screen with its own top bar. */}
+          <Route path="/overlay/:id" element={<ProtectedRoute />}>
+            <Route index element={<OverlayPage />} />
           </Route>
           <Route path="/public/overlay/:overlayId" element={<PublicCounterPage />} />
         </Routes>

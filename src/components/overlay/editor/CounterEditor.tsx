@@ -1,22 +1,17 @@
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { type CounterStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
+import { type CounterStyle, type PrismaElement } from "@/lib/types";
 import React, { useEffect, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ColorPickerEditor } from "./ColorPickerEditor";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { RenameElementModal } from "./RenameElementModal";
 
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: CounterStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onOverlayChange, onChange, onDelete }) => {
+}> = ({ element, onChange }) => {
   const [style, setStyle] = useState<CounterStyle>((element.style as CounterStyle) || {});
   const [isPickingColor, setIsPickingColor] = useState(false);
 
@@ -43,20 +38,7 @@ export const CounterStyleEditor: React.FC<{
   });
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
       <div className="space-y-2">
         <Label>Font Size</Label>
         <div className="flex gap-4">
@@ -134,7 +116,7 @@ export const CounterStyleEditor: React.FC<{
             </PopoverContent>
           </Popover>
         </div>
-        <div className="space-y-2">
+        <div className="col-span-2 space-y-2">
           <Label>Padding</Label>
           <div className="flex gap-4">
             <Slider
@@ -162,7 +144,7 @@ export const CounterStyleEditor: React.FC<{
             />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="col-span-2 space-y-2">
           <Label>Corner Radius</Label>
           <div className="flex gap-4">
             <Slider

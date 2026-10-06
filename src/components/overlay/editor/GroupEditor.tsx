@@ -8,13 +8,10 @@ import {
   DEFAULT_GROUP_WIDTH,
   type GroupStyle,
   type PrismaElement,
-  type OnOverlayChange
 } from "@/lib/types";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { Pencil, Trash2 } from "lucide-react";
 import React from "react";
 import { ColorPickerEditor } from "./ColorPickerEditor";
-import { RenameElementModal } from "./RenameElementModal";
 
 // Whole pixels only; an empty or invalid field leaves the value untouched.
 const PixelInput: React.FC<{
@@ -49,7 +46,7 @@ export const GroupPositionEditor: React.FC<{
   const x = style.x ?? 0;
   const y = style.y ?? 0;
   return (
-    <div className="grid grid-cols-2 gap-4 p-4 mb-2 border rounded-lg">
+    <div className="grid grid-cols-2 gap-4">
       <PixelInput id={`${element.id}-x`} label="X" value={x} onChange={(x) => onChange({ x, y })} />
       <PixelInput id={`${element.id}-y`} label="Y" value={y} onChange={(y) => onChange({ x, y })} />
     </div>
@@ -58,10 +55,8 @@ export const GroupPositionEditor: React.FC<{
 
 export const GroupEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: GroupStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onChange, onOverlayChange, onDelete }) => {
+}> = ({ element, onChange }) => {
   const style = (element.style || {}) as GroupStyle;
   const updateStyle = (patch: Partial<GroupStyle>) => onChange({ ...style, ...patch });
 
@@ -70,25 +65,9 @@ export const GroupEditor: React.FC<{
   });
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal
-            element={element}
-            onOverlayChange={onOverlayChange}
-          >
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Elements in a group are placed freely. Turn on "Move elements" in the preview to drag
+        Elements in a group are placed freely. Pick the Move tool (M) above the canvas to drag
         them into position.
       </p>
       <div className="grid grid-cols-2 gap-4">

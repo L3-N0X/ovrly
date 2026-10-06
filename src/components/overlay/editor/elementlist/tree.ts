@@ -1,4 +1,4 @@
-import { isParentType, type PrismaElement } from "@/lib/types";
+import { ElementTypeEnum, isParentType, type PrismaElement } from "@/lib/types";
 
 // Where a dragged element ends up: inside `parentId` (null = top level) at `index`.
 export interface Placement {
@@ -36,6 +36,10 @@ export const flattenTree = (elements: PrismaElement[], collapsed: Set<string>): 
   walk(null, 0);
   return rows;
 };
+
+// Whether the element sits directly inside a group, which places it by x/y.
+export const isInGroup = (elements: PrismaElement[], element: PrismaElement) =>
+  elements.find((e) => e.id === element.parentId)?.type === ElementTypeEnum.GROUP;
 
 // True if `id` is `ancestorId` or lies anywhere inside its subtree.
 export const isInSubtree = (elements: PrismaElement[], id: string | null, ancestorId: string) => {

@@ -48,7 +48,6 @@ export const useOverlayData = () => {
   const [overlay, setOverlayState] = useState<PrismaOverlay | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimerId, setSelectedTimerId] = useState<string | null>(null);
 
   // Mirrors `overlay` synchronously so handlers invoked from stale closures (debounced
   // editors, drag and drop monitors, socket callbacks) always build on the latest state.
@@ -496,13 +495,6 @@ export const useOverlayData = () => {
     }
   };
 
-  // Derived from the overlay so the timer modal always shows the current timer state.
-  const selectedTimer =
-    (selectedTimerId && overlay && findElement(overlay, selectedTimerId)) || null;
-  const setSelectedTimer = useCallback((timer: PrismaElement | null) => {
-    setSelectedTimerId(timer?.id ?? null);
-  }, []);
-
   return {
     id,
     overlay,
@@ -521,7 +513,5 @@ export const useOverlayData = () => {
     handleTimerUpdate,
     handleTimerAddTime,
     handleDeleteOverlay,
-    selectedTimer,
-    setSelectedTimer,
   };
 };

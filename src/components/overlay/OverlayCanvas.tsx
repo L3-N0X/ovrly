@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from "react";
-import type { PrismaOverlay } from "@/lib/types";
+import { OVERLAY_HEIGHT, OVERLAY_WIDTH, type PrismaOverlay } from "@/lib/types";
 import ElementDisplay from "./ElementDisplay";
 import { CanvasEditingContext, type CanvasEditing } from "./canvasEditing";
 import { CanvasSelectionContext, type CanvasSelection } from "./canvasSelection";
@@ -11,12 +11,16 @@ interface OverlayCanvasProps {
   editing?: CanvasEditing | null;
   // Lets elements be selected by clicking them. Left out on the public page.
   selection?: CanvasSelection | null;
+  // Hides whatever sticks out of the overlay, as OBS does. The editor turns it off so
+  // elements placed outside stay visible and selectable.
+  clip?: boolean;
 }
 
 const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
   overlay,
   editing = null,
   selection = null,
+  clip = true,
 }) => {
   const { globalStyle, elements } = overlay;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -43,15 +47,15 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
     globalStyle?.innerJustifyContent || globalStyle?.justifyContent || "flex-start";
   const innerAlignItems = globalStyle?.innerAlignItems || globalStyle?.alignItems || "center";
 
-  // Outer container handles overall alignment within the 800x600 space
+  // Outer container handles overall alignment within the overlay
   const outerStyle: React.CSSProperties = {
     position: "relative",
     display: "flex",
     justifyContent: outerJustifyContent, // Horizontal alignment of inner container
     alignItems: outerAlignItems, // Vertical alignment of inner container
-    overflow: "hidden",
-    width: "800px",
-    height: "600px",
+    overflow: clip ? "hidden" : "visible",
+    width: `${OVERLAY_WIDTH}px`,
+    height: `${OVERLAY_HEIGHT}px`,
   };
 
   // Inner container handles alignment of elements within the group

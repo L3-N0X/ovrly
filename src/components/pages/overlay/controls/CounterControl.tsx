@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Minus, Plus } from "lucide-react";
 import type { PrismaElement } from "@/lib/types";
 
@@ -17,39 +16,32 @@ const CounterControl: React.FC<CounterControlProps> = ({
   handleImmediateCounterChange,
 }) => {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
-        Counter:
-        <span className="font-normal">{element.name}</span>
-      </Label>
-      <div className="flex space-x-1">
-        <Button
-          onClick={() =>
-            handleImmediateCounterChange(element.id, (element.counter?.value || 0) - 1)
-          }
-          size="icon-lg"
-          variant="secondary"
-          className="h-9 w-9 rounded-r-xs border-input border"
-        >
-          <Minus className="w-4 h-4" />
-        </Button>
-        <Input
-          id={`count-${element.id}`}
-          value={element.counter?.value || 0}
-          onChange={(e) => handleCounterChange(element.id, parseInt(e.target.value, 10) || 0)}
-          className="w-36 text-center text-2xl h-9 rounded-l-xs rounded-r-xs bg-input/30 border-input"
-        />
-        <Button
-          onClick={() =>
-            handleImmediateCounterChange(element.id, (element.counter?.value || 0) + 1)
-          }
-          size="icon-lg"
-          variant="secondary"
-          className="h-9 w-9 rounded-l-xs border-input border"
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
-      </div>
+    <div className="flex space-x-1">
+      <Button
+        onClick={() => handleImmediateCounterChange(element.id, (element.counter?.value || 0) - 1)}
+        size="icon-lg"
+        variant="secondary"
+        className="h-10 w-12 rounded-r-xs border-input border"
+        aria-label="Decrease"
+      >
+        <Minus className="w-4 h-4" />
+      </Button>
+      <Input
+        id={`count-${element.id}`}
+        aria-label={`${element.name} value`}
+        value={element.counter?.value || 0}
+        onChange={(e) => handleCounterChange(element.id, parseInt(e.target.value, 10) || 0)}
+        className="flex-1 text-center text-2xl h-10 rounded-l-xs rounded-r-xs bg-input/30 border-input"
+      />
+      <Button
+        onClick={() => handleImmediateCounterChange(element.id, (element.counter?.value || 0) + 1)}
+        size="icon-lg"
+        variant="secondary"
+        className="h-10 w-12 rounded-l-xs border-input border"
+        aria-label="Increase"
+      >
+        <Plus className="w-4 h-4" />
+      </Button>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -10,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type ContainerStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
+import { type ContainerStyle, type PrismaElement } from "@/lib/types";
 import {
   AlignHorizontalDistributeCenter,
   AlignHorizontalJustifyCenter,
@@ -22,21 +21,16 @@ import {
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
   Baseline,
-  Pencil,
   StretchHorizontal,
-  Trash2,
 } from "lucide-react";
 import React from "react";
 import { handleValueChange } from "./helper";
 import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { RenameElementModal } from "./RenameElementModal";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: ContainerStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onChange, onOverlayChange, onDelete }) => {
+}> = ({ element, onChange }) => {
   const updateStyle = (path: string, value: string | number) => {
     const newStyle = JSON.parse(JSON.stringify(element.style || {}));
     onChange(handleValueChange(newStyle, path, value));
@@ -59,23 +53,7 @@ export const ContainerEditor: React.FC<{
 
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal
-            element={element}
-            onOverlayChange={onOverlayChange}
-          >
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
       <div className="space-y-2">
         <Label>Direction</Label>
         <Select
