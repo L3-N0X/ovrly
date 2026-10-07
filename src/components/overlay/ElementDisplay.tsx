@@ -1,10 +1,18 @@
 import React from "react";
-import type { BaseElementStyle, CounterStyle, PrismaElement, ContainerStyle, TimerStyle } from "@/lib/types";
+import type {
+  BaseElementStyle,
+  CounterStyle,
+  PrismaElement,
+  ContainerStyle,
+  TimerStyle,
+  TwitchStatStyle,
+} from "@/lib/types";
 import Title from "./Title";
 import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
 import Countdown from "./Countdown";
+import TwitchStat from "./TwitchStat";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
@@ -16,7 +24,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer, countdown } = element;
+  const { type, style, title, counter, timer, countdown, twitchStat } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -42,6 +50,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
       case "COUNTDOWN":
         return countdown ? (
           <Countdown countdown={countdown} style={(style || {}) as TimerStyle} />
+        ) : null;
+      case "TWITCH_STAT":
+        return twitchStat ? (
+          <TwitchStat twitchStat={twitchStat} style={(style || {}) as TwitchStatStyle} />
         ) : null;
       case "CONTAINER":
         return (

@@ -35,6 +35,7 @@ export const ELEMENT_TYPE_NAMES: Record<string, string> = {
   COUNTDOWN: "Countdown",
   IMAGE: "Image",
   BINGO: "Bingo",
+  TWITCH_STAT: "Twitch Stat",
   CONTAINER: "Container",
   GROUP: "Group",
 };

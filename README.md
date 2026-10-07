@@ -10,7 +10,7 @@ Ovrly is a free and open-source web application that allows you to create highly
 
 * **Free & Open Source:** Self-host Ovrly and have complete control over your data and overlays.
 * **High Customizability:** Tailor every element to your needs. Change colors, fonts, sizes, and positions with an intuitive editor.
-* **Versatile Elements:** Create timers, countdowns, counters, titles, images, and more. Combine them to build unique overlays.
+* **Versatile Elements:** Create timers, countdowns, counters, titles, images, live Twitch stats, and more. Combine them to build unique overlays.
 * **Real-time Collaboration:** Share your overlays with your broadcast team or moderators. Changes are reflected in real-time.
 * **Twitch Integration:** Secure login with your Twitch account. No extra passwords to remember.
 * **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. Every overlay has its own canvas size (1920x1080 by default), set in the editor.
@@ -26,6 +26,7 @@ All Elements are editable to change their content.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
 * **Timer:** Count up for speedruns, events, or breaks.
 * **Countdown:** Count down from a set time, or to a date and time (e.g. your stream start).
+* **Twitch Stat:** Followers, viewers, subscribers or sub points of any Twitch channel, updated live (about every 30 seconds while the overlay is open). Followers and viewers work for every channel; subscriber numbers are private on Twitch, so the channel has to be connected once under Settings → Twitch by someone who can sign in as it. They are then shown in the overlays of whoever connected it and of their team.
 * **Image:** Add player photos, logos, or more.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
@@ -115,6 +116,12 @@ You need to set the following environment variables in a `.env` file in the root
 | `MAX_UPLOAD_BYTES`     | Optional. Maximum image size in bytes.                                      | `10485760` (default, 10 MB)           |
 | `WS_ALLOWED_ORIGINS`   | Optional. Extra comma-separated origins allowed to open the live-update WebSocket (`APP_BASE_URL` is always allowed). | `https://overlays.example.com` |
 | `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
+
+> [!NOTE]
+> Twitch stats use the same Twitch application as the sign-in. For subscriber stats, add
+> `<APP_BASE_URL>/api/twitch/callback` to the application's **OAuth Redirect URLs** in the
+> [Twitch developer console](https://dev.twitch.tv/console/apps), next to the sign-in callback
+> `<APP_BASE_URL>/api/auth/callback/twitch`.
 
 > [!NOTE]
 > The Google Fonts API key is compiled into the frontend bundle at build time.

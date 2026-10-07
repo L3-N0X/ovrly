@@ -18,6 +18,9 @@ import {
   type CountdownState,
 } from "../lib/countdown";
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
+import { channelLoginFrom, isTwitchStatType } from "../lib/twitchStats";
+import { findChannel, isTwitchLogin, twitchConfigured, type TwitchChannel } from "../services/twitch";
+import { refreshOverlayNow } from "../services/twitch-stats";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = [
@@ -29,6 +32,7 @@ const ELEMENT_TYPES = [
   "BINGO",
   "CONTAINER",
   "GROUP",
+  "TWITCH_STAT",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -122,6 +126,8 @@ export const handleElementsRoutes = async (
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "COUNTDOWN") {
         elementCreateData.countdown = { create: {} };
+      } else if (type === "TWITCH_STAT") {
+        elementCreateData.twitchStat = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "BINGO") {
@@ -347,11 +353,39 @@ export const handleElementsRoutes = async (
             startedAt?: string | null;
             pausedAt?: string | null;
             actions?: unknown;
+            channel?: unknown;
+            stat?: unknown;
             [key: string]: unknown;
           };
           position?: unknown;
           parentId?: string | null;
         };
+
+        // The channel of a Twitch stat is looked up before the transaction, which shouldn't be
+        // held open while waiting on Twitch. Null clears it; undefined leaves it as it is.
+        let twitchChannel: TwitchChannel | null | undefined;
+        if (element.type === "TWITCH_STAT" && typeof data?.channel === "string") {
+          const login = channelLoginFrom(data.channel);
+          if (login) {
+            if (!twitchConfigured()) {
+              return json({ error: "Twitch is not set up on this server" }, 503);
+            }
+            if (!isTwitchLogin(login)) {
+              return json({ error: `“${login}” is not a Twitch channel name` }, 400);
+            }
+            try {
+              twitchChannel = await findChannel(login);
+            } catch (error) {
+              console.error("[TWITCH] Channel lookup failed:", error);
+              return json({ error: "Could not reach Twitch, try again in a moment" }, 502);
+            }
+            if (!twitchChannel) {
+              return json({ error: `There is no Twitch channel called “${login}”` }, 400);
+            }
+          } else {
+            twitchChannel = null;
+          }
+        }
 
         // Everything that builds on the stored state (style merge, counter, timer, countdown,
         // bingo) is read and written under the element's row lock, so concurrent changes to the
@@ -365,7 +399,7 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true, countdown: true },
+            include: { bingo: true, timer: true, countdown: true, twitchStat: true },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -466,6 +500,37 @@ export const handleElementsRoutes = async (
                 update: { mode, duration, remaining, endsAt, targetAt },
               };
             }
+            if (element.type === "TWITCH_STAT") {
+              if (!current.twitchStat) {
+                return { error: json({ error: "Twitch stat not found" }, 404) };
+              }
+              if (data.stat !== undefined && !isTwitchStatType(data.stat)) {
+                return { error: json({ error: "Invalid Twitch stat" }, 400) };
+              }
+              const stat = data.stat ?? current.twitchStat.stat;
+              const channel =
+                twitchChannel === undefined
+                  ? {
+                      channelLogin: current.twitchStat.channelLogin,
+                      channelId: current.twitchStat.channelId,
+                      channelName: current.twitchStat.channelName,
+                    }
+                  : {
+                      channelLogin: twitchChannel?.login ?? "",
+                      channelId: twitchChannel?.id ?? null,
+                      channelName: twitchChannel?.displayName ?? null,
+                    };
+              const changed =
+                stat !== current.twitchStat.stat ||
+                channel.channelId !== current.twitchStat.channelId;
+              // The value of the old stat or channel is dropped; the new one is fetched right
+              // after (see below).
+              elementUpdateData.twitchStat = {
+                update: changed
+                  ? { stat, ...channel, value: null, status: "PENDING", fetchedAt: null }
+                  : { channelName: channel.channelName },
+              };
+            }
             if (element.type === "BINGO") {
               if (!current.bingo) {
                 return { error: json({ error: "Bingo data not found" }, 404) };
@@ -498,6 +563,7 @@ export const handleElementsRoutes = async (
 
         const overlay = await publishOverlay(server, element.overlayId, writeIdOf(req));
         const updatedElement = overlay?.elements.find((el) => el.id === elementId) ?? null;
+        if (element.type === "TWITCH_STAT" && data) refreshOverlayNow(element.overlayId);
 
         return new Response(JSON.stringify(updatedElement), {
           headers: {

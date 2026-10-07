@@ -13,6 +13,7 @@ export const overlayElementsInclude = {
       countdown: true,
       image: true,
       bingo: true,
+      twitchStat: true,
     },
   },
 };

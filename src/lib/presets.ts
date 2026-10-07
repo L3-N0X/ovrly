@@ -20,6 +20,9 @@ export interface PresetElement {
   title?: { text: string };
   counter?: { value: number };
   countdown?: Partial<Pick<NonNullable<PrismaElement["countdown"]>, "mode" | "duration">>;
+  twitchStat?: Partial<
+    Pick<NonNullable<PrismaElement["twitchStat"]>, "stat" | "channelLogin" | "channelId" | "channelName">
+  >;
   image?: { src: string };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
   children?: PresetElement[];
@@ -74,6 +77,20 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
                 remaining: seed.countdown?.duration ?? DEFAULT_COUNTDOWN_MS,
                 endsAt: null,
                 targetAt: null,
+              }
+            : null,
+        // Previews have nothing fetched, so they show a dash like a stat that is still loading.
+        twitchStat:
+          seed.type === ElementTypeEnum.TWITCH_STAT
+            ? {
+                id,
+                stat: seed.twitchStat?.stat ?? "FOLLOWERS",
+                channelLogin: seed.twitchStat?.channelLogin ?? "",
+                channelId: seed.twitchStat?.channelId ?? null,
+                channelName: seed.twitchStat?.channelName ?? null,
+                value: null,
+                status: "PENDING",
+                fetchedAt: null,
               }
             : null,
         image: seed.image ? { id, ...seed.image } : null,

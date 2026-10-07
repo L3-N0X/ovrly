@@ -25,6 +25,8 @@ model User {
   // Access other users gave this user, to all of their overlays or to single ones.
   accountSharesWithMe   AccountShare[]  @relation("AccountShareMember")
   overlaySharesWithMe   OverlayShare[]
+  // Twitch channels this user connected, so their subscriber stats can be shown.
+  twitchConnections     TwitchConnection[]
 }
 
 model Image {
@@ -44,7 +46,7 @@ model Image {
 enum ShareRole {
   // Sees the overlay and its live state.
   VIEWER
-  // Also runs it: counters, timers, countdowns, titles, images and bingo cards.
+  // Also runs it: counters, timers, countdowns, titles, images, bingo cards and Twitch stats.
   CONTROLLER
   // Also changes its design: elements, layout and styles.
   EDITOR
@@ -132,6 +134,7 @@ model Element {
   countdown Countdown?
   image     ImageElement?
   bingo     Bingo?
+  twitchStat TwitchStat?
 
   // Self-relation for grouping
   parentId  String?
@@ -151,6 +154,7 @@ enum ElementType {
   GROUP
   BINGO
   COUNTDOWN
+  TWITCH_STAT
 }
 
 model Title {
@@ -214,6 +218,66 @@ model Bingo {
   checked    Json
   elementId  String  @unique
   element    Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+enum TwitchStatType {
+  FOLLOWERS
+  // Viewers of the current stream; 0 while the channel is offline.
+  VIEWERS
+  // These two are private to the channel: it has to be connected (TwitchConnection).
+  SUBSCRIBERS
+  SUB_POINTS
+}
+
+enum TwitchStatStatus {
+  // No channel picked yet, or not fetched since it was picked.
+  PENDING
+  OK
+  // A subscriber stat of a channel nobody connected to ovrly.
+  NOT_CONNECTED
+  // A subscriber stat of a connected channel, in an overlay its owner may not use it in.
+  NOT_ALLOWED
+}
+
+// A number from a Twitch channel, kept up to date by services/twitch-stats.ts while the overlay
+// is open somewhere. The channel can be any channel, not just the overlay owner's.
+model TwitchStat {
+  id          String           @id @default(cuid())
+  stat        TwitchStatType   @default(FOLLOWERS)
+  // The channel's login name, lowercased. Empty until a channel is picked.
+  channelLogin String          @default("")
+  // Resolved from the login name when the channel is picked.
+  channelId   String?
+  channelName String?
+  // The latest value, null until one was fetched (or while it can't be).
+  value       Int?
+  status      TwitchStatStatus @default(PENDING)
+  fetchedAt   DateTime?
+  elementId   String           @unique
+  element     Element          @relation(fields: [elementId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+}
+
+// A Twitch channel whose owner allowed ovrly to read its subscriptions. Kept apart from the
+// sign-in Account, whose token better-auth replaces (without this scope) on every sign-in.
+// Its subscriber stats may be shown in overlays of `user` and of the people on their team.
+model TwitchConnection {
+  id           String   @id @default(cuid())
+  // Who connected it.
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twitchId     String   @unique
+  login        String
+  displayName  String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Account {

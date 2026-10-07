@@ -125,6 +125,55 @@
       ]
     },
     {
+      "id": "twitch-followers",
+      "name": "Followers",
+      "description": "The follower count of a Twitch channel, updated live while you stream.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Followers row",
+          "type": "CONTAINER",
+          "style": {
+            "flexDirection": "row",
+            "gap": 24,
+            "alignItems": "center",
+            "x": 48,
+            "y": 48
+          },
+          "children": [
+            {
+              "name": "Label",
+              "type": "TITLE",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 72
+              },
+              "title": {
+                "text": "Followers"
+              }
+            },
+            {
+              "name": "Followers",
+              "type": "TWITCH_STAT",
+              "style": {
+                "fontFamily": "Roboto Mono",
+                "fontSize": 72,
+                "backgroundColor": "#9146ff",
+                "padding": 20,
+                "radius": 16
+              },
+              "twitchStat": {
+                "stat": "FOLLOWERS"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "bingo",
       "name": "Bingo",
       "description": "A bingo card with a title. Fill in the fields and mark them live.",

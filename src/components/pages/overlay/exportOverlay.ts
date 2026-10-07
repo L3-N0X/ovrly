@@ -10,6 +10,12 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     title?: { text: string } | null;
     image?: { src: string } | null;
     countdown?: { mode: string; duration: number; targetAt: string | null } | null;
+    twitchStat?: {
+      stat: string;
+      channelLogin: string;
+      channelId: string | null;
+      channelName: string | null;
+    } | null;
     children?: ExportElement[];
   };
 
@@ -40,6 +46,15 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
         mode: element.countdown.mode,
         duration: element.countdown.duration,
         targetAt: element.countdown.targetAt,
+      };
+    }
+    // Which stat of which channel; the value is fetched again wherever it is imported.
+    if (element.twitchStat) {
+      newElement.twitchStat = {
+        stat: element.twitchStat.stat,
+        channelLogin: element.twitchStat.channelLogin,
+        channelId: element.twitchStat.channelId,
+        channelName: element.twitchStat.channelName,
       };
     }
     if (children.length > 0) {

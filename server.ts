@@ -9,8 +9,10 @@ import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
 import { handleSharingRoutes } from "./routes/sharing";
+import { handleTwitchRoutes } from "./routes/twitch";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
+import { refreshOpenedOverlay, startTwitchStats } from "./services/twitch-stats";
 import type { WebSocketData } from "./types";
 import path from "path";
 import type { ServerWebSocket } from "bun";
@@ -139,6 +141,12 @@ const server = Bun.serve<WebSocketData>({
         return sharingResponse;
       }
 
+      // Handle Twitch routes (connecting channels for their subscriber stats)
+      const twitchResponse = await handleTwitchRoutes(req, reqPath);
+      if (twitchResponse) {
+        return twitchResponse;
+      }
+
       // Handle preset routes
       const presetResponse = await handlePresetsRoutes(req, reqPath);
       if (presetResponse) {
@@ -175,6 +183,8 @@ const server = Bun.serve<WebSocketData>({
       const { overlayId } = ws.data;
       sockets.add(ws);
       ws.subscribe(`overlay-${overlayId}`);
+      // Its Twitch stats are only polled while it is open, so they may be out of date.
+      refreshOpenedOverlay(overlayId);
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
     message() {
@@ -193,6 +203,8 @@ setInterval(() => {
     ws.send(HEARTBEAT_MESSAGE);
   }
 }, HEARTBEAT_INTERVAL_MS);
+
+startTwitchStats(server, () => [...sockets].map((ws) => ws.data.overlayId));
 
 console.log(`Server running on port ${server.port}`);
 console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);

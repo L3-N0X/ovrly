@@ -20,6 +20,7 @@ import {
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
+import { twitchStatSeed } from "../lib/twitchStats";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
 
 // The canvas size bounds, shared with the editor so both clamp the same values.
@@ -65,6 +66,10 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     }
     if (element.type === "COUNTDOWN") {
       data.countdown = { create: countdownSeed(element.countdown) };
+    }
+    // The value is fetched again for the copy, once it is opened.
+    if (element.type === "TWITCH_STAT") {
+      data.twitchStat = { create: twitchStatSeed(element.twitchStat) };
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };

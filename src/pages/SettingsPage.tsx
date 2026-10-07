@@ -17,6 +17,7 @@ import { Avatar } from "@/components/home/AvatarStack";
 import { InviteForm } from "@/components/sharing/InviteForm";
 import { PendingBadge, RoleBadge } from "@/components/sharing/RoleBadge";
 import { RolePicker } from "@/components/sharing/RolePicker";
+import { TwitchConnections } from "@/components/settings/TwitchConnections";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,7 +46,8 @@ import {
 } from "@/lib/sharing";
 import { cn } from "@/lib/utils";
 
-type Tab = "people" | "incoming";
+type Tab = "people" | "incoming" | "twitch";
+const TABS: Tab[] = ["people", "incoming", "twitch"];
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -55,7 +57,7 @@ const SEARCH_THRESHOLD = 6;
 
 export function SettingsPage() {
   const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get("tab") === "incoming" ? "incoming" : "people";
+  const tab: Tab = TABS.find((value) => value === params.get("tab")) ?? "people";
   const [people, setPeople] = useState<PeopleResponse | null>(null);
   const [incoming, setIncoming] = useState<IncomingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,18 +88,20 @@ export function SettingsPage() {
   const tabs: { value: Tab; label: string; count: number | null }[] = [
     { value: "people", label: "Your team", count: people?.people.length ?? null },
     { value: "incoming", label: "Shared with you", count: incomingCount },
+    { value: "twitch", label: "Twitch", count: null },
   ];
 
   return (
     <div className="mx-auto w-full max-w-4xl pb-20">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Sharing</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Decide who can view, run and edit your overlays, and see what others shared with you.
+          Decide who can view, run and edit your overlays, see what others shared with you, and
+          connect Twitch channels.
         </p>
       </header>
 
-      <nav className="mb-8 flex gap-6 border-b" aria-label="Sharing sections">
+      <nav className="mb-8 flex gap-6 border-b" aria-label="Settings sections">
         {tabs.map(({ value, label, count }) => (
           <button
             key={value}
@@ -129,8 +133,10 @@ export function SettingsPage() {
 
       {tab === "people" ? (
         <TeamTab data={people} onData={setPeople} onError={setError} reload={loadPeople} />
-      ) : (
+      ) : tab === "incoming" ? (
         <IncomingTab data={incoming} onData={setIncoming} onError={setError} />
+      ) : (
+        <TwitchConnections connected={params.get("connected")} errorCode={params.get("error")} />
       )}
     </div>
   );

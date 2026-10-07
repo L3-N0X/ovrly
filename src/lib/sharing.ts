@@ -115,7 +115,7 @@ export class ApiError extends Error {
   }
 }
 
-const request = async <T>(url: string, init?: { method?: string; body?: unknown }): Promise<T> => {
+export const request = async <T>(url: string, init?: { method?: string; body?: unknown }): Promise<T> => {
   let response: Response;
   try {
     response = await fetch(url, {

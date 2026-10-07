@@ -1,5 +1,6 @@
 import { ElementTypeEnum, type ContainerStyle, type PrismaElement } from "@/lib/types";
 import {
+  ChartNoAxesColumn,
   Columns3,
   Frame,
   Grid3x3,
@@ -27,6 +28,8 @@ export const ElementTypeIcon = ({
       return <Timer className={className} />;
     case ElementTypeEnum.COUNTDOWN:
       return <Hourglass className={className} />;
+    case ElementTypeEnum.TWITCH_STAT:
+      return <ChartNoAxesColumn className={className} />;
     case ElementTypeEnum.IMAGE:
       return <Image className={className} />;
     case ElementTypeEnum.BINGO:

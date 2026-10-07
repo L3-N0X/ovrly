@@ -10,7 +10,8 @@ interface CounterStyle {
 }
 
 interface CounterProps {
-  value: number;
+  // Already formatted when it isn't a plain number (Twitch stats).
+  value: number | string;
   style: CounterStyle;
 }
 

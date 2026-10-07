@@ -18,7 +18,7 @@ Real users sign in with Twitch only (usernames are used for sharing, so there is
 
 ## Project summary
 
-Web-based overlay editor for live streaming: users build overlays from elements (titles, counters, timers, countdowns, images, bingo, groups) and share them with others by Twitch name.
+Web-based overlay editor for live streaming: users build overlays from elements (titles, counters, timers, countdowns, Twitch stats, images, bingo, groups) and share them with others by Twitch name.
 
 - **Frontend:** React, TypeScript, Vite 8, Tailwind CSS (`src/`).
 - **Backend:** Bun `Bun.serve` with plain handler functions in `routes/`, WebSockets for live updates (`server.ts`, `auth.ts`, `routes/`, `middleware/`, `lib/`, `services/`, `types/`).
@@ -40,4 +40,5 @@ Web-based overlay editor for live streaming: users build overlays from elements 
 - **Library notes:** Vite 8 uses `build.rolldownOptions` and `import.meta.dirname`; react-window 2 uses `<List rowComponent rowCount rowHeight rowProps />`; pragmatic-drag-and-drop 4 moved `preserve-offset-on-source` to `utils/`; ESLint 10 presets are under `configs.flat`, and `react-hooks/set-state-in-effect` is a warning on purpose.
 - **Sharing and roles:** `OverlayShare` (one overlay) and `AccountShare` (all of the owner's overlays) carry a `ShareRole`: `VIEWER` < `CONTROLLER` (content) < `EDITOR` (design); the higher role wins, only the owner shares/deletes. Check access with `requireOverlayRole` (`middleware/authMiddleware.ts`); helpers in `lib/sharing.ts` and `src/lib/sharing.ts`. `routes/sharing.ts` publishes `{ "type": "access" }` on the overlay's WebSocket channel.
 - **Canvas:** the canvas is the overlay itself (`Overlay.width`/`height`, `canvasMode` `AUTO` or `FREE`), not an element; top-level elements keep `parentId: null` (`isPlacedFreely` in `tree.ts`). Settings UI is `editor/CanvasEditor.tsx` (`OVERLAY_SELECTION`).
+- **Twitch stats:** `TWITCH_STAT` elements store their value on the element (`TwitchStat`); `services/twitch-stats.ts` polls Helix every 30s for overlays with an open WebSocket and broadcasts changes. Followers/viewers use the app token; subscriber stats need a `TwitchConnection` (own OAuth flow in `routes/twitch.ts`, redirect `<APP_BASE_URL>/api/twitch/callback`) and are only shown in overlays of the connecting user or their account-share team.
 - **Docker:** the production stage copies the whole builder tree (`COPY --from=builder /app ./`); never turn it into a per-directory allowlist. The CI `docker` job smoke-tests the built image. The base image tracks `oven/bun:1` unpinned.

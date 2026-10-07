@@ -13,6 +13,7 @@ import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
+import { TwitchStatStyleEditor } from "../TwitchStatEditor";
 
 // Updates the selected element's style. onOverlayChange persists it itself (debounced per
 // element).
@@ -68,6 +69,8 @@ export const ElementStyleEditor = ({
     case ElementTypeEnum.TIMER:
     case ElementTypeEnum.COUNTDOWN:
       return <TimerStyleEditor {...editorProps} />;
+    case ElementTypeEnum.TWITCH_STAT:
+      return <TwitchStatStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
       return <ImageStyleEditor {...editorProps} />;
     case ElementTypeEnum.BINGO:
