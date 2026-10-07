@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
+import type { IconLibrary, OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 import { applyTimerAction, type TimerAction } from "@/lib/timer";
@@ -656,6 +656,15 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  const handleIconChange = useCallback(
+    (elementId: string, icon: { library: IconLibrary; name: string }) => {
+      updateElement(elementId, "icon", { data: icon }, (el) => {
+        if (el.icon) Object.assign(el.icon, icon);
+      });
+    },
+    [updateElement]
+  );
+
   // Single mutation path for bingo data: applied locally first so the editor and preview
   // stay in step, then persisted. Cells are sent as `{ index: value }` patches, so people
   // marking or editing different cells don't overwrite each other.
@@ -781,6 +790,7 @@ export const useOverlayData = () => {
     handleCounterIncrement,
     handleTitleChange,
     handleImageChange,
+    handleIconChange,
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,

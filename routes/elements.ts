@@ -18,6 +18,7 @@ import {
   type CountdownState,
 } from "../lib/countdown";
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
+import { isIconLibrary, isIconName } from "../lib/icons";
 import { channelLoginFrom, isTwitchStatType } from "../lib/twitchStats";
 import { findChannel, isTwitchLogin, twitchConfigured, type TwitchChannel } from "../services/twitch";
 import { refreshOverlayNow } from "../services/twitch-stats";
@@ -36,6 +37,7 @@ const ELEMENT_TYPES = [
   "GROUP",
   "TWITCH_STAT",
   "VARIABLE",
+  "ICON",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -133,6 +135,8 @@ export const handleElementsRoutes = async (
         elementCreateData.twitchStat = { create: {} };
       } else if (type === "VARIABLE") {
         elementCreateData.variable = { create: {} };
+      } else if (type === "ICON") {
+        elementCreateData.icon = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "BINGO") {
@@ -462,6 +466,12 @@ export const handleElementsRoutes = async (
             }
             if (element.type === "IMAGE" && typeof data.src === "string") {
               elementUpdateData.image = { update: { src: data.src } };
+            }
+            if (element.type === "ICON" && (data.library !== undefined || data.name !== undefined)) {
+              if (!isIconLibrary(data.library) || !isIconName(data.name)) {
+                return { error: json({ error: "Invalid icon" }, 400) };
+              }
+              elementUpdateData.icon = { update: { library: data.library, name: data.name } };
             }
             if (element.type === "TIMER") {
               const { startedAt, pausedAt, actions } = data;

@@ -15,6 +15,7 @@ export const overlayElementsInclude = {
       bingo: true,
       twitchStat: true,
       variable: true,
+      icon: true,
     },
   },
 };

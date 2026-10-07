@@ -11,6 +11,7 @@ export const ElementTypeEnum = {
   GROUP: "GROUP",
   TWITCH_STAT: "TWITCH_STAT",
   VARIABLE: "VARIABLE",
+  ICON: "ICON",
 } as const;
 
 // Element types that hold other elements.
@@ -25,6 +26,7 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.TIMER ||
   type === ElementTypeEnum.COUNTDOWN ||
   type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.ICON ||
   type === ElementTypeEnum.BINGO ||
   type === ElementTypeEnum.TWITCH_STAT ||
   type === ElementTypeEnum.VARIABLE;
@@ -37,6 +39,9 @@ export type TwitchStatType = "FOLLOWERS" | "VIEWERS" | "SUBSCRIBERS" | "SUB_POIN
 // Why a Twitch stat has no value: PENDING until it is fetched, NOT_CONNECTED and NOT_ALLOWED for
 // subscriber stats ovrly can't read for this overlay (see src/lib/twitchStats.ts).
 export type TwitchStatStatus = "PENDING" | "OK" | "NOT_CONNECTED" | "NOT_ALLOWED";
+
+// The icon libraries an icon element can use (see src/lib/icons.ts).
+export type IconLibrary = "lucide" | "phosphor" | "pixelarticons" | "tabler";
 
 // The types of values other applications send through the public API (see src/lib/variables.ts).
 export type VariableType = "STRING" | "INTEGER" | "DOUBLE" | "BOOLEAN" | "COLOR";
@@ -121,6 +126,11 @@ export interface ImageStyle extends BaseElementStyle {
   objectFit?: "cover" | "contain";
   imageRendering?: "pixelated" | "auto";
   borderRadius?: number;
+}
+
+// Specific style for an Icon element. The icon is drawn in `color` at `size` by `size` pixels.
+export interface IconStyle extends BaseElementStyle {
+  size?: number;
 }
 
 // Specific style for a Container element
@@ -211,6 +221,7 @@ export type ElementStyle =
   | TimerStyle
   | TwitchStatStyle
   | ImageStyle
+  | IconStyle
   | BingoStyle
   | GroupStyle;
 
@@ -261,6 +272,7 @@ export interface PrismaElement {
     updatedAt: string | null;
   } | null;
   image?: { id: string; src: string } | null;
+  icon?: { id: string; library: IconLibrary; name: string } | null;
   bingo?: {
     id: string;
     rows: number;

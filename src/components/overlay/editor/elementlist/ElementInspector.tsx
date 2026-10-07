@@ -10,6 +10,7 @@ import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
 import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
+import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
@@ -74,6 +75,8 @@ export const ElementStyleEditor = ({
     // Shown as text, styled like a title.
     case ElementTypeEnum.VARIABLE:
       return <TitleStyleEditor {...editorProps} />;
+    case ElementTypeEnum.ICON:
+      return <IconStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
       return <ImageStyleEditor {...editorProps} />;
     case ElementTypeEnum.BINGO:

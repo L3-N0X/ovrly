@@ -1,11 +1,12 @@
 import React from "react";
-import { ElementTypeEnum, type PrismaElement } from "@/lib/types";
+import { ElementTypeEnum, type IconLibrary, type PrismaElement } from "@/lib/types";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import type { CountdownAction } from "@/lib/countdown";
 import TimerControl from "./TimerControl";
 import CountdownControl from "./CountdownControl";
 import CounterControl from "./CounterControl";
 import TitleControl from "./TitleControl";
+import IconControl from "./IconControl";
 import ImageControl from "./ImageControl";
 import BingoControl from "./BingoControl";
 import TwitchStatControl from "./TwitchStatControl";
@@ -17,6 +18,7 @@ export interface ContentHandlers {
   onCounterIncrement: (elementId: string, increment: number) => void;
   onTitleChange: (elementId: string, text: string) => void;
   onImageChange: (elementId: string, src: string) => void;
+  onIconChange: (elementId: string, icon: { library: IconLibrary; name: string }) => void;
   onBingoDataChange: (elementId: string, data: BingoDataUpdate) => void;
   onTimerToggle: (elementId: string) => void;
   onTimerReset: (elementId: string) => void;
@@ -52,6 +54,8 @@ export const ElementContentControl: React.FC<{
       return <TitleControl element={element} handleTitleChange={handlers.onTitleChange} />;
     case ElementTypeEnum.IMAGE:
       return <ImageControl element={element} handleImageChange={handlers.onImageChange} />;
+    case ElementTypeEnum.ICON:
+      return <IconControl element={element} onIconChange={handlers.onIconChange} />;
     case ElementTypeEnum.BINGO:
       return <BingoControl element={element} onDataChange={handlers.onBingoDataChange} />;
     case ElementTypeEnum.TWITCH_STAT:

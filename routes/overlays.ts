@@ -20,6 +20,7 @@ import {
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
+import { iconSeed } from "../lib/icons";
 import { twitchStatSeed } from "../lib/twitchStats";
 import { variableBindingSeed } from "../lib/variables";
 import { fillOverlayBindings } from "../services/variables";
@@ -76,6 +77,9 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     // Only which variable it shows; the value is the new owner's (filled in below).
     if (element.type === "VARIABLE") {
       data.variable = { create: variableBindingSeed(element.variable) };
+    }
+    if (element.type === "ICON") {
+      data.icon = { create: iconSeed(element.icon) };
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };

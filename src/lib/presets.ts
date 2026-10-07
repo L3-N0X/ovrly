@@ -1,4 +1,5 @@
 import { normalizeBingoData } from "./bingo";
+import { DEFAULT_ICON } from "./icons";
 import {
   CanvasModeEnum,
   DEFAULT_CANVAS_HEIGHT,
@@ -8,6 +9,7 @@ import {
   type ElementStyle,
   type ElementType,
   type GlobalStyle,
+  type IconLibrary,
   type PrismaElement,
   type PrismaOverlay,
 } from "./types";
@@ -25,6 +27,7 @@ export interface PresetElement {
   >;
   variable?: { source: string; key: string };
   image?: { src: string };
+  icon?: { library: IconLibrary; name: string };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
   children?: PresetElement[];
 }
@@ -105,6 +108,10 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
                 value: null,
                 updatedAt: null,
               }
+            : null,
+        icon:
+          seed.type === ElementTypeEnum.ICON
+            ? { id, ...(seed.icon ?? DEFAULT_ICON) }
             : null,
         image: seed.image ? { id, ...seed.image } : null,
         bingo: seed.bingo

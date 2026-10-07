@@ -18,13 +18,17 @@ import {
   Frame,
   Grid3x3,
   Hash,
+  Heart,
   Hourglass,
   Image,
   Loader2,
   Plus,
   Rows3,
+  Shapes,
+  Star,
   Timer,
   Type,
+  Zap,
 } from "lucide-react";
 
 interface ElementOption {
@@ -148,6 +152,21 @@ const CONTENT_OPTIONS: ElementOption[] = [
           <div className="absolute top-2 right-3 h-3 w-3 rounded-full bg-amber-300" />
           <div className="absolute -bottom-3 -left-2 h-10 w-14 rotate-45 bg-emerald-600" />
           <div className="absolute -right-4 -bottom-5 h-12 w-14 rotate-45 bg-emerald-700" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.ICON,
+    label: "Icon",
+    description: "One of thousands of icons from Lucide, Phosphor, Tabler and Pixelarticons.",
+    icon: Shapes,
+    preview: (
+      <Stage>
+        <div className="flex items-center gap-3">
+          <Heart className="size-9 text-rose-400" />
+          <Star className="size-9 text-amber-300" />
+          <Zap className="size-9 text-sky-300" />
         </div>
       </Stage>
     ),

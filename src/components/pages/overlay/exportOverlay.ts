@@ -9,6 +9,7 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     counter?: { value: number } | null;
     title?: { text: string } | null;
     image?: { src: string } | null;
+    icon?: { library: string; name: string } | null;
     countdown?: { mode: string; duration: number; targetAt: string | null } | null;
     twitchStat?: {
       stat: string;
@@ -40,6 +41,9 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     }
     if (element.image) {
       newElement.image = { src: element.image.src };
+    }
+    if (element.icon) {
+      newElement.icon = { library: element.icon.library, name: element.icon.name };
     }
     // Timers are exported without their state; they start out stopped.
     if (element.countdown) {

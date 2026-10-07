@@ -4,6 +4,7 @@ import type {
   CounterStyle,
   PrismaElement,
   ContainerStyle,
+  IconStyle,
   TimerStyle,
   TwitchStatStyle,
 } from "@/lib/types";
@@ -14,6 +15,7 @@ import Timer from "./Timer";
 import Countdown from "./Countdown";
 import TwitchStat from "./TwitchStat";
 import Variable from "./Variable";
+import Icon from "./Icon";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
@@ -25,7 +27,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer, countdown, twitchStat, variable } = element;
+  const { type, style, title, counter, timer, countdown, twitchStat, variable, icon } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -68,6 +70,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
             ))}
           </Container>
         );
+      case "ICON":
+        return icon ? (
+          <Icon icon={icon} style={(style || {}) as IconStyle} label={element.name} />
+        ) : null;
       case "IMAGE":
         return <Image element={element} />;
       case "BINGO":

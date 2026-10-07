@@ -9,6 +9,7 @@ import {
   Hourglass,
   Image,
   Rows3,
+  Shapes,
   Timer,
   Type,
 } from "lucide-react";
@@ -33,6 +34,8 @@ export const ElementTypeIcon = ({
       return <ChartNoAxesColumn className={className} />;
     case ElementTypeEnum.VARIABLE:
       return <Braces className={className} />;
+    case ElementTypeEnum.ICON:
+      return <Shapes className={className} />;
     case ElementTypeEnum.IMAGE:
       return <Image className={className} />;
     case ElementTypeEnum.BINGO:

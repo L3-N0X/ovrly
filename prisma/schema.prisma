@@ -49,7 +49,7 @@ model Image {
 enum ShareRole {
   // Sees the overlay and its live state.
   VIEWER
-  // Also runs it: counters, timers, countdowns, titles, images, bingo cards and Twitch stats.
+  // Also runs it: counters, timers, countdowns, titles, images, icons, bingo cards and Twitch stats.
   CONTROLLER
   // Also changes its design: elements, layout and styles.
   EDITOR
@@ -139,6 +139,7 @@ model Element {
   bingo     Bingo?
   twitchStat TwitchStat?
   variable  VariableBinding?
+  icon      Icon?
 
   // Self-relation for grouping
   parentId  String?
@@ -160,6 +161,7 @@ enum ElementType {
   COUNTDOWN
   TWITCH_STAT
   VARIABLE
+  ICON
 }
 
 model Title {
@@ -210,6 +212,18 @@ model Countdown {
 model ImageElement {
   id        String  @id @default(cuid())
   src       String
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+// An icon from one of the icon libraries bundled with the editor (src/lib/icons.ts). It is
+// stored by library and name, so the drawing itself always comes from the library.
+model Icon {
+  id        String  @id @default(cuid())
+  // One of the ids in lib/icons.ts.
+  library   String  @default("lucide")
+  // The icon's name within the library ("star", "heart-bold"), as the library spells it.
+  name      String  @default("star")
   elementId String  @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }

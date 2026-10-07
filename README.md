@@ -10,7 +10,7 @@ Ovrly is a free and open-source web application that allows you to create highly
 
 * **Free & Open Source:** Self-host Ovrly and have complete control over your data and overlays.
 * **High Customizability:** Tailor every element to your needs. Change colors, fonts, sizes, and positions with an intuitive editor.
-* **Versatile Elements:** Create timers, countdowns, counters, titles, images, live Twitch stats, and more. Combine them to build unique overlays.
+* **Versatile Elements:** Create timers, countdowns, counters, titles, images, icons, live Twitch stats, and more. Combine them to build unique overlays.
 * **Real-time Collaboration:** Share your overlays with your broadcast team or moderators. Changes are reflected in real-time.
 * **Twitch Integration:** Secure login with your Twitch account. No extra passwords to remember.
 * **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. Every overlay has its own canvas size (1920x1080 by default), set in the editor.
