@@ -31,20 +31,24 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.TWITCH_STAT ||
   type === ElementTypeEnum.VARIABLE;
 
-export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
+export type ElementType =
+  (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
 export type CountdownMode = "DURATION" | "TARGET";
 
-export type TwitchStatType = "FOLLOWERS" | "VIEWERS" | "SUBSCRIBERS" | "SUB_POINTS";
+export type TwitchStatType =
+  "FOLLOWERS" | "VIEWERS" | "SUBSCRIBERS" | "SUB_POINTS";
 // Why a Twitch stat has no value: PENDING until it is fetched, NOT_CONNECTED and NOT_ALLOWED for
 // subscriber stats ovrly can't read for this overlay (see src/lib/twitchStats.ts).
-export type TwitchStatStatus = "PENDING" | "OK" | "NOT_CONNECTED" | "NOT_ALLOWED";
+export type TwitchStatStatus =
+  "PENDING" | "OK" | "NOT_CONNECTED" | "NOT_ALLOWED";
 
 // The icon libraries an icon element can use (see src/lib/icons.ts).
 export type IconLibrary = "lucide" | "phosphor" | "pixelarticons" | "tabler";
 
 // The types of values other applications send through the public API (see src/lib/variables.ts).
-export type VariableType = "STRING" | "INTEGER" | "DOUBLE" | "BOOLEAN" | "COLOR";
+export type VariableType =
+  "STRING" | "INTEGER" | "DOUBLE" | "BOOLEAN" | "COLOR";
 
 // How the elements that sit directly on the canvas are placed. The canvas itself is the
 // overlay's root group: in AUTO mode its children are laid out by the global arrangement (a
@@ -62,7 +66,6 @@ export interface GlobalStyle {
   outerJustifyContent?: "flex-start" | "center" | "flex-end";
   outerAlignItems?: "flex-start" | "center" | "flex-end" | "baseline";
 
-
   // For the inner container (element alignment within the group)
   innerJustifyContent?:
     | "flex-start"
@@ -73,7 +76,8 @@ export interface GlobalStyle {
     | "space-evenly";
   innerAlignItems?: "flex-start" | "center" | "flex-end" | "baseline";
   // Old property names for backward compatibility
-  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
+  justifyContent?:
+    "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
   alignItems?: "flex-start" | "center" | "flex-end" | "baseline";
 
   flexDirection?: "row" | "column" | "row-reverse" | "column-reverse";
@@ -140,6 +144,14 @@ export interface ContainerStyle extends BaseElementStyle {
   paddingX?: number;
   paddingY?: number;
   gap?: number;
+  /** Transparent by default, so a container only arranges its children until it is given a fill. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
   justifyContent?:
     | "flex-start"
@@ -173,6 +185,16 @@ export const canvasSize = (overlay: {
 export const DEFAULT_GROUP_WIDTH = DEFAULT_CANVAS_WIDTH;
 export const DEFAULT_GROUP_HEIGHT = DEFAULT_CANVAS_HEIGHT;
 
+// Groups and containers are invisible boxes until they are styled: no fill, no stroke, square
+// corners. The stroke colour is white anyway, so raising the width is all it takes to draw a
+// border around them.
+export const DEFAULT_BORDER_COLOR = "#ffffff";
+export const DEFAULT_BORDER_WIDTH = 0;
+export const DEFAULT_BORDER_RADIUS = 0;
+
+export const BORDER_WIDTH_RANGE = { min: 0, max: 100 };
+export const BORDER_RADIUS_RANGE = { min: 0, max: 200 };
+
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
@@ -180,7 +202,13 @@ export interface GroupStyle extends BaseElementStyle {
   // Hides whatever sticks out of the group. Off by default, so elements can be moved past
   // its edges (and the overlay's).
   clip?: boolean;
+  /** Transparent by default, so a group only arranges its children until it is given a fill. */
   backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
   radius?: number;
 }
 
@@ -238,7 +266,11 @@ export interface PrismaElement {
   style: ElementStyle | null;
   title?: { id: string; text: string } | null;
   counter?: { id: string; value: number } | null;
-  timer?: { id: string; startedAt: string | null; pausedAt: string | null } | null;
+  timer?: {
+    id: string;
+    startedAt: string | null;
+    pausedAt: string | null;
+  } | null;
   countdown?: {
     id: string;
     // DURATION counts down `duration` (started, paused and reset like a timer); TARGET counts
@@ -312,7 +344,8 @@ export interface PrismaOverlay {
 // What onOverlayChange accepts: the next overlay, or a function that derives it from the
 // latest state. Use the function form after an `await`, where a captured overlay may be
 // stale and would write older styles back over newer ones.
-export type OverlayChange = PrismaOverlay | ((current: PrismaOverlay) => PrismaOverlay);
+export type OverlayChange =
+  PrismaOverlay | ((current: PrismaOverlay) => PrismaOverlay);
 export type OnOverlayChange = (change: OverlayChange) => void;
 
 // Someone who can open an overlay: its owner, or someone it was shared with (directly or

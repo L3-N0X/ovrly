@@ -1,5 +1,8 @@
 import React, { useRef, useState } from "react";
 import {
+  DEFAULT_BORDER_COLOR,
+  DEFAULT_BORDER_RADIUS,
+  DEFAULT_BORDER_WIDTH,
   DEFAULT_GROUP_HEIGHT,
   DEFAULT_GROUP_WIDTH,
   type GroupStyle,
@@ -22,14 +25,28 @@ interface GroupProps {
 
 // A fixed-size area whose children are positioned freely instead of being laid out with
 // gaps and padding.
-const Group: React.FC<GroupProps> = ({ element, childElements, renderChild }) => {
+const Group: React.FC<GroupProps> = ({
+  element,
+  childElements,
+  renderChild,
+}) => {
   const editing = useCanvasEditing();
   const style = (element.style || {}) as GroupStyle;
   const width = toNumber(style.width, DEFAULT_GROUP_WIDTH);
   const height = toNumber(style.height, DEFAULT_GROUP_HEIGHT);
+  // A stroke is optional: without a width there is no border, whatever the colour says.
+  const borderWidth = toNumber(style.borderWidth, DEFAULT_BORDER_WIDTH);
+  const borderRadius = toNumber(style.radius, DEFAULT_BORDER_RADIUS);
 
-  const [dragSize, setDragSize] = useState<{ width: number; height: number } | null>(null);
-  const resizeStart = useRef<{ pointerX: number; pointerY: number; scale: number } | null>(null);
+  const [dragSize, setDragSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const resizeStart = useRef<{
+    pointerX: number;
+    pointerY: number;
+    scale: number;
+  } | null>(null);
   const size = dragSize ?? { width, height };
 
   const handleResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -51,11 +68,11 @@ const Group: React.FC<GroupProps> = ({ element, childElements, renderChild }) =>
     setDragSize({
       width: Math.max(
         MIN_GROUP_SIZE,
-        snap(width + (e.clientX - start.pointerX) / start.scale, e.shiftKey)
+        snap(width + (e.clientX - start.pointerX) / start.scale, e.shiftKey),
       ),
       height: Math.max(
         MIN_GROUP_SIZE,
-        snap(height + (e.clientY - start.pointerY) / start.scale, e.shiftKey)
+        snap(height + (e.clientY - start.pointerY) / start.scale, e.shiftKey),
       ),
     });
   };
@@ -63,7 +80,11 @@ const Group: React.FC<GroupProps> = ({ element, childElements, renderChild }) =>
   const handleResizeUp = () => {
     if (!resizeStart.current) return;
     resizeStart.current = null;
-    if (editing && dragSize && (dragSize.width !== width || dragSize.height !== height)) {
+    if (
+      editing &&
+      dragSize &&
+      (dragSize.width !== width || dragSize.height !== height)
+    ) {
       editing.onResize(element.id, dragSize);
     }
     setDragSize(null);
@@ -79,9 +100,19 @@ const Group: React.FC<GroupProps> = ({ element, childElements, renderChild }) =>
         // Elements may stick out of the group unless it clips them.
         overflow: style.clip ? "hidden" : "visible",
         backgroundColor: style.backgroundColor,
-        borderRadius: typeof style.radius === "number" ? `${style.radius}px` : undefined,
+        borderRadius: `${borderRadius}px`,
+        border:
+          borderWidth > 0
+            ? `${borderWidth}px solid ${style.borderColor || DEFAULT_BORDER_COLOR}`
+            : undefined,
+        // Keeps the border inside the group's size, so adding one doesn't shift its children.
+        boxSizing: "border-box",
       }}
-      className={editing ? "outline-1 -outline-offset-1 outline-dashed outline-white/40" : undefined}
+      className={
+        editing
+          ? "outline-1 -outline-offset-1 outline-dashed outline-white/40"
+          : undefined
+      }
     >
       {childElements.map((child, index) => (
         <FreeItem key={child.id} element={child} fallbackIndex={index}>

@@ -203,6 +203,7 @@ const OverlayPage: React.FC = () => {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onRequestDelete={setDeleteRequestId}
+                ownerName={access?.owner.name ?? null}
               />
             </main>
             <aside

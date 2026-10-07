@@ -6,42 +6,32 @@ import type { CountdownAction } from "@/lib/countdown";
 import { useCountdown } from "@/lib/hooks/useCountdown";
 import { DEFAULT_DURATION_FORMAT, formatDuration } from "@/lib/duration";
 import { CountdownEditModal } from "@/components/overlay/editor/CountdownEditModal";
+import TimeReadout from "./TimeReadout";
 
 interface CountdownControlProps {
   element: PrismaElement;
   onAction: (elementId: string, action: CountdownAction) => void;
 }
 
-// Declared at module level: a component defined inside another component's render is a new
-// type on every render, so React would remount it (and reset its interval) on each update.
-const CountdownDisplay: React.FC<{ countdown: PrismaElement["countdown"]; format: string }> = ({
-  countdown,
-  format,
-}) => {
-  const left = useCountdown(countdown);
-  return <>{formatDuration(left, format)}</>;
-};
-
 const CountdownControl: React.FC<CountdownControlProps> = ({ element, onAction }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const countdown = element.countdown;
   const format = (element.style as { format?: string })?.format || DEFAULT_DURATION_FORMAT;
+  const left = useCountdown(countdown);
   // One counting down to a point in time runs on its own; it has nothing to start or reset.
   const isTarget = countdown?.mode === "TARGET";
   const running = !!countdown?.endsAt;
 
   return (
     <div className="flex items-center space-x-2">
-      <div
-        className="text-2xl font-mono bg-secondary h-12 flex items-center justify-center rounded-md px-3 flex-grow min-w-0"
+      <TimeReadout
+        value={formatDuration(left, format)}
         title={
           isTarget && countdown?.targetAt
             ? `Until ${new Date(countdown.targetAt).toLocaleString()}`
             : undefined
         }
-      >
-        <CountdownDisplay countdown={countdown} format={format} />
-      </div>
+      />
       <Button
         onClick={() => setIsModalOpen(true)}
         title="Edit countdown"

@@ -23,6 +23,8 @@ import {
   type PrismaOverlay,
 } from "@/lib/types";
 import { OVERLAY_SELECTION, type EditorSelection } from "./editorSelection";
+import { StreamBackdrop, StreamPreviewButton } from "./StreamPreview";
+import { useStreamPreview } from "./useStreamPreview";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
@@ -64,6 +66,8 @@ interface EditorCanvasProps {
   onSelect: (selection: EditorSelection) => void;
   // Delete / Backspace asks to delete the selected element.
   onRequestDelete: (elementId: string) => void;
+  // The overlay owner's Twitch name, the stream preview's channel until another is picked.
+  ownerName: string | null;
 }
 
 // An endless canvas around the overlay that can be panned and zoomed. Elements outside the
@@ -74,6 +78,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   selectedId,
   onSelect,
   onRequestDelete,
+  ownerName,
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
@@ -88,6 +93,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   // A pan ends with a click on whatever is under the pointer, which must not select it.
   const suppressClick = useRef(false);
   const touches = useRef(new Map<number, { x: number; y: number }>());
+  const streamPreview = useStreamPreview(overlay.id, ownerName);
 
   // The canvas is sized per overlay, so everything about the frame follows it.
   const { width: canvasWidth, height: canvasHeight } = canvasSize(overlay);
@@ -403,6 +409,14 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           }
         >
           <div className="relative bg-black" style={{ width: canvasWidth, height: canvasHeight }}>
+            {streamPreview.showing && streamPreview.channel && (
+              <StreamBackdrop
+                channel={streamPreview.channel}
+                source={streamPreview.settings.source}
+                opacity={streamPreview.settings.opacity}
+                stillFrame={streamPreview.still.frame}
+              />
+            )}
             {canvas}
           </div>
           {/* Shades everything outside the overlay: it exists, but OBS won't show it. */}
@@ -475,6 +489,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           <Move />
         </ToolButton>
         <div className="mx-1 h-5 w-px bg-border" />
+        <StreamPreviewButton preview={streamPreview} />
         <AddElementModal
           overlay={overlay}
           onOverlayChange={onOverlayChange}

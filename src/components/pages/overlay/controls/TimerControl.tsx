@@ -5,6 +5,7 @@ import type { PrismaElement } from "@/lib/types";
 import { useTimer } from "@/lib/hooks/useTimer";
 import { TimerEditModal } from "@/components/overlay/editor/TimerEditModal";
 import { DEFAULT_DURATION_FORMAT, formatDuration } from "@/lib/duration";
+import TimeReadout from "./TimeReadout";
 
 interface TimerControlProps {
   element: PrismaElement;
@@ -12,19 +13,6 @@ interface TimerControlProps {
   handleTimerReset: (elementId: string) => void;
   handleTimerAddTime: (elementId: string, timeToAdd: number) => void;
 }
-
-// Declared at module level: a component defined inside another component's render is a new
-// type on every render, so React would remount it (and reset its timer) on each update.
-const TimerDisplay: React.FC<{ timer: PrismaElement["timer"]; format: string }> = ({
-  timer,
-  format,
-}) => {
-  const time = useTimer({
-    startedAt: timer?.startedAt ? new Date(timer.startedAt) : null,
-    pausedAt: timer?.pausedAt ? new Date(timer.pausedAt) : null,
-  });
-  return <>{formatDuration(timer ? time : 0, format)}</>;
-};
 
 const TimerControl: React.FC<TimerControlProps> = ({
   element,
@@ -34,12 +22,15 @@ const TimerControl: React.FC<TimerControlProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const format = (element.style as { format?: string })?.format || DEFAULT_DURATION_FORMAT;
+  const timer = element.timer;
+  const time = useTimer({
+    startedAt: timer?.startedAt ? new Date(timer.startedAt) : null,
+    pausedAt: timer?.pausedAt ? new Date(timer.pausedAt) : null,
+  });
 
   return (
     <div className="flex items-center space-x-2">
-      <div className="text-2xl font-mono bg-secondary h-12 flex items-center justify-center rounded-md px-3 flex-grow min-w-0">
-        <TimerDisplay timer={element.timer} format={format} />
-      </div>
+      <TimeReadout value={formatDuration(timer ? time : 0, format)} />
       <Button
         onClick={() => setIsModalOpen(true)}
         title="Edit time"
