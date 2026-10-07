@@ -13,6 +13,7 @@ import Container from "./Container";
 import Timer from "./Timer";
 import Countdown from "./Countdown";
 import TwitchStat from "./TwitchStat";
+import Variable from "./Variable";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
@@ -24,7 +25,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer, countdown, twitchStat } = element;
+  const { type, style, title, counter, timer, countdown, twitchStat, variable } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -54,6 +55,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
       case "TWITCH_STAT":
         return twitchStat ? (
           <TwitchStat twitchStat={twitchStat} style={(style || {}) as TwitchStatStyle} />
+        ) : null;
+      case "VARIABLE":
+        return variable ? (
+          <Variable variable={variable} style={(style || {}) as BaseElementStyle} />
         ) : null;
       case "CONTAINER":
         return (

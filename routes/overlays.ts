@@ -21,6 +21,8 @@ import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
 import { twitchStatSeed } from "../lib/twitchStats";
+import { variableBindingSeed } from "../lib/variables";
+import { fillOverlayBindings } from "../services/variables";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
 
 // The canvas size bounds, shared with the editor so both clamp the same values.
@@ -71,6 +73,10 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     if (element.type === "TWITCH_STAT") {
       data.twitchStat = { create: twitchStatSeed(element.twitchStat) };
     }
+    // Only which variable it shows; the value is the new owner's (filled in below).
+    if (element.type === "VARIABLE") {
+      data.variable = { create: variableBindingSeed(element.variable) };
+    }
     if (element.image) {
       data.image = { create: { src: element.image.src } };
     }
@@ -97,6 +103,7 @@ async function createOverlayWithElements(
     for (const element of buildElementCreates(overlay.id, elements)) {
       await tx.element.create({ data: element });
     }
+    await fillOverlayBindings(tx, overlay.id, overlay.userId);
     return overlay;
   });
 }

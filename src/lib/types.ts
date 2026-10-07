@@ -10,6 +10,7 @@ export const ElementTypeEnum = {
   BINGO: "BINGO",
   GROUP: "GROUP",
   TWITCH_STAT: "TWITCH_STAT",
+  VARIABLE: "VARIABLE",
 } as const;
 
 // Element types that hold other elements.
@@ -25,7 +26,8 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.COUNTDOWN ||
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.BINGO ||
-  type === ElementTypeEnum.TWITCH_STAT;
+  type === ElementTypeEnum.TWITCH_STAT ||
+  type === ElementTypeEnum.VARIABLE;
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
@@ -35,6 +37,9 @@ export type TwitchStatType = "FOLLOWERS" | "VIEWERS" | "SUBSCRIBERS" | "SUB_POIN
 // Why a Twitch stat has no value: PENDING until it is fetched, NOT_CONNECTED and NOT_ALLOWED for
 // subscriber stats ovrly can't read for this overlay (see src/lib/twitchStats.ts).
 export type TwitchStatStatus = "PENDING" | "OK" | "NOT_CONNECTED" | "NOT_ALLOWED";
+
+// The types of values other applications send through the public API (see src/lib/variables.ts).
+export type VariableType = "STRING" | "INTEGER" | "DOUBLE" | "BOOLEAN" | "COLOR";
 
 // How the elements that sit directly on the canvas are placed. The canvas itself is the
 // overlay's root group: in AUTO mode its children are laid out by the global arrangement (a
@@ -212,6 +217,8 @@ export type ElementStyle =
 // The generic Element object from the backend
 export interface PrismaElement {
   id: string;
+  // Sent by the server; elements built on the client (preset previews) have none.
+  overlayId?: string;
   name: string;
   type: ElementType;
   position?: number | null;
@@ -241,6 +248,17 @@ export interface PrismaElement {
     value: number | null;
     status: TwitchStatStatus;
     fetchedAt: string | null;
+  } | null;
+  // Which variable of the overlay owner a variable element shows, and its current value.
+  variable?: {
+    id: string;
+    // Empty until a variable is picked.
+    source: string;
+    key: string;
+    // Null while the owner has no such variable (not sent yet, or deleted).
+    type: VariableType | null;
+    value: string | number | boolean | null;
+    updatedAt: string | null;
   } | null;
   image?: { id: string; src: string } | null;
   bingo?: {

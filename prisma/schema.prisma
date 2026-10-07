@@ -27,6 +27,9 @@ model User {
   overlaySharesWithMe   OverlayShare[]
   // Twitch channels this user connected, so their subscriber stats can be shown.
   twitchConnections     TwitchConnection[]
+  // Keys for the public API (docs/public-api.md), and the variables sent with them.
+  apiKeys               ApiKey[]
+  variables             Variable[]
 }
 
 model Image {
@@ -135,6 +138,7 @@ model Element {
   image     ImageElement?
   bingo     Bingo?
   twitchStat TwitchStat?
+  variable  VariableBinding?
 
   // Self-relation for grouping
   parentId  String?
@@ -155,6 +159,7 @@ enum ElementType {
   BINGO
   COUNTDOWN
   TWITCH_STAT
+  VARIABLE
 }
 
 model Title {
@@ -278,6 +283,70 @@ model TwitchConnection {
   updatedAt    DateTime @updatedAt
 
   @@index([userId])
+}
+
+// A key other applications use to call the public API (routes/publicApi.ts) on behalf of
+// `user`. Only a hash of it is stored; the key itself is shown once, when it is created.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  // The start of the key, so it can be recognised in the settings.
+  prefix     String
+  // SHA-256 of the key, hex encoded.
+  hash       String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+enum VariableType {
+  STRING
+  INTEGER
+  DOUBLE
+  BOOLEAN
+  // A "#rrggbb" or "#rrggbbaa" hex colour.
+  COLOR
+}
+
+// A value another application keeps up to date on the account of `user` through the public
+// API, such as the points of a team in a tournament. `source` names the application
+// ("minecraft-tournament"), `key` the value within it ("red.points").
+model Variable {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    String
+  key       String
+  type      VariableType
+  // A JSON string, number or boolean, matching `type`.
+  value     Json
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([userId, source, key])
+}
+
+// What a variable element shows: a Variable of the overlay owner's account. It is picked by
+// source and key rather than by id, so it can be picked before the application first sent it
+// and keeps working when the application deletes and sends it again. Its type and value are
+// copied here whenever it changes (services/variables.ts), so they reach editors and OBS with
+// the rest of the overlay.
+model VariableBinding {
+  id        String        @id @default(cuid())
+  // Empty until a variable is picked.
+  source    String        @default("")
+  key       String        @default("")
+  // Null while the owner has no such variable.
+  type      VariableType?
+  value     Json?
+  updatedAt DateTime?
+  elementId String        @unique
+  element   Element       @relation(fields: [elementId], references: [id], onDelete: Cascade)
+
+  @@index([source, key])
 }
 
 model Account {

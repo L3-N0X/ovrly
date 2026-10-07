@@ -27,6 +27,7 @@ All Elements are editable to change their content.
 * **Timer:** Count up for speedruns, events, or breaks.
 * **Countdown:** Count down from a set time, or to a date and time (e.g. your stream start).
 * **Twitch Stat:** Followers, viewers, subscribers or sub points of any Twitch channel, updated live (about every 30 seconds while the overlay is open). Followers and viewers work for every channel; subscriber numbers are private on Twitch, so the channel has to be connected once under Settings → Twitch by someone who can sign in as it. They are then shown in the overlays of whoever connected it and of their team.
+* **Variable:** A value another app sends through the [public API](docs/public-api.md), such as the score of a team from a game server or a counter on a Stream Deck button. Create an API key under Settings → API, let the app send variables (texts, numbers, yes/no values, colors), and pick one; it updates live.
 * **Image:** Add player photos, logos, or more.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
@@ -191,6 +192,8 @@ This will create an optimized production build in the `dist` directory.
 ## 📚 Further Documentation
 
 * [Bingo element](docs/bingo.md) — data model, API and rendering behaviour.
+* [Public API](docs/public-api.md) — for apps sending variables to overlays: keys, endpoints, examples.
+* [Variables](docs/variables.md) — how the public API and the Variable element are built.
 
 ## ❤️ Contributing
 

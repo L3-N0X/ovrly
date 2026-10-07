@@ -1,5 +1,6 @@
 import { ElementTypeEnum, type ContainerStyle, type PrismaElement } from "@/lib/types";
 import {
+  Braces,
   ChartNoAxesColumn,
   Columns3,
   Frame,
@@ -30,6 +31,8 @@ export const ElementTypeIcon = ({
       return <Hourglass className={className} />;
     case ElementTypeEnum.TWITCH_STAT:
       return <ChartNoAxesColumn className={className} />;
+    case ElementTypeEnum.VARIABLE:
+      return <Braces className={className} />;
     case ElementTypeEnum.IMAGE:
       return <Image className={className} />;
     case ElementTypeEnum.BINGO:

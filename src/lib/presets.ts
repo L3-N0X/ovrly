@@ -23,6 +23,7 @@ export interface PresetElement {
   twitchStat?: Partial<
     Pick<NonNullable<PrismaElement["twitchStat"]>, "stat" | "channelLogin" | "channelId" | "channelName">
   >;
+  variable?: { source: string; key: string };
   image?: { src: string };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
   children?: PresetElement[];
@@ -91,6 +92,18 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
                 value: null,
                 status: "PENDING",
                 fetchedAt: null,
+              }
+            : null,
+        // Previews show which variable it is, without a value.
+        variable:
+          seed.type === ElementTypeEnum.VARIABLE
+            ? {
+                id,
+                source: seed.variable?.source ?? "",
+                key: seed.variable?.key ?? "",
+                type: null,
+                value: null,
+                updatedAt: null,
               }
             : null,
         image: seed.image ? { id, ...seed.image } : null,

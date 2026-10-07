@@ -9,6 +9,7 @@ import TitleControl from "./TitleControl";
 import ImageControl from "./ImageControl";
 import BingoControl from "./BingoControl";
 import TwitchStatControl from "./TwitchStatControl";
+import VariableControl from "./VariableControl";
 
 // Everything that changes what an element shows (as opposed to how it looks).
 export interface ContentHandlers {
@@ -55,6 +56,8 @@ export const ElementContentControl: React.FC<{
       return <BingoControl element={element} onDataChange={handlers.onBingoDataChange} />;
     case ElementTypeEnum.TWITCH_STAT:
       return <TwitchStatControl element={element} />;
+    case ElementTypeEnum.VARIABLE:
+      return <VariableControl element={element} />;
     default:
       return null;
   }

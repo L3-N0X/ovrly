@@ -21,6 +21,8 @@ import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { channelLoginFrom, isTwitchStatType } from "../lib/twitchStats";
 import { findChannel, isTwitchLogin, twitchConfigured, type TwitchChannel } from "../services/twitch";
 import { refreshOverlayNow } from "../services/twitch-stats";
+import { isVariableName } from "../lib/variables";
+import { bindingState } from "../services/variables";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = [
@@ -33,6 +35,7 @@ const ELEMENT_TYPES = [
   "CONTAINER",
   "GROUP",
   "TWITCH_STAT",
+  "VARIABLE",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -128,6 +131,8 @@ export const handleElementsRoutes = async (
         elementCreateData.countdown = { create: {} };
       } else if (type === "TWITCH_STAT") {
         elementCreateData.twitchStat = { create: {} };
+      } else if (type === "VARIABLE") {
+        elementCreateData.variable = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "BINGO") {
@@ -355,6 +360,8 @@ export const handleElementsRoutes = async (
             actions?: unknown;
             channel?: unknown;
             stat?: unknown;
+            source?: unknown;
+            key?: unknown;
             [key: string]: unknown;
           };
           position?: unknown;
@@ -530,6 +537,18 @@ export const handleElementsRoutes = async (
                   ? { stat, ...channel, value: null, status: "PENDING", fetchedAt: null }
                   : { channelName: channel.channelName },
               };
+            }
+            // Picks the variable it shows, by source and key, from the overlay owner's
+            // variables. Empty strings clear it.
+            if (element.type === "VARIABLE" && (data.source !== undefined || data.key !== undefined)) {
+              const cleared = data.source === "" && data.key === "";
+              if (!cleared && (!isVariableName(data.source) || !isVariableName(data.key))) {
+                return { error: json({ error: "Invalid variable" }, 400) };
+              }
+              const binding = cleared
+                ? await bindingState(tx, access.overlay.userId, "", "")
+                : await bindingState(tx, access.overlay.userId, data.source as string, data.key as string);
+              elementUpdateData.variable = { upsert: { create: binding, update: binding } };
             }
             if (element.type === "BINGO") {
               if (!current.bingo) {

@@ -16,6 +16,7 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
       channelId: string | null;
       channelName: string | null;
     } | null;
+    variable?: { source: string; key: string } | null;
     children?: ExportElement[];
   };
 
@@ -56,6 +57,10 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
         channelId: element.twitchStat.channelId,
         channelName: element.twitchStat.channelName,
       };
+    }
+    // Which variable; wherever it is imported, it shows that account's variable of that name.
+    if (element.variable) {
+      newElement.variable = { source: element.variable.source, key: element.variable.key };
     }
     if (children.length > 0) {
       newElement.children = children;

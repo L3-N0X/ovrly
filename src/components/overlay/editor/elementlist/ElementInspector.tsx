@@ -71,6 +71,9 @@ export const ElementStyleEditor = ({
       return <TimerStyleEditor {...editorProps} />;
     case ElementTypeEnum.TWITCH_STAT:
       return <TwitchStatStyleEditor {...editorProps} />;
+    // Shown as text, styled like a title.
+    case ElementTypeEnum.VARIABLE:
+      return <TitleStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
       return <ImageStyleEditor {...editorProps} />;
     case ElementTypeEnum.BINGO:

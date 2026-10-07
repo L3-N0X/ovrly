@@ -10,6 +10,8 @@ import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
 import { handleSharingRoutes } from "./routes/sharing";
 import { handleTwitchRoutes } from "./routes/twitch";
+import { handlePublicApiRoutes } from "./routes/publicApi";
+import { handleVariablesRoutes } from "./routes/variables";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
 import { refreshOpenedOverlay, startTwitchStats } from "./services/twitch-stats";
@@ -71,6 +73,12 @@ const server = Bun.serve<WebSocketData>({
   async fetch(req, server) {
     const url = new URL(req.url);
     const reqPath = url.pathname;
+
+    // The public API answers its own preflights: it may be called from any origin.
+    const publicApiResponse = await handlePublicApiRoutes(req, server, reqPath);
+    if (publicApiResponse) {
+      return publicApiResponse;
+    }
 
     // Handle CORS preflight
     const corsResponse = handleCors(req);
@@ -139,6 +147,12 @@ const server = Bun.serve<WebSocketData>({
       const sharingResponse = await handleSharingRoutes(req, server, reqPath);
       if (sharingResponse) {
         return sharingResponse;
+      }
+
+      // Handle API key and variable routes (what the public API writes)
+      const variablesResponse = await handleVariablesRoutes(req, server, reqPath);
+      if (variablesResponse) {
+        return variablesResponse;
       }
 
       // Handle Twitch routes (connecting channels for their subscriber stats)
