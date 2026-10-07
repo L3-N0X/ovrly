@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Maximize, Minus, MousePointer2, Move, Plus, SquarePlus } from "lucide-react";
+import { Magnet, Maximize, Minus, MousePointer2, Move, Plus, SquarePlus } from "lucide-react";
 import { AddElementModal } from "@/components/overlay/editor/AddElementModal";
+import type { OnStructureChange } from "@/components/overlay/editor/elementlist/ElementListEditor";
+import { placeElement } from "@/components/overlay/editor/elementlist/placeElement";
+import { childrenOf, isPlacedFreely } from "@/components/overlay/editor/elementlist/tree";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
 import type { CanvasEditing } from "@/components/overlay/canvasEditing";
+import { FREE_ITEM_ATTRIBUTE } from "@/components/overlay/canvasGeometry";
 import type { CanvasSelection } from "@/components/overlay/canvasSelection";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,12 +20,12 @@ import {
 import { cn } from "@/lib/utils";
 import {
   canvasSize,
-  CanvasModeEnum,
-  ElementTypeEnum,
+  type BaseElementStyle,
   type ElementStyle,
   type OnOverlayChange,
   type PrismaOverlay,
 } from "@/lib/types";
+import { CanvasHelp } from "./CanvasHelp";
 import { OVERLAY_SELECTION, type EditorSelection } from "./editorSelection";
 import { StreamBackdrop, StreamPreviewButton } from "./StreamPreview";
 import { useStreamPreview } from "./useStreamPreview";
@@ -34,6 +38,8 @@ const ZOOM_PRESETS = [0.5, 1, 2];
 const DRAG_THRESHOLD = 4;
 // Large enough to shade everything outside the overlay at any zoom (in screen pixels).
 const SHADE_SIZE = 20000;
+// Whether dragged elements snap to the edges and centres around them, kept across visits.
+const SNAPPING_STORAGE_KEY = "ovrly:snapping";
 
 type Tool = "select" | "move";
 
@@ -62,6 +68,8 @@ const isEditableTarget = (target: EventTarget | null) =>
 interface EditorCanvasProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
+  // Moves elements into other parents (dragging them on the canvas).
+  onStructureChange: OnStructureChange;
   selectedId: EditorSelection;
   onSelect: (selection: EditorSelection) => void;
   // Delete / Backspace asks to delete the selected element.
@@ -75,6 +83,7 @@ interface EditorCanvasProps {
 const EditorCanvas: React.FC<EditorCanvasProps> = ({
   overlay,
   onOverlayChange,
+  onStructureChange,
   selectedId,
   onSelect,
   onRequestDelete,
@@ -84,6 +93,9 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [tool, setTool] = useState<Tool>("select");
   const [isAddOpen, setAddOpen] = useState(false);
+  const [snapping, setSnapping] = useState(
+    () => localStorage.getItem(SNAPPING_STORAGE_KEY) !== "false"
+  );
   const [isPanning, setIsPanning] = useState(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const spaceHeldRef = useRef(false);
@@ -147,10 +159,32 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     [zoomAt]
   );
 
+  useEffect(() => {
+    localStorage.setItem(SNAPPING_STORAGE_KEY, String(snapping));
+  }, [snapping]);
+
   const panBy = useCallback((dx: number, dy: number) => {
     autoFit.current = false;
     setViewport((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
   }, []);
+
+  // onOverlayChange persists the style change itself (debounced per element).
+  const moveElement = useCallback(
+    (elementId: string, patch: ElementStyle) =>
+      onOverlayChange((current) => ({
+        ...current,
+        elements: current.elements.map((el) =>
+          el.id === elementId ? { ...el, style: { ...(el.style || {}), ...patch } } : el
+        ),
+      })),
+    [onOverlayChange]
+  );
+
+  // Read when an element is dropped, so a live update meanwhile doesn't rebuild the canvas.
+  const latestOverlay = useRef(overlay);
+  useEffect(() => {
+    latestOverlay.current = overlay;
+  });
 
   // Scrolling pans and Ctrl/Cmd + scroll (or a trackpad pinch) zooms, like in Figma.
   // Registered natively: React's wheel listener is passive, so it can't keep the page from
@@ -200,16 +234,51 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       e.target === document.body ||
       (e.target instanceof Node && !!viewportRef.current?.contains(e.target));
 
+    const selected = overlay.elements.find((el) => el.id === selectedId);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isFree(e) || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === " " || e.key === "Escape") {
+      if (e.key === " " || e.key === "Escape" || e.key === "Enter") {
         if (!isCanvasFocused(e)) return;
         e.preventDefault();
-        if (e.key === "Escape") onSelect(null);
-        else if (!e.repeat) {
+        // Like in Figma: Escape goes up to the parent, Enter down to the first child.
+        if (e.key === "Escape") onSelect(selected?.parentId ?? null);
+        else if (e.key === "Enter") {
+          const child = selected && childrenOf(overlay.elements, selected.id)[0];
+          if (child) onSelect(child.id);
+        } else if (!e.repeat) {
           spaceHeldRef.current = true;
           setSpaceHeld(true);
         }
+        return;
+      }
+      const nudge = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      }[e.key];
+      if (nudge) {
+        if (tool !== "move" || !selected || !isPlacedFreely(overlay, selected)) return;
+        if (!isCanvasFocused(e)) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        // Where it is drawn, which for an element that was never placed isn't its x/y.
+        const item = viewportRef.current?.querySelector<HTMLElement>(
+          `[${FREE_ITEM_ATTRIBUTE}="${CSS.escape(selected.id)}"]`
+        );
+        const [dx, dy] = [nudge[0] * step, nudge[1] * step];
+        // Built on the latest state, so presses faster than a render all count.
+        onOverlayChange((current) => ({
+          ...current,
+          elements: current.elements.map((el) => {
+            if (el.id !== selected.id) return el;
+            const style = (el.style || {}) as BaseElementStyle;
+            const x = style.x ?? item?.offsetLeft ?? 0;
+            const y = style.y ?? item?.offsetTop ?? 0;
+            return { ...el, style: { ...style, x: x + dx, y: y + dy } };
+          }),
+        }));
         return;
       }
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -240,7 +309,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", releaseSpace);
     };
-  }, [fitToScreen, zoomAtCenter, onSelect, selectedId, onRequestDelete]);
+  }, [fitToScreen, zoomAtCenter, onSelect, selectedId, onRequestDelete, overlay, tool, onOverlayChange]);
 
   const startPanning = (pointerId: number) => {
     if (!gesture.current) return;
@@ -334,16 +403,21 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   const editing = useMemo<CanvasEditing | null>(() => {
     if (tool !== "move") return null;
-    // onOverlayChange persists the style change itself (debounced per element).
-    const patchStyle = (elementId: string, patch: ElementStyle) =>
-      onOverlayChange((current) => ({
-        ...current,
-        elements: current.elements.map((el) =>
-          el.id === elementId ? { ...el, style: { ...(el.style || {}), ...patch } } : el
+    return {
+      onMove: moveElement,
+      onResize: moveElement,
+      onPlace: (elementId, placement, position) =>
+        placeElement(
+          latestOverlay.current,
+          elementId,
+          placement,
+          position,
+          onOverlayChange,
+          onStructureChange
         ),
-      }));
-    return { onMove: patchStyle, onResize: patchStyle };
-  }, [tool, onOverlayChange]);
+      snapping,
+    };
+  }, [tool, moveElement, onOverlayChange, onStructureChange, snapping]);
 
   const selection = useMemo<CanvasSelection>(
     () => ({ selectedId, onSelect }),
@@ -360,11 +434,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const { x, y, zoom } = viewport;
   const shade = SHADE_SIZE / zoom;
   const frameSelected = selectedId === OVERLAY_SELECTION;
-  // In free mode the canvas itself places its elements, so the move tool always has something
-  // to drag; otherwise only elements inside a group can be moved.
-  const canMoveElements =
-    overlay.canvasMode === CanvasModeEnum.FREE ||
-    overlay.elements.some((e) => e.type === ElementTypeEnum.GROUP);
   const grabbing = isPanning || spaceHeld;
 
   return (
@@ -483,11 +552,21 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         <ToolButton
           active={tool === "move"}
           onClick={() => setTool("move")}
-          label="Move elements freely"
+          label="Move and arrange elements"
           shortcut="M"
         >
           <Move />
         </ToolButton>
+        <Button
+          variant={snapping ? "secondary" : "ghost"}
+          size="icon-sm"
+          title={snapping ? "Snapping on (hold Alt to bypass)" : "Snapping off"}
+          aria-label="Snap to edges and centres"
+          aria-pressed={snapping}
+          onClick={() => setSnapping((on) => !on)}
+        >
+          <Magnet />
+        </Button>
         <div className="mx-1 h-5 w-px bg-border" />
         <StreamPreviewButton preview={streamPreview} />
         <AddElementModal
@@ -504,13 +583,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         </AddElementModal>
       </div>
 
-      <p className="pointer-events-none absolute bottom-4 left-4 hidden max-w-[calc(100%-16rem)] text-xs text-muted-foreground sm:block">
-        {tool === "select"
-          ? "Click to select · Drag or scroll to pan · Ctrl + scroll to zoom · A to add · Del to delete"
-          : canMoveElements
-            ? "Drag elements to place them, even outside the canvas · Arrow keys nudge (Shift: 10px) · Drag a group's corner to resize"
-            : "Switch the canvas to Free placement in the canvas panel, then drag elements here."}
-      </p>
+      <CanvasHelp />
 
       <div className="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">
         <Button

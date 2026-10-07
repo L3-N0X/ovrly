@@ -1,4 +1,5 @@
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -14,11 +15,14 @@ import {
   DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_RADIUS,
   DEFAULT_BORDER_WIDTH,
+  DEFAULT_CONTAINER_HEIGHT,
+  DEFAULT_CONTAINER_WIDTH,
   type ContainerStyle,
   type PrismaElement,
 } from "@/lib/types";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import React, { useMemo, useState } from "react";
+import { CANVAS_ELEMENT_ATTRIBUTE } from "../canvasSelection";
 import { alignOptions, isRowDirection, justifyOptions } from "./alignment";
 import { ColorInput, PixelInput } from "./appearance";
 
@@ -46,6 +50,24 @@ export const ContainerEditor: React.FC<{
     onChange(updatedStyle);
   };
 
+  const autoWidth = style.autoWidth !== false;
+  const autoHeight = style.autoHeight !== false;
+
+  // Switching an automatic side off keeps the size the container has right now.
+  const setAuto = (side: "width" | "height", auto: boolean) => {
+    const key = side === "width" ? "autoWidth" : "autoHeight";
+    if (auto) return updateStyle({ [key]: true });
+    const box = document.querySelector(`[${CANVAS_ELEMENT_ATTRIBUTE}="${CSS.escape(element.id)}"]`)
+      ?.firstElementChild as HTMLElement | null | undefined;
+    const measured = side === "width" ? box?.offsetWidth : box?.offsetHeight;
+    updateStyle({
+      [key]: false,
+      [side]:
+        style[side] ??
+        (measured || (side === "width" ? DEFAULT_CONTAINER_WIDTH : DEFAULT_CONTAINER_HEIGHT)),
+    });
+  };
+
   const row = isRowDirection(style.flexDirection);
   const id = (name: string) => `${element.id}-container-${name}`;
   const pixels = (key: "gap" | "paddingX" | "paddingY") =>
@@ -53,6 +75,46 @@ export const ContainerEditor: React.FC<{
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={id("auto-width")}
+              checked={autoWidth}
+              onCheckedChange={(auto) => setAuto("width", auto)}
+            />
+            <Label htmlFor={id("auto-width")}>Auto width</Label>
+          </div>
+          {!autoWidth && (
+            <PixelInput
+              id={id("width")}
+              label="Width"
+              min={1}
+              value={style.width ?? DEFAULT_CONTAINER_WIDTH}
+              onChange={(width) => updateStyle({ width })}
+            />
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={id("auto-height")}
+              checked={autoHeight}
+              onCheckedChange={(auto) => setAuto("height", auto)}
+            />
+            <Label htmlFor={id("auto-height")}>Auto height</Label>
+          </div>
+          {!autoHeight && (
+            <PixelInput
+              id={id("height")}
+              label="Height"
+              min={1}
+              value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
+              onChange={(height) => updateStyle({ height })}
+            />
+          )}
+        </div>
+      </div>
       <div className="space-y-2">
         <Label>Direction</Label>
         <Select

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   canvasSize,
   CanvasModeEnum,
@@ -6,13 +6,14 @@ import {
   type PrismaOverlay,
 } from "@/lib/types";
 import ElementDisplay from "./ElementDisplay";
-// Only the editor ever gets a selection context, so the marker it selects with comes along
-// with it.
-import { OVERLAY_SELECTION } from "@/components/pages/overlay/editorSelection";
 import { CanvasEditingContext, type CanvasEditing } from "./canvasEditing";
 import { CanvasSelectionContext, type CanvasSelection } from "./canvasSelection";
+import { CanvasInteractionContext, createDragStore } from "./canvasDrag";
+import { CANVAS_ROOT_ATTRIBUTE, FLOW_ROOT_ATTRIBUTE, FREE_ROOT_ATTRIBUTE } from "./canvasGeometry";
+import { DragLayer } from "./DragLayer";
 import FreeItem from "./FreeItem";
 import { SelectionLayer } from "./SelectionLayer";
+import { useCanvasGestures } from "./useCanvasGestures";
 
 interface OverlayCanvasProps {
   overlay: PrismaOverlay;
@@ -39,16 +40,12 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
   // A ref rather than state: hovering shouldn't re-render the whole canvas, and the
   // selection layer reads it every frame anyway.
   const hoveredIdRef = useRef<string | null>(null);
-
-  const selectionContext = useMemo(
-    () =>
-      selection && {
-        ...selection,
-        onHover: (elementId: string | null) => {
-          hoveredIdRef.current = elementId;
-        },
-      },
-    [selection]
+  const [store] = useState(createDragStore);
+  const gestures = useCanvasGestures({ rootRef, overlay, editing, selection, hoveredIdRef, store });
+  const { snapResize } = gestures;
+  const interaction = useMemo(
+    () => (editing ? { store, snapResize } : null),
+    [editing, store, snapResize]
   );
 
   // For backward compatibility, we check for new property names first, then fallback to old ones
@@ -95,7 +92,11 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
   // is the overlay itself, so it is never an element of its own and can't be removed.
   const content =
     overlay.canvasMode === CanvasModeEnum.FREE ? (
-      <div className="relative" style={{ width: `${width}px`, height: `${height}px` }}>
+      <div
+        {...{ [FREE_ROOT_ATTRIBUTE]: "" }}
+        className="relative"
+        style={{ width: `${width}px`, height: `${height}px` }}
+      >
         {rootElements.map((element, index) => (
           <FreeItem key={element.id} element={element} fallbackIndex={index}>
             {renderChild(element)}
@@ -103,7 +104,7 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
         ))}
       </div>
     ) : (
-      <div style={innerStyle}>
+      <div {...{ [FLOW_ROOT_ATTRIBUTE]: "" }} style={innerStyle}>
         {rootElements.map((element) => (
           <React.Fragment key={element.id}>{renderChild(element)}</React.Fragment>
         ))}
@@ -112,26 +113,28 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
 
   return (
     <CanvasEditingContext.Provider value={editing}>
-      <CanvasSelectionContext.Provider value={selectionContext}>
-        <div
-          ref={rootRef}
-          style={outerStyle}
-          // Elements stop these events themselves, so they only arrive here for the empty
-          // canvas, which is the overlay itself: clicking it opens the canvas settings.
-          onClick={selection ? () => selection.onSelect(OVERLAY_SELECTION) : undefined}
-          onPointerOver={selection ? () => (hoveredIdRef.current = null) : undefined}
-          onPointerLeave={selection ? () => (hoveredIdRef.current = null) : undefined}
-        >
-          {content}
-          {selection && (
-            <SelectionLayer
-              rootRef={rootRef}
-              selectedId={selection.selectedId}
-              selectedName={elements.find((e) => e.id === selection.selectedId)?.name}
-              hoveredIdRef={hoveredIdRef}
-            />
-          )}
-        </div>
+      <CanvasSelectionContext.Provider value={selection}>
+        <CanvasInteractionContext.Provider value={interaction}>
+          <div
+            ref={rootRef}
+            style={outerStyle}
+            // Every press, click and hover on the canvas is handled here (see useCanvasGestures).
+            {...(selection && { [CANVAS_ROOT_ATTRIBUTE]: "", ...gestures.handlers })}
+            // Images and selected text would otherwise start a native drag.
+            onDragStart={editing ? (e) => e.preventDefault() : undefined}
+          >
+            {content}
+            {selection && (
+              <SelectionLayer
+                rootRef={rootRef}
+                selectedId={selection.selectedId}
+                selectedName={elements.find((e) => e.id === selection.selectedId)?.name}
+                hoveredIdRef={hoveredIdRef}
+              />
+            )}
+            {editing && <DragLayer store={store} ghostLayerRef={gestures.ghostLayerRef} />}
+          </div>
+        </CanvasInteractionContext.Provider>
       </CanvasSelectionContext.Provider>
     </CanvasEditingContext.Provider>
   );

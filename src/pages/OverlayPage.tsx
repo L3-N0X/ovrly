@@ -200,6 +200,7 @@ const OverlayPage: React.FC = () => {
               <EditorCanvas
                 overlay={overlay}
                 onOverlayChange={handleOverlayChange}
+                onStructureChange={handleStructureChange}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onRequestDelete={setDeleteRequestId}

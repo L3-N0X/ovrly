@@ -18,8 +18,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AddElementModal } from "../AddElementModal";
 import { renameElement } from "../renameElement";
 import { DropLine, ElementTreeItem, INDENT } from "./ElementTreeItem";
+import { placeElement, positionForMove } from "./placeElement";
 import {
-  applyPlacement,
   childrenOf,
   flattenTree,
   isCurrentPlacement,
@@ -98,9 +98,9 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
   // The drag handlers read these at event time instead of being re-registered on every
   // render (which would happen on every live update, mid-drag included).
-  const latest = useRef({ overlay, onStructureChange });
+  const latest = useRef({ overlay, onOverlayChange, onStructureChange });
   useEffect(() => {
-    latest.current = { overlay, onStructureChange };
+    latest.current = { overlay, onOverlayChange, onStructureChange };
   });
   const getElements = useCallback(() => latest.current.overlay.elements, []);
 
@@ -135,7 +135,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
       onDragStart: () => setIsDragging(true),
       onDrop({ source, location }) {
         setIsDragging(false);
-        const { overlay, onStructureChange } = latest.current;
+        const { overlay, onOverlayChange, onStructureChange } = latest.current;
         const target = location.current.dropTargets[0];
         if (!target) return;
 
@@ -153,24 +153,17 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
         const placement = resolveDrop(overlay.elements, sourceId, dropTarget);
         if (!placement || isCurrentPlacement(overlay.elements, sourceId, placement)) return;
 
-        const newElements = applyPlacement(overlay.elements, sourceId, placement);
         // Make sure the moved element stays visible
         if (placement.parentId) setCollapsedFor(placement.parentId, false);
 
-        // Sends the complete layout, so a newer move can safely replace an older one that
-        // hasn't been sent yet.
-        onStructureChange({ ...overlay, elements: newElements }, "reorder", {
-          url: "/api/elements/reorder",
-          method: "POST",
-          body: {
-            elements: newElements.map(({ id, position, parentId }) => ({
-              id,
-              position,
-              parentId: parentId ?? null,
-            })),
-            overlayId: overlay.id,
-          },
-        });
+        placeElement(
+          overlay,
+          sourceId,
+          placement,
+          positionForMove(overlay, sourceId, placement.parentId),
+          onOverlayChange,
+          onStructureChange
+        );
       },
     });
   }, []);

@@ -6,11 +6,7 @@ export interface CanvasSelection {
   onSelect: (elementId: string | null) => void;
 }
 
-interface CanvasSelectionContextValue extends CanvasSelection {
-  onHover: (elementId: string | null) => void;
-}
-
-export const CanvasSelectionContext = createContext<CanvasSelectionContextValue | null>(null);
+export const CanvasSelectionContext = createContext<CanvasSelection | null>(null);
 
 export const useCanvasSelection = () => useContext(CanvasSelectionContext);
 

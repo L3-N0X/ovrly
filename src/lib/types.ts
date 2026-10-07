@@ -141,6 +141,12 @@ export interface IconStyle extends BaseElementStyle {
 
 // Specific style for a Container element
 export interface ContainerStyle extends BaseElementStyle {
+  /** Both sizes are automatic unless switched off: the container fills its parent's width and grows with its children. */
+  autoWidth?: boolean;
+  autoHeight?: boolean;
+  /** Used for the sides that are not automatic. */
+  width?: number;
+  height?: number;
   paddingX?: number;
   paddingY?: number;
   gap?: number;
@@ -184,6 +190,10 @@ export const canvasSize = (overlay: {
 // Groups start out covering the whole canvas they are added to, which the overlay decides.
 export const DEFAULT_GROUP_WIDTH = DEFAULT_CANVAS_WIDTH;
 export const DEFAULT_GROUP_HEIGHT = DEFAULT_CANVAS_HEIGHT;
+
+// What a container's side is set to when automatic sizing is switched off and nothing measures it.
+export const DEFAULT_CONTAINER_WIDTH = 400;
+export const DEFAULT_CONTAINER_HEIGHT = 200;
 
 // Groups and containers are invisible boxes until they are styled: no fill, no stroke, square
 // corners. The stroke colour is white anyway, so raising the width is all it takes to draw a

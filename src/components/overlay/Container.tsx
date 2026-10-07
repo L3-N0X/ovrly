@@ -3,16 +3,34 @@ import {
   DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_RADIUS,
   DEFAULT_BORDER_WIDTH,
+  DEFAULT_CONTAINER_HEIGHT,
+  DEFAULT_CONTAINER_WIDTH,
   type ContainerStyle,
+  type PrismaElement,
 } from "@/lib/types";
+import { useElementResize } from "./useElementResize";
+
+const MIN_CONTAINER_SIZE = 20;
+
+const toNumber = (value: unknown, fallback: number) =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
 interface ContainerProps {
+  element: PrismaElement;
   children: React.ReactNode;
   style: ContainerStyle;
 }
 
-const Container: React.FC<ContainerProps> = ({ children, style }) => {
+const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
   const safeStyle = style || {};
+  const fixedWidth = safeStyle.autoWidth === false;
+  const fixedHeight = safeStyle.autoHeight === false;
+  const { dragSize, handle } = useElementResize(element, MIN_CONTAINER_SIZE, {
+    width: fixedWidth,
+    height: fixedHeight,
+  });
+  const width = dragSize?.width ?? toNumber(safeStyle.width, DEFAULT_CONTAINER_WIDTH);
+  const height = dragSize?.height ?? toNumber(safeStyle.height, DEFAULT_CONTAINER_HEIGHT);
   // A stroke is optional: without a width there is no border, whatever the colour says.
   const borderWidth =
     typeof safeStyle.borderWidth === "number"
@@ -27,8 +45,12 @@ const Container: React.FC<ContainerProps> = ({ children, style }) => {
     flexDirection: safeStyle.flexDirection || "column",
     gap: typeof safeStyle.gap === "number" ? `${safeStyle.gap}px` : undefined,
     justifyContent: safeStyle.justifyContent || "flex-start",
-    width: "100%",
-    height: "auto",
+    // Automatic: as wide as the parent allows and as tall as the children need.
+    position: "relative",
+    width: fixedWidth ? `${width}px` : "100%",
+    height: fixedHeight ? `${height}px` : "auto",
+    // A fixed side must not give way when the parent runs out of room.
+    flexShrink: fixedWidth || fixedHeight ? 0 : undefined,
     boxSizing: "border-box",
     overflow: "hidden",
     alignItems: safeStyle.alignItems || "stretch",
@@ -56,7 +78,12 @@ const Container: React.FC<ContainerProps> = ({ children, style }) => {
         : undefined,
   };
 
-  return <div style={containerStyle}>{children}</div>;
+  return (
+    <div style={containerStyle}>
+      {children}
+      {handle}
+    </div>
+  );
 };
 
 export default Container;

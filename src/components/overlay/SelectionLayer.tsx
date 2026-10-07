@@ -1,9 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { CANVAS_ELEMENT_ATTRIBUTE } from "./canvasSelection";
-
-// The editor sets `--canvas-zoom` on the zoomed canvas. Dividing by it keeps outlines and the
-// name label the same size on screen at every zoom level.
-const unzoomed = (px: number) => `calc(${px}px / var(--canvas-zoom, 1))`;
+import { CARRYING_ATTRIBUTE, unzoomed } from "./canvasGeometry";
 
 // Draws the hover and selection outlines on top of the canvas. Elements move and resize
 // without React knowing (dragging, timers, fonts loading), so the boxes are measured every
@@ -29,7 +26,8 @@ export const SelectionLayer = ({
       const target =
         id &&
         root?.querySelector(`[${CANVAS_ELEMENT_ATTRIBUTE}="${CSS.escape(id)}"]`)?.firstElementChild;
-      if (!root || !target) {
+      // An element carried to another place is drawn by the drag layer meanwhile.
+      if (!root || !target || root.hasAttribute(CARRYING_ATTRIBUTE)) {
         box.style.display = "none";
         return;
       }

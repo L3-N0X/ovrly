@@ -64,7 +64,7 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         ) : null;
       case "CONTAINER":
         return (
-          <Container style={(style || {}) as ContainerStyle}>
+          <Container element={element} style={(style || {}) as ContainerStyle}>
             {children.map((child) => (
               <ElementDisplay key={child.id} element={child} elements={elements} />
             ))}
@@ -95,21 +95,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
   const content = renderElement();
   if (!selection || !content) return content;
 
-  // `display: contents` keeps the wrapper out of the layout. Events still bubble through
-  // it, and stopping them here means the innermost element under the pointer wins.
+  // `display: contents` keeps the wrapper out of the layout. The canvas finds the elements
+  // under the pointer through it (see useCanvasGestures).
   return (
-    <div
-      {...{ [CANVAS_ELEMENT_ATTRIBUTE]: element.id }}
-      style={{ display: "contents" }}
-      onClick={(e) => {
-        e.stopPropagation();
-        selection.onSelect(element.id);
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        selection.onHover(element.id);
-      }}
-    >
+    <div {...{ [CANVAS_ELEMENT_ATTRIBUTE]: element.id }} style={{ display: "contents" }}>
       {content}
     </div>
   );
