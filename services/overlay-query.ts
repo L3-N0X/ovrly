@@ -10,6 +10,7 @@ export const overlayElementsInclude = {
       title: true,
       counter: true,
       timer: true,
+      countdown: true,
       image: true,
       bingo: true,
     },

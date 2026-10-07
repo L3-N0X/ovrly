@@ -9,8 +9,7 @@ export type TimerAction =
   | { type: "start" }
   | { type: "pause" }
   | { type: "reset" }
-  | { type: "addTime"; ms: number }
-  | { type: "setCountDown"; countDown: boolean };
+  | { type: "addTime"; ms: number };
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -35,35 +34,10 @@ export const applyTimerAction = (
         ? { ...timer, startedAt: null, pausedAt: iso(elapsedMs(timer, now)) }
         : timer;
     case "reset":
-      return { ...timer, startedAt: null, pausedAt: iso(0), duration: 0, countDown: false };
+      return { ...timer, startedAt: null, pausedAt: iso(0) };
     case "addTime": {
-      if (timer.countDown) {
-        return { ...timer, duration: Math.max(0, (timer.duration ?? 0) + action.ms) };
-      }
       const paused = timer.pausedAt ? new Date(timer.pausedAt).getTime() : 0;
       return { ...timer, pausedAt: iso(Math.max(0, paused + action.ms)) };
-    }
-    case "setCountDown": {
-      if (action.countDown === timer.countDown) return timer;
-      if (action.countDown) {
-        // Count down from whatever the timer currently shows.
-        return {
-          ...timer,
-          startedAt: null,
-          pausedAt: iso(0),
-          duration: elapsedMs(timer, now),
-          countDown: true,
-        };
-      }
-      // Count up from whatever time was left.
-      const remaining = (timer.duration ?? 0) - elapsedMs(timer, now);
-      return {
-        ...timer,
-        startedAt: null,
-        pausedAt: iso(Math.max(0, remaining)),
-        duration: 0,
-        countDown: false,
-      };
     }
   }
 };

@@ -1,27 +1,17 @@
 import React, { useState } from "react";
-import moment from "moment";
 import { Button } from "@/components/ui/button";
 import { Pause, Play, RotateCcw, Pencil } from "lucide-react";
 import type { PrismaElement } from "@/lib/types";
 import { useTimer } from "@/lib/hooks/useTimer";
 import { TimerEditModal } from "@/components/overlay/editor/TimerEditModal";
+import { DEFAULT_DURATION_FORMAT, formatDuration } from "@/lib/duration";
 
 interface TimerControlProps {
   element: PrismaElement;
   handleTimerToggle: (elementId: string) => void;
   handleTimerReset: (elementId: string) => void;
-  handleTimerUpdate: (
-    elementId: string,
-    update: { countDown: boolean }
-  ) => void;
   handleTimerAddTime: (elementId: string, timeToAdd: number) => void;
 }
-
-const formatTime = (milliseconds: number, format: string) => {
-  if (milliseconds < 0) milliseconds = 0;
-  const durationMoment = moment.duration(milliseconds);
-  return moment.utc(durationMoment.asMilliseconds()).format(format);
-};
 
 // Declared at module level: a component defined inside another component's render is a new
 // type on every render, so React would remount it (and reset its timer) on each update.
@@ -32,21 +22,18 @@ const TimerDisplay: React.FC<{ timer: PrismaElement["timer"]; format: string }> 
   const time = useTimer({
     startedAt: timer?.startedAt ? new Date(timer.startedAt) : null,
     pausedAt: timer?.pausedAt ? new Date(timer.pausedAt) : null,
-    duration: timer?.duration ?? null,
-    countDown: timer?.countDown ?? false,
   });
-  return <>{formatTime(timer ? time : 0, format)}</>;
+  return <>{formatDuration(timer ? time : 0, format)}</>;
 };
 
 const TimerControl: React.FC<TimerControlProps> = ({
   element,
   handleTimerToggle,
   handleTimerReset,
-  handleTimerUpdate,
   handleTimerAddTime,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const format = (element.style as { format?: string })?.format || "HH:mm:ss";
+  const format = (element.style as { format?: string })?.format || DEFAULT_DURATION_FORMAT;
 
   return (
     <div className="flex items-center space-x-2">
@@ -85,7 +72,6 @@ const TimerControl: React.FC<TimerControlProps> = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         element={element}
-        onUpdate={handleTimerUpdate}
         onAddTime={handleTimerAddTime}
       />
     </div>

@@ -44,7 +44,7 @@ model Image {
 enum ShareRole {
   // Sees the overlay and its live state.
   VIEWER
-  // Also runs it: counters, timers, titles, images and bingo cards.
+  // Also runs it: counters, timers, countdowns, titles, images and bingo cards.
   CONTROLLER
   // Also changes its design: elements, layout and styles.
   EDITOR
@@ -129,6 +129,7 @@ model Element {
   title     Title?
   counter   Counter?
   timer     Timer?
+  countdown Countdown?
   image     ImageElement?
   bingo     Bingo?
 
@@ -149,6 +150,7 @@ enum ElementType {
   IMAGE
   GROUP
   BINGO
+  COUNTDOWN
 }
 
 model Title {
@@ -165,14 +167,35 @@ model Counter {
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
+// Counts up. Counting down is what a Countdown is for.
 model Timer {
   id        String    @id @default(cuid())
   startedAt DateTime?
   pausedAt  DateTime?
-  duration  Int?
-  countDown Boolean   @default(false)
   elementId String    @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+enum CountdownMode {
+  // Counts down a length of time; it is started, paused and reset like a timer.
+  DURATION
+  // Counts down to a point in time, and always runs.
+  TARGET
+}
+
+model Countdown {
+  id        String        @id @default(cuid())
+  mode      CountdownMode @default(DURATION)
+  // The length of time it starts from and resets to, in milliseconds.
+  duration  Int           @default(300000)
+  // The time left while it is paused, in milliseconds.
+  remaining Int           @default(300000)
+  // When it reaches zero while it is running. Null while paused.
+  endsAt    DateTime?
+  // When it reaches zero in TARGET mode.
+  targetAt  DateTime?
+  elementId String        @unique
+  element   Element       @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model ImageElement {

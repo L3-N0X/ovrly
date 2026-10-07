@@ -32,6 +32,7 @@ export const ELEMENT_TYPE_NAMES: Record<string, string> = {
   TITLE: "Title",
   COUNTER: "Counter",
   TIMER: "Timer",
+  COUNTDOWN: "Countdown",
   IMAGE: "Image",
   BINGO: "Bingo",
   CONTAINER: "Container",

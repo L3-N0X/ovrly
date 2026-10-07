@@ -9,7 +9,7 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     counter?: { value: number } | null;
     title?: { text: string } | null;
     image?: { src: string } | null;
-    timer?: { duration: number | null; countDown: boolean } | null;
+    countdown?: { mode: string; duration: number; targetAt: string | null } | null;
     children?: ExportElement[];
   };
 
@@ -34,10 +34,12 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     if (element.image) {
       newElement.image = { src: element.image.src };
     }
-    if (element.timer) {
-      newElement.timer = {
-        duration: element.timer.duration,
-        countDown: element.timer.countDown,
+    // Timers are exported without their state; they start out stopped.
+    if (element.countdown) {
+      newElement.countdown = {
+        mode: element.countdown.mode,
+        duration: element.countdown.duration,
+        targetAt: element.countdown.targetAt,
       };
     }
     if (children.length > 0) {

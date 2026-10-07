@@ -66,6 +66,7 @@ export const ElementStyleEditor = ({
     case ElementTypeEnum.COUNTER:
       return <CounterStyleEditor {...editorProps} />;
     case ElementTypeEnum.TIMER:
+    case ElementTypeEnum.COUNTDOWN:
       return <TimerStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
       return <ImageStyleEditor {...editorProps} />;

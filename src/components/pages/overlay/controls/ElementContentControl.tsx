@@ -1,7 +1,9 @@
 import React from "react";
 import { ElementTypeEnum, type PrismaElement } from "@/lib/types";
 import type { BingoDataUpdate } from "@/lib/bingo";
+import type { CountdownAction } from "@/lib/countdown";
 import TimerControl from "./TimerControl";
+import CountdownControl from "./CountdownControl";
 import CounterControl from "./CounterControl";
 import TitleControl from "./TitleControl";
 import ImageControl from "./ImageControl";
@@ -16,8 +18,8 @@ export interface ContentHandlers {
   onBingoDataChange: (elementId: string, data: BingoDataUpdate) => void;
   onTimerToggle: (elementId: string) => void;
   onTimerReset: (elementId: string) => void;
-  onTimerUpdate: (elementId: string, update: { countDown: boolean }) => void;
   onTimerAddTime: (elementId: string, timeToAdd: number) => void;
+  onCountdownAction: (elementId: string, action: CountdownAction) => void;
 }
 
 export const ElementContentControl: React.FC<{
@@ -31,10 +33,11 @@ export const ElementContentControl: React.FC<{
           element={element}
           handleTimerToggle={handlers.onTimerToggle}
           handleTimerReset={handlers.onTimerReset}
-          handleTimerUpdate={handlers.onTimerUpdate}
           handleTimerAddTime={handlers.onTimerAddTime}
         />
       );
+    case ElementTypeEnum.COUNTDOWN:
+      return <CountdownControl element={element} onAction={handlers.onCountdownAction} />;
     case ElementTypeEnum.COUNTER:
       return (
         <CounterControl

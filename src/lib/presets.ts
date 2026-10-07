@@ -3,6 +3,7 @@ import {
   CanvasModeEnum,
   DEFAULT_CANVAS_HEIGHT,
   DEFAULT_CANVAS_WIDTH,
+  ElementTypeEnum,
   type CanvasMode,
   type ElementStyle,
   type ElementType,
@@ -18,7 +19,7 @@ export interface PresetElement {
   style?: ElementStyle;
   title?: { text: string };
   counter?: { value: number };
-  timer?: { duration?: number | null; countDown?: boolean };
+  countdown?: Partial<Pick<NonNullable<PrismaElement["countdown"]>, "mode" | "duration">>;
   image?: { src: string };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
   children?: PresetElement[];
@@ -35,6 +36,9 @@ export interface OverlayPreset {
   height?: number;
   canvasMode?: CanvasMode;
 }
+
+// What a new countdown counts down from, as on the server (prisma/schema.prisma).
+const DEFAULT_COUNTDOWN_MS = 5 * 60 * 1000;
 
 export const fetchPresets = async (): Promise<OverlayPreset[]> => {
   const response = await fetch("/presets/overlay-presets.json");
@@ -59,15 +63,19 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
         style: seed.style ?? {},
         title: seed.title ? { id, ...seed.title } : null,
         counter: seed.counter ? { id, ...seed.counter } : null,
-        timer: seed.timer
-          ? {
-              id,
-              startedAt: null,
-              pausedAt: null,
-              duration: seed.timer.duration ?? null,
-              countDown: seed.timer.countDown ?? false,
-            }
-          : null,
+        // Timers and countdowns start out stopped, so their seeds only say how long.
+        timer: seed.type === ElementTypeEnum.TIMER ? { id, startedAt: null, pausedAt: null } : null,
+        countdown:
+          seed.type === ElementTypeEnum.COUNTDOWN
+            ? {
+                id,
+                mode: seed.countdown?.mode ?? "DURATION",
+                duration: seed.countdown?.duration ?? DEFAULT_COUNTDOWN_MS,
+                remaining: seed.countdown?.duration ?? DEFAULT_COUNTDOWN_MS,
+                endsAt: null,
+                targetAt: null,
+              }
+            : null,
         image: seed.image ? { id, ...seed.image } : null,
         bingo: seed.bingo
           ? { id, ...normalizeBingoData(seed.bingo as PrismaElement["bingo"]) }

@@ -12,10 +12,24 @@ import { lockElement, lockOverlay } from "../services/locks";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { applyTimerAction, parseTimerActions, type TimerState } from "../lib/timer";
+import {
+  applyCountdownAction,
+  parseCountdownActions,
+  type CountdownState,
+} from "../lib/countdown";
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
-const ELEMENT_TYPES = ["TITLE", "COUNTER", "TIMER", "IMAGE", "BINGO", "CONTAINER", "GROUP"];
+const ELEMENT_TYPES = [
+  "TITLE",
+  "COUNTER",
+  "TIMER",
+  "COUNTDOWN",
+  "IMAGE",
+  "BINGO",
+  "CONTAINER",
+  "GROUP",
+];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
 const BINGO_CONTENT_KEYS = ["fields", "checked"];
@@ -106,6 +120,8 @@ export const handleElementsRoutes = async (
         elementCreateData.counter = { create: { value: 0 } };
       } else if (type === "TIMER") {
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
+      } else if (type === "COUNTDOWN") {
+        elementCreateData.countdown = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "BINGO") {
@@ -330,8 +346,6 @@ export const handleElementsRoutes = async (
             src?: string;
             startedAt?: string | null;
             pausedAt?: string | null;
-            duration?: number;
-            countDown?: boolean;
             actions?: unknown;
             [key: string]: unknown;
           };
@@ -339,9 +353,9 @@ export const handleElementsRoutes = async (
           parentId?: string | null;
         };
 
-        // Everything that builds on the stored state (style merge, counter, timer, bingo) is
-        // read and written under the element's row lock, so concurrent changes to the same
-        // element are applied one after another instead of overwriting each other.
+        // Everything that builds on the stored state (style merge, counter, timer, countdown,
+        // bingo) is read and written under the element's row lock, so concurrent changes to the
+        // same element are applied one after another instead of overwriting each other.
         const result = await prisma.$transaction(async (tx): Promise<{ error: Response } | { ok: true }> => {
           if (typeof parentId === "string") {
             // Concurrent moves are checked against each other's result, otherwise two moves
@@ -351,7 +365,7 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true },
+            include: { bingo: true, timer: true, countdown: true },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -409,7 +423,7 @@ export const handleElementsRoutes = async (
               elementUpdateData.image = { update: { src: data.src } };
             }
             if (element.type === "TIMER") {
-              const { startedAt, pausedAt, duration, countDown, actions } = data;
+              const { startedAt, pausedAt, actions } = data;
               const timerUpdateData: Prisma.TimerUpdateInput = {};
               if (actions !== undefined) {
                 const parsed = parseTimerActions(actions);
@@ -425,8 +439,6 @@ export const handleElementsRoutes = async (
                 Object.assign(timerUpdateData, {
                   startedAt: next.startedAt,
                   pausedAt: next.pausedAt,
-                  duration: next.duration,
-                  countDown: next.countDown,
                 });
               }
               if (startedAt !== undefined) {
@@ -435,14 +447,23 @@ export const handleElementsRoutes = async (
               if (pausedAt !== undefined) {
                 timerUpdateData.pausedAt = pausedAt ? new Date(pausedAt) : null;
               }
-              if (duration !== undefined) {
-                timerUpdateData.duration = duration;
-              }
-              if (countDown !== undefined) {
-                timerUpdateData.countDown = countDown;
-              }
               elementUpdateData.timer = {
                 update: timerUpdateData,
+              };
+            }
+            if (element.type === "COUNTDOWN") {
+              const parsed = parseCountdownActions(data.actions);
+              if (!parsed || !current.countdown) {
+                return { error: json({ error: "Invalid countdown actions" }, 400) };
+              }
+              // Applied with the server's clock, so it doesn't matter whose clock is off.
+              const now = Date.now();
+              const { mode, duration, remaining, endsAt, targetAt } = parsed.reduce(
+                (countdown, action) => applyCountdownAction(countdown, action, now),
+                current.countdown as CountdownState
+              );
+              elementUpdateData.countdown = {
+                update: { mode, duration, remaining, endsAt, targetAt },
               };
             }
             if (element.type === "BINGO") {

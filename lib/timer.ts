@@ -1,22 +1,20 @@
 // Timer changes are sent as actions ("pause", "add a minute") instead of the state a client
 // computed from what it saw, so two people using the same timer at once both get what they
 // clicked: the server applies each action to the state it actually has. Mirrored by
-// src/lib/timer.ts for the optimistic update in the editor.
+// src/lib/timer.ts for the optimistic update in the editor. Timers count up; counting down
+// is lib/countdown.ts.
 
 export interface TimerState {
   startedAt: Date | null;
   // The elapsed time accumulated before `startedAt`, stored as a timestamp relative to the epoch.
   pausedAt: Date | null;
-  duration: number | null;
-  countDown: boolean;
 }
 
 export type TimerAction =
   | { type: "start" }
   | { type: "pause" }
   | { type: "reset" }
-  | { type: "addTime"; ms: number }
-  | { type: "setCountDown"; countDown: boolean };
+  | { type: "addTime"; ms: number };
 
 // More than enough for any burst of clicks that gets coalesced into one request.
 const MAX_ACTIONS = 100;
@@ -42,33 +40,10 @@ export const applyTimerAction = (
         ? { ...timer, startedAt: null, pausedAt: new Date(elapsedMs(timer, now)) }
         : timer;
     case "reset":
-      return { startedAt: null, pausedAt: new Date(0), duration: 0, countDown: false };
+      return { startedAt: null, pausedAt: new Date(0) };
     case "addTime": {
-      if (timer.countDown) {
-        return { ...timer, duration: Math.max(0, (timer.duration ?? 0) + action.ms) };
-      }
       const paused = timer.pausedAt ? timer.pausedAt.getTime() : 0;
       return { ...timer, pausedAt: new Date(Math.max(0, paused + action.ms)) };
-    }
-    case "setCountDown": {
-      if (action.countDown === timer.countDown) return timer;
-      if (action.countDown) {
-        // Count down from whatever the timer currently shows.
-        return {
-          startedAt: null,
-          pausedAt: new Date(0),
-          duration: elapsedMs(timer, now),
-          countDown: true,
-        };
-      }
-      // Count up from whatever time was left.
-      const remaining = (timer.duration ?? 0) - elapsedMs(timer, now);
-      return {
-        startedAt: null,
-        pausedAt: new Date(Math.max(0, remaining)),
-        duration: 0,
-        countDown: false,
-      };
     }
   }
 };
@@ -84,10 +59,6 @@ const parseTimerAction = (value: unknown): TimerAction | null => {
     case "addTime":
       return Number.isInteger(action.ms) && Math.abs(action.ms as number) <= MAX_MS
         ? { type: "addTime", ms: action.ms as number }
-        : null;
-    case "setCountDown":
-      return typeof action.countDown === "boolean"
-        ? { type: "setCountDown", countDown: action.countDown }
         : null;
     default:
       return null;

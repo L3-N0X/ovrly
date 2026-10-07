@@ -4,6 +4,7 @@ import type { OverlayChange, PrismaElement, PrismaOverlay } from "@/lib/types";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 import { applyTimerAction, type TimerAction } from "@/lib/timer";
+import { applyCountdownAction, type CountdownAction } from "@/lib/countdown";
 import { ApiError, sharingApi, type OverlayAccess } from "@/lib/sharing";
 
 const DEBOUNCE_MS = 500;
@@ -122,11 +123,12 @@ const combineCounter = (queued: object, next: object): object => {
   return { data: { value: (q.value ?? 0) + n.increment } };
 };
 
-type TimerBody = { data: { actions: TimerAction[] } };
+type ActionsBody = { data: { actions: (TimerAction | CountdownAction)[] } };
 
-const combineTimer = (queued: object, next: object): object => ({
+// Timer and countdown actions waiting to be sent go out together, in the order they were made.
+const combineActions = (queued: object, next: object): object => ({
   data: {
-    actions: [...(queued as TimerBody).data.actions, ...(next as TimerBody).data.actions],
+    actions: [...(queued as ActionsBody).data.actions, ...(next as ActionsBody).data.actions],
   },
 });
 
@@ -693,7 +695,7 @@ export const useOverlayData = () => {
         (el) => {
           if (el.timer) el.timer = applyTimerAction(el.timer, action, now);
         },
-        { combine: combineTimer }
+        { combine: combineActions }
       );
     },
     [updateElement]
@@ -715,15 +717,27 @@ export const useOverlayData = () => {
     [timerAction]
   );
 
-  const handleTimerUpdate = useCallback(
-    (elementId: string, update: { countDown: boolean }) =>
-      timerAction(elementId, { type: "setCountDown", countDown: update.countDown }),
-    [timerAction]
-  );
-
   const handleTimerAddTime = useCallback(
     (elementId: string, ms: number) => timerAction(elementId, { type: "addTime", ms }),
     [timerAction]
+  );
+
+  // Countdowns work like timers: the server applies each action to the countdown as it is then.
+  const handleCountdownAction = useCallback(
+    (elementId: string, action: CountdownAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the countdown.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "countdown",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.countdown) el.countdown = applyCountdownAction(el.countdown, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
   );
 
   const handleDeleteOverlay = async () => {
@@ -770,8 +784,8 @@ export const useOverlayData = () => {
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
-    handleTimerUpdate,
     handleTimerAddTime,
+    handleCountdownAction,
     handleDeleteOverlay,
   };
 };

@@ -40,8 +40,8 @@ const OverlayPage: React.FC = () => {
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
-    handleTimerUpdate,
     handleTimerAddTime,
+    handleCountdownAction,
     handleDeleteOverlay,
   } = useOverlayData();
   const navigate = useNavigate();
@@ -65,8 +65,8 @@ const OverlayPage: React.FC = () => {
       onBingoDataChange: handleBingoDataChange,
       onTimerToggle: handleTimerToggle,
       onTimerReset: handleTimerReset,
-      onTimerUpdate: handleTimerUpdate,
       onTimerAddTime: handleTimerAddTime,
+      onCountdownAction: handleCountdownAction,
     }),
     [
       handleCounterChange,
@@ -76,8 +76,8 @@ const OverlayPage: React.FC = () => {
       handleBingoDataChange,
       handleTimerToggle,
       handleTimerReset,
-      handleTimerUpdate,
       handleTimerAddTime,
+      handleCountdownAction,
     ]
   );
 

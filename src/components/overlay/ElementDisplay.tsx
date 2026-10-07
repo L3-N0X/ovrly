@@ -4,6 +4,7 @@ import Title from "./Title";
 import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
+import Countdown from "./Countdown";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
@@ -15,7 +16,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer } = element;
+  const { type, style, title, counter, timer, countdown } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -32,7 +33,15 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         ) : null;
       case "TIMER":
         return timer ? (
-          <Timer startedAt={timer.startedAt ? new Date(timer.startedAt) : null} pausedAt={timer.pausedAt ? new Date(timer.pausedAt) : null} duration={timer.duration} countDown={timer.countDown} style={(style || {}) as TimerStyle} />
+          <Timer
+            startedAt={timer.startedAt ? new Date(timer.startedAt) : null}
+            pausedAt={timer.pausedAt ? new Date(timer.pausedAt) : null}
+            style={(style || {}) as TimerStyle}
+          />
+        ) : null;
+      case "COUNTDOWN":
+        return countdown ? (
+          <Countdown countdown={countdown} style={(style || {}) as TimerStyle} />
         ) : null;
       case "CONTAINER":
         return (

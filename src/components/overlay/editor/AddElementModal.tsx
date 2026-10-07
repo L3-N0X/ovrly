@@ -16,6 +16,7 @@ import {
   Frame,
   Grid3x3,
   Hash,
+  Hourglass,
   Image,
   Loader2,
   Plus,
@@ -93,11 +94,22 @@ const CONTENT_OPTIONS: ElementOption[] = [
   {
     type: ElementTypeEnum.TIMER,
     label: "Timer",
-    description: "A stopwatch or countdown you start, pause and reset.",
+    description: "A stopwatch that counts up. You start, pause and reset it.",
     icon: Timer,
     preview: (
       <Stage>
         <span className="text-2xl font-bold tabular-nums">01:23:45</span>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.COUNTDOWN,
+    label: "Countdown",
+    description: "Counts down from a length of time, or to a date and time.",
+    icon: Hourglass,
+    preview: (
+      <Stage>
+        <span className="text-2xl font-bold tabular-nums">00:04:59</span>
       </Stage>
     ),
   },

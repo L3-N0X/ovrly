@@ -8,6 +8,7 @@ import { Info } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import { DEFAULT_DURATION_FORMAT } from "@/lib/duration";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
@@ -43,8 +44,10 @@ export const TimerStyleEditor: React.FC<{
               <div className="space-y-2 p-4 text-sm">
                 <p className="font-semibold">Format hint for entering timer display:</p>
                 <p>
-                  Use special placeholders for your timer: <strong>H</strong> for hours,{" "}
-                  <strong>m</strong> for minutes, <strong>s</strong> for seconds.
+                  Use special placeholders for your timer: <strong>D</strong> for days,{" "}
+                  <strong>H</strong> for hours, <strong>m</strong> for minutes,{" "}
+                  <strong>s</strong> for seconds. The largest one also counts everything above
+                  it, so <strong>HH:mm:ss</strong> shows 50:00:00 for two days and two hours.
                 </p>
                 <p>
                   Example: <strong>H:mm:ss</strong> → 1:05:09
@@ -58,6 +61,9 @@ export const TimerStyleEditor: React.FC<{
                     <strong>H:mm</strong> → 3:22 (hours:minutes)
                   </li>
                   <li>
+                    <strong>D[d] HH:mm</strong> → 3d 04:20 (days, then hours:minutes)
+                  </li>
+                  <li>
                     <strong>H[h] mm[min] ss[s]</strong> → 2h 01min 15s (text inside brackets will be
                     shown as written)
                   </li>
@@ -67,7 +73,7 @@ export const TimerStyleEditor: React.FC<{
           </Popover>
         </div>
         <Input
-          value={style?.format || "HH:mm:ss"}
+          value={style?.format || DEFAULT_DURATION_FORMAT}
           onChange={(e) => handleStyleChange({ format: e.target.value })}
           className="h-10 w-full"
         />

@@ -18,7 +18,7 @@ Real users sign in with Twitch only (usernames are used for sharing, so there is
 
 ## Project summary
 
-Web-based overlay editor for live streaming: users build overlays from elements (titles, counters, timers, images, bingo, groups) and share them with others by Twitch name.
+Web-based overlay editor for live streaming: users build overlays from elements (titles, counters, timers, countdowns, images, bingo, groups) and share them with others by Twitch name.
 
 - **Frontend:** React, TypeScript, Vite 8, Tailwind CSS (`src/`).
 - **Backend:** Bun `Bun.serve` with plain handler functions in `routes/`, WebSockets for live updates (`server.ts`, `auth.ts`, `routes/`, `middleware/`, `lib/`, `services/`, `types/`).

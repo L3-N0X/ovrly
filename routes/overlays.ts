@@ -19,6 +19,7 @@ import {
 } from "../services/overlay-query";
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
+import { countdownSeed } from "../lib/countdown";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
 
 // The canvas size bounds, shared with the editor so both clamp the same values.
@@ -58,10 +59,12 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     if (element.counter) {
       data.counter = { create: { value: element.counter.value } };
     }
-    if (element.timer) {
-      data.timer = {
-        create: { duration: element.timer.duration, countDown: element.timer.countDown },
-      };
+    // Timers and countdowns start out stopped; only a countdown's settings are copied.
+    if (element.type === "TIMER") {
+      data.timer = { create: {} };
+    }
+    if (element.type === "COUNTDOWN") {
+      data.countdown = { create: countdownSeed(element.countdown) };
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };

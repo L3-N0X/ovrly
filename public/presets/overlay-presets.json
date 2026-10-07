@@ -3,7 +3,7 @@
     {
       "id": "timer",
       "name": "Timer",
-      "description": "A stopwatch or countdown you start and pause while live.",
+      "description": "A stopwatch that counts up. You start and pause it while live.",
       "width": 1920,
       "height": 1080,
       "canvasMode": "FREE",
@@ -20,10 +20,58 @@
             "radius": 20,
             "x": 48,
             "y": 48
-          },
-          "timer": {
-            "countDown": false
           }
+        }
+      ]
+    },
+    {
+      "id": "countdown",
+      "name": "Countdown",
+      "description": "A “Starting soon” screen counting down to your stream, or from a few minutes.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Countdown column",
+          "type": "CONTAINER",
+          "style": {
+            "flexDirection": "column",
+            "gap": 16,
+            "alignItems": "center",
+            "x": 660,
+            "y": 380
+          },
+          "children": [
+            {
+              "name": "Label",
+              "type": "TITLE",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 64
+              },
+              "title": {
+                "text": "Starting soon"
+              }
+            },
+            {
+              "name": "Countdown",
+              "type": "COUNTDOWN",
+              "style": {
+                "fontFamily": "Roboto Mono",
+                "fontSize": 128,
+                "backgroundColor": "#000000b3",
+                "padding": 24,
+                "radius": 20,
+                "format": "mm:ss"
+              },
+              "countdown": {
+                "mode": "DURATION",
+                "duration": 300000
+              }
+            }
+          ]
         }
       ]
     },

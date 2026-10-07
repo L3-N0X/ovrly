@@ -3,11 +3,10 @@ import { useState, useEffect } from "react";
 interface UseTimerProps {
   startedAt: Date | null;
   pausedAt: Date | null;
-  duration: number | null;
-  countDown: boolean | null;
 }
 
-export const useTimer = ({ startedAt, pausedAt, duration, countDown }: UseTimerProps): number => {
+// The elapsed time of a timer, kept up to date while it runs.
+export const useTimer = ({ startedAt, pausedAt }: UseTimerProps): number => {
   const [displayTime, setDisplayTime] = useState(0);
   // Callers create new Date objects on every render; depending on the timestamps instead
   // keeps the interval from being torn down and restarted each time the parent re-renders.
@@ -15,43 +14,19 @@ export const useTimer = ({ startedAt, pausedAt, duration, countDown }: UseTimerP
   const pausedAtMs = pausedAt ? pausedAt.getTime() : null;
 
   useEffect(() => {
-    const getPausedDuration = () => pausedAtMs ?? 0;
-
-    let intervalId: number | undefined;
-
     const calculateAndUpdate = () => {
-      let newDisplayTime;
-      if (startedAtMs !== null) {
-        const elapsed = Date.now() - startedAtMs;
-        if (countDown) {
-          newDisplayTime = (duration || 0) - (getPausedDuration() + elapsed);
-        } else {
-          newDisplayTime = getPausedDuration() + elapsed;
-        }
-      } else {
-        if (countDown) {
-          newDisplayTime = (duration || 0) - getPausedDuration();
-        } else {
-          newDisplayTime = getPausedDuration();
-        }
-      }
-      setDisplayTime(newDisplayTime);
+      const paused = pausedAtMs ?? 0;
+      setDisplayTime(startedAtMs !== null ? paused + Date.now() - startedAtMs : paused);
     };
 
     calculateAndUpdate(); // Initial calculation
 
-    if (startedAtMs !== null) {
-      // Ticks more often than once per second so the display doesn't skip a second when
-      // the interval drifts.
-      intervalId = window.setInterval(calculateAndUpdate, 250);
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [startedAtMs, pausedAtMs, duration, countDown]);
+    if (startedAtMs === null) return;
+    // Ticks more often than once per second so the display doesn't skip a second when
+    // the interval drifts.
+    const intervalId = window.setInterval(calculateAndUpdate, 250);
+    return () => clearInterval(intervalId);
+  }, [startedAtMs, pausedAtMs]);
 
   return displayTime;
 };

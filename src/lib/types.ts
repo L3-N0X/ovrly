@@ -5,6 +5,7 @@ export const ElementTypeEnum = {
   TITLE: "TITLE",
   CONTAINER: "CONTAINER",
   TIMER: "TIMER",
+  COUNTDOWN: "COUNTDOWN",
   IMAGE: "IMAGE",
   BINGO: "BINGO",
   GROUP: "GROUP",
@@ -20,10 +21,13 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.TITLE ||
   type === ElementTypeEnum.COUNTER ||
   type === ElementTypeEnum.TIMER ||
+  type === ElementTypeEnum.COUNTDOWN ||
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.BINGO;
 
 export type ElementType = (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
+
+export type CountdownMode = "DURATION" | "TARGET";
 
 // How the elements that sit directly on the canvas are placed. The canvas itself is the
 // overlay's root group: in AUTO mode its children are laid out by the global arrangement (a
@@ -84,7 +88,7 @@ export interface CounterStyle extends BaseElementStyle {
   radius?: number;
 }
 
-// Specific style for a Timer element
+// Specific style for a Timer or Countdown element
 export interface TimerStyle extends BaseElementStyle {
   backgroundColor?: string;
   padding?: number;
@@ -200,7 +204,18 @@ export interface PrismaElement {
   style: ElementStyle | null;
   title?: { id: string; text: string } | null;
   counter?: { id: string; value: number } | null;
-  timer?: { id: string; startedAt: string | null; pausedAt: string | null; duration: number | null; countDown: boolean; } | null;
+  timer?: { id: string; startedAt: string | null; pausedAt: string | null } | null;
+  countdown?: {
+    id: string;
+    // DURATION counts down `duration` (started, paused and reset like a timer); TARGET counts
+    // down to `targetAt` and always runs.
+    mode: CountdownMode;
+    duration: number;
+    // The time left while paused; while running, it ends at `endsAt`.
+    remaining: number;
+    endsAt: string | null;
+    targetAt: string | null;
+  } | null;
   image?: { id: string; src: string } | null;
   bingo?: {
     id: string;
