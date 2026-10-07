@@ -27,6 +27,7 @@ Web-based overlay editor for live streaming: users build overlays from elements 
 ### Commands
 
 - `bun install`, then `bun run dev` (frontend `http://localhost:5173`, backend `http://localhost:3000`)
+- `bun run dev` restarts the backend itself: `scripts/dev-server.ts` watches the paths in `tsconfig.server.json` plus `prisma/schema.prisma`, regenerates the Prisma client when the schema changes, then restarts a fresh `server.ts`. Run migrations yourself (`bunx prisma migrate dev`) — the watcher never touches the database. `bun run dev:server` runs the backend on its own; both it and `server.ts` honour `PORT`.
 - `bun run build` (typechecks all three tsconfig projects, then Vite build), `bun run typecheck`, `bun run lint`
 - `docker compose up --build` reproduces a deployment
 

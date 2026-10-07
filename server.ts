@@ -61,7 +61,9 @@ const HEARTBEAT_MESSAGE = JSON.stringify({ type: "heartbeat" });
 const sockets = new Set<ServerWebSocket<WebSocketData>>();
 
 const server = Bun.serve<WebSocketData>({
-  port: 3000,
+  // Overridable so a second instance can run next to one on 3000 (dev tooling
+  // uses this); the documented deployments all rely on the default.
+  port: Number(process.env.PORT ?? 3000),
   // The multipart envelope adds a little on top of the file itself.
   maxRequestBodySize: MAX_UPLOAD_BYTES + 1024 * 1024,
   async fetch(req, server) {

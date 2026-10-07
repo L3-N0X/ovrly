@@ -147,7 +147,10 @@ You need to set the following environment variables in a `.env` file in the root
     bun run dev
     ```
 
-    This will start the frontend at `http://localhost:5173` and the backend at `http://localhost:3000`.
+    This will start the frontend at `http://localhost:5173` and the backend at
+    `http://localhost:3000`. The backend hot reloads: save any backend file and it
+    is restarted automatically, and a change to `prisma/schema.prisma` regenerates
+    the Prisma client before the restart.
 
 5. Apply database migrations:
 
@@ -155,9 +158,9 @@ You need to set the following environment variables in a `.env` file in the root
     bunx prisma migrate deploy
     ```
 
-    The generated client is not committed to the repository. If you pull a change
-    that touches `prisma/schema.prisma`, re-run `bunx prisma generate` — a client
-    built from an older schema will not know about new models or relations.
+    The generated client is not committed to the repository. It is regenerated on
+    install and whenever `prisma/schema.prisma` changes in dev, but migrations
+    themselves are yours to apply.
 
 ### Type Checking
 
