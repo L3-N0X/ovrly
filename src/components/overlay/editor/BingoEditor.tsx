@@ -1,15 +1,13 @@
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
+import { ColorField } from "@/components/ui/color-picker";
+import { NumberField } from "@/components/ui/number-field";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { type BingoStyle, type PrismaElement } from "@/lib/types";
 import React, { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ImageIcon, Loader2, Trash2 } from "lucide-react";
 import { uploadImage } from "@/lib/uploads";
 import { FontPicker } from "../../FontPicker";
-import { ColorPickerEditor } from "./ColorPickerEditor";
 import {
   Select,
   SelectContent,
@@ -18,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import {
   BINGO_BORDER_RADIUS_RANGE,
@@ -41,58 +38,31 @@ import {
   type BingoImageFit,
 } from "@/lib/bingo";
 
-/** Slider plus numeric input. The value is saved when the interaction ends. */
+/** A labelled number field. `unit` defaults to pixels. */
 const NumberControl: React.FC<{
   id: string;
   label: string;
   min: number;
   max: number;
   value: number;
+  unit?: string;
   onChange: (value: number) => void;
-}> = ({ id, label, min, max, value, onChange }) => {
-  const slider = useSliderValue(value, {
-    onCommit: (next) => {
-      if (next !== value) onChange(next);
-    },
-  });
-
-  const clamp = (raw: string): number | null => {
-    if (raw.trim() === "") return null;
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isNaN(parsed)) return null;
-    return Math.min(max, Math.max(min, parsed));
-  };
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="flex items-center gap-4">
-        <Slider
-          id={id}
-          value={[slider.value]}
-          onValueChange={([next]) => slider.onChange(next)}
-          onPointerDown={slider.onInteractionStart}
-          onValueCommit={slider.onInteractionEnd}
-          min={min}
-          max={max}
-          step={1}
-        />
-        <Input
-          aria-label={`${label} value`}
-          value={slider.value}
-          onChange={(event) => {
-            const next = clamp(event.target.value);
-            if (next !== null) {
-              slider.onChange(next);
-            }
-          }}
-          onBlur={() => slider.onInteractionEnd()}
-          className="h-10 w-20 shrink-0"
-        />
-      </div>
-    </div>
-  );
-};
+}> = ({ id, label, min, max, value, unit = "px", onChange }) => (
+  <div className="space-y-2">
+    <Label htmlFor={id}>{label}</Label>
+    <NumberField
+      id={id}
+      value={value}
+      min={min}
+      max={max}
+      unit={unit}
+      progress={unit === "%"}
+      onChange={(next) => {
+        if (next !== value) onChange(next);
+      }}
+    />
+  </div>
+);
 
 const ColorControl: React.FC<{
   id: string;
@@ -100,23 +70,10 @@ const ColorControl: React.FC<{
   value: string;
   onChange: (color: string) => void;
   onOpenChange: (open: boolean) => void;
-}> = ({ id, label, value, onChange, onOpenChange }) => (
+}> = ({ id, label, ...props }) => (
   <div className="space-y-2">
     <Label htmlFor={id}>{label}</Label>
-    <Popover onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          id={id}
-          type="button"
-          aria-label={label}
-          className="h-10 w-full rounded-md border"
-          style={{ backgroundColor: value }}
-        />
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <ColorPickerEditor value={value} onChange={onChange} />
-      </PopoverContent>
-    </Popover>
+    <ColorField id={id} {...props} />
   </div>
 );
 
@@ -404,7 +361,8 @@ export const BingoEditor: React.FC<{
             </div>
             <NumberControl
               id={id("background-image-opacity")}
-              label="Image Opacity (%)"
+              label="Image Opacity"
+              unit="%"
               min={BINGO_PERCENT_RANGE.min}
               max={BINGO_PERCENT_RANGE.max}
               value={style.backgroundImageOpacity}
@@ -493,22 +451,15 @@ export const BingoEditor: React.FC<{
       <Section title="Cross">
         <div className="space-y-2">
           <Label>Style</Label>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            className="h-10 w-full"
+          <SegmentedControl<BingoCrossStyle>
+            aria-label="Cross style"
             value={style.crossStyle}
-            onValueChange={(value) =>
-              value && handleStyleChange({ crossStyle: value as BingoCrossStyle })
-            }
-          >
-            <ToggleGroupItem value="brush" className="w-full">
-              Brush
-            </ToggleGroupItem>
-            <ToggleGroupItem value="line" className="w-full">
-              Line
-            </ToggleGroupItem>
-          </ToggleGroup>
+            onValueChange={(crossStyle) => handleStyleChange({ crossStyle })}
+            options={[
+              { value: "brush", label: "Brush" },
+              { value: "line", label: "Line" },
+            ]}
+          />
         </div>
         <ColorControl
           id={id("cross-color")}
@@ -519,7 +470,8 @@ export const BingoEditor: React.FC<{
         />
         <NumberControl
           id={id("cross-thickness")}
-          label="Cross Thickness (%)"
+          label="Cross Thickness"
+          unit="%"
           min={BINGO_CROSS_THICKNESS_RANGE.min}
           max={BINGO_CROSS_THICKNESS_RANGE.max}
           value={style.crossThickness}
@@ -527,7 +479,8 @@ export const BingoEditor: React.FC<{
         />
         <NumberControl
           id={id("cross-opacity")}
-          label="Cross Opacity (%)"
+          label="Cross Opacity"
+          unit="%"
           min={BINGO_PERCENT_RANGE.min}
           max={BINGO_PERCENT_RANGE.max}
           value={style.crossOpacity}

@@ -1,4 +1,6 @@
 import { Label } from "@/components/ui/label";
+import { NumberField } from "@/components/ui/number-field";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   Select,
   SelectContent,
@@ -6,8 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 import {
   AlignHorizontalJustifyCenter,
@@ -16,17 +16,27 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
-  Baseline,
 } from "lucide-react";
 import React from "react";
-import { Input } from "@/components/ui/input";
 import { handleValueChange } from "./helper";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
+import { alignOptions, isRowDirection } from "./alignment";
 
 interface GlobalStyleEditorProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
 }
+
+const OUTER_VERTICAL = [
+  { value: "flex-start", label: "Top", icon: AlignVerticalJustifyStart },
+  { value: "center", label: "Center", icon: AlignVerticalJustifyCenter },
+  { value: "flex-end", label: "Bottom", icon: AlignVerticalJustifyEnd },
+];
+
+const OUTER_HORIZONTAL = [
+  { value: "flex-start", label: "Left", icon: AlignHorizontalJustifyStart },
+  { value: "center", label: "Center", icon: AlignHorizontalJustifyCenter },
+  { value: "flex-end", label: "Right", icon: AlignHorizontalJustifyEnd },
+];
 
 export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
   overlay,
@@ -54,166 +64,76 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
     onOverlayChange(newOverlay);
   };
 
-  // Local slider state keeps dragging responsive; the style is committed on release.
-  const syncedGap = useSliderValue(
-    typeof overlay.globalStyle?.gap === "number" ? overlay.globalStyle.gap : 16
-  );
-  const syncedPadding = useSliderValue(
-    typeof overlay.globalStyle?.padding === "number" ? overlay.globalStyle.padding : 0
-  );
+  const globalStyle = overlay.globalStyle;
+  const row = isRowDirection(globalStyle?.flexDirection);
 
   return (
-    <div>
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Arrangement</Label>
+        <Select
+          value={globalStyle?.flexDirection || "column"}
+          onValueChange={(v) => updateGlobalStyle("flexDirection", v)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="column">Column</SelectItem>
+            <SelectItem value="row">Row</SelectItem>
+            <SelectItem value="column-reverse">Column Reversed</SelectItem>
+            <SelectItem value="row-reverse">Row Reversed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label>Arrangement</Label>
-          <Select
-            value={overlay.globalStyle?.flexDirection || "column"}
-            onValueChange={(v) => updateGlobalStyle("flexDirection", v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="column">Column</SelectItem>
-              <SelectItem value="row">Row</SelectItem>
-              <SelectItem value="column-reverse">Column Reversed</SelectItem>
-              <SelectItem value="row-reverse">Row Reversed</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label htmlFor="global-gap">Gap</Label>
+          <NumberField
+            id="global-gap"
+            value={typeof globalStyle?.gap === "number" ? globalStyle.gap : 16}
+            min={0}
+            unit="px"
+            onChange={(v) => updateGlobalStyle("gap", v)}
+          />
         </div>
         <div className="space-y-2">
-          <Label>Gap</Label>
-          <div className="flex gap-4">
-            <Slider
-              value={[syncedGap.value]}
-              onValueChange={(v) => {
-                const val = v[0];
-                syncedGap.onChange(val);
-                updateGlobalStyle("gap", val);
-              }}
-              onPointerDown={syncedGap.onInteractionStart}
-              onValueCommit={syncedGap.onInteractionEnd}
-              max={200}
-              min={0}
-            />
-            <Input
-              value={syncedGap.value}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  syncedGap.onChange(0);
-                  updateGlobalStyle("gap", 0);
-                  return;
-                }
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  syncedGap.onChange(val);
-                  updateGlobalStyle("gap", val);
-                }
-              }}
-              onBlur={() => syncedGap.onInteractionEnd()}
-              className="h-10 w-20"
-            />
-          </div>
+          <Label htmlFor="global-padding">Padding</Label>
+          <NumberField
+            id="global-padding"
+            value={typeof globalStyle?.padding === "number" ? globalStyle.padding : 0}
+            min={0}
+            unit="px"
+            onChange={(v) => updateGlobalStyle("padding", v)}
+          />
         </div>
-        <div className="space-y-2">
-          <Label>Container Alignment - Vertical</Label>
-          <ToggleGroup
-            type="single"
-            value={overlay.globalStyle?.outerAlignItems || "center"}
-            onValueChange={(v) => v && updateGlobalStyle("outerAlignItems", v)}
-            className="w-full"
-            variant="outline"
-          >
-            <ToggleGroupItem value="flex-start" className="w-full">
-              <AlignVerticalJustifyStart className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="center" className="w-full">
-              <AlignVerticalJustifyCenter className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="flex-end" className="w-full">
-              <AlignVerticalJustifyEnd className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+      </div>
+      <div className="space-y-2">
+        <Label>Position on Canvas</Label>
+        <div className="flex flex-wrap gap-2">
+          <SegmentedControl
+            aria-label="Horizontal position on the canvas"
+            value={globalStyle?.outerJustifyContent || "center"}
+            onValueChange={(v) => updateGlobalStyle("outerJustifyContent", v)}
+            options={OUTER_HORIZONTAL}
+          />
+          <SegmentedControl
+            aria-label="Vertical position on the canvas"
+            value={globalStyle?.outerAlignItems || "center"}
+            onValueChange={(v) => updateGlobalStyle("outerAlignItems", v)}
+            options={OUTER_VERTICAL}
+          />
         </div>
-        <div className="space-y-2">
-          <Label>Container Alignment - Horizontal</Label>
-          <ToggleGroup
-            type="single"
-            value={overlay.globalStyle?.outerJustifyContent || "center"}
-            onValueChange={(v) => v && updateGlobalStyle("outerJustifyContent", v)}
-            className="w-full"
-            variant="outline"
-          >
-            <ToggleGroupItem value="flex-start" className="w-full">
-              <AlignHorizontalJustifyStart className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="center" className="w-full">
-              <AlignHorizontalJustifyCenter className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="flex-end" className="w-full">
-              <AlignHorizontalJustifyEnd className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        <div className="space-y-2">
-          <Label>Padding</Label>
-          <div className="flex gap-4">
-            <Slider
-              value={[syncedPadding.value]}
-              onValueChange={(v) => {
-                const val = v[0];
-                syncedPadding.onChange(val);
-                updateGlobalStyle("padding", val);
-              }}
-              onPointerDown={syncedPadding.onInteractionStart}
-              onValueCommit={syncedPadding.onInteractionEnd}
-              max={300}
-              min={0}
-            />
-            <Input
-              value={syncedPadding.value}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  syncedPadding.onChange(0);
-                  updateGlobalStyle("padding", 0);
-                  return;
-                }
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  syncedPadding.onChange(val);
-                  updateGlobalStyle("padding", val);
-                }
-              }}
-              onBlur={() => syncedPadding.onInteractionEnd()}
-              className="h-10 w-20"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Element Alignment - Vertical</Label>
-          <ToggleGroup
-            type="single"
-            value={overlay.globalStyle?.innerAlignItems || "baseline"}
-            onValueChange={(v) => v && updateGlobalStyle("innerAlignItems", v)}
-            className="w-full"
-            variant="outline"
-          >
-            <ToggleGroupItem value="flex-start" className="w-full">
-              <AlignVerticalJustifyStart className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="center" className="w-full">
-              <AlignVerticalJustifyCenter className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="flex-end" className="w-full">
-              <AlignVerticalJustifyEnd className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="baseline" className="w-full">
-              <Baseline className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Element Alignment</Label>
+        <SegmentedControl
+          aria-label="Element alignment"
+          // Same fallbacks as the canvas.
+          value={globalStyle?.innerAlignItems || globalStyle?.alignItems || "center"}
+          onValueChange={(v) => updateGlobalStyle("innerAlignItems", v)}
+          options={alignOptions(row)}
+        />
       </div>
     </div>
   );

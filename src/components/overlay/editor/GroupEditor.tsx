@@ -1,8 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ColorField } from "@/components/ui/color-picker";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
+import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_GROUP_HEIGHT,
@@ -10,12 +8,9 @@ import {
   type GroupStyle,
   type PrismaElement,
 } from "@/lib/types";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import React from "react";
-import { ColorPickerEditor } from "./ColorPickerEditor";
 
-// Whole pixels only; an empty or invalid field leaves the value untouched. Without `min`,
-// negative values are allowed too.
+// Whole pixels only. Without `min`, negative values are allowed too.
 const PixelInput: React.FC<{
   id: string;
   label: string;
@@ -25,17 +20,7 @@ const PixelInput: React.FC<{
 }> = ({ id, label, value, min, onChange }) => (
   <div className="space-y-2">
     <Label htmlFor={id}>{label}</Label>
-    <Input
-      id={id}
-      type="number"
-      min={min}
-      value={value}
-      onChange={(e) => {
-        const val = parseInt(e.target.value, 10);
-        if (!isNaN(val)) onChange(min === undefined ? val : Math.max(min, val));
-      }}
-      className="h-10"
-    />
+    <NumberField id={id} value={value} min={min} unit="px" onChange={onChange} />
   </div>
 );
 
@@ -62,10 +47,6 @@ export const GroupEditor: React.FC<{
 }> = ({ element, onChange }) => {
   const style = (element.style || {}) as GroupStyle;
   const updateStyle = (patch: Partial<GroupStyle>) => onChange({ ...style, ...patch });
-
-  const radiusSlider = useSliderValue(typeof style.radius === "number" ? style.radius : 0, {
-    onCommit: (v) => updateStyle({ radius: v }),
-  });
 
   return (
     <div className="space-y-4">
@@ -102,52 +83,25 @@ export const GroupEditor: React.FC<{
           </span>
         </Label>
       </div>
-      <div className="space-y-2">
-        <Label>Background</Label>
-        <div className="flex gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: style.backgroundColor || "transparent" }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <ColorPickerEditor
-                value={style.backgroundColor || "#00000000"}
-                onChange={(c) => updateStyle({ backgroundColor: c })}
-              />
-            </PopoverContent>
-          </Popover>
-          {style.backgroundColor && (
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${element.id}-background`}>Background</Label>
+          <ColorField
+            id={`${element.id}-background`}
+            value={style.backgroundColor || ""}
+            defaultColor="#000000"
+            onChange={(backgroundColor) => updateStyle({ backgroundColor })}
             // Style updates are merged on the server, so an omitted key wouldn't clear it.
-            <Button variant="outline" onClick={() => updateStyle({ backgroundColor: "" })}>
-              Clear
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Corner Radius</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[radiusSlider.value]}
-            onValueChange={([v]) => radiusSlider.onChange(v)}
-            onPointerDown={radiusSlider.onInteractionStart}
-            onValueCommit={radiusSlider.onInteractionEnd}
-            max={200}
-            min={0}
-          />
-          <Input
-            value={radiusSlider.value}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              radiusSlider.onChange(isNaN(val) ? 0 : val);
-            }}
-            onBlur={() => radiusSlider.onInteractionEnd()}
-            className="h-10 w-20"
+            onClear={() => updateStyle({ backgroundColor: "" })}
           />
         </div>
+        <PixelInput
+          id={`${element.id}-radius`}
+          label="Corner Radius"
+          min={0}
+          value={typeof style.radius === "number" ? style.radius : 0}
+          onChange={(radius) => updateStyle({ radius })}
+        />
       </div>
     </div>
   );

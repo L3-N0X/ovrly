@@ -1,5 +1,6 @@
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberField } from "@/components/ui/number-field";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   Select,
   SelectContent,
@@ -7,25 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { type ContainerStyle, type PrismaElement } from "@/lib/types";
-import {
-  AlignHorizontalDistributeCenter,
-  AlignHorizontalJustifyCenter,
-  AlignHorizontalJustifyEnd,
-  AlignHorizontalJustifyStart,
-  AlignHorizontalSpaceAround,
-  AlignHorizontalSpaceBetween,
-  AlignVerticalJustifyCenter,
-  AlignVerticalJustifyEnd,
-  AlignVerticalJustifyStart,
-  Baseline,
-  StretchHorizontal,
-} from "lucide-react";
 import React from "react";
 import { handleValueChange } from "./helper";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
+import { alignOptions, isRowDirection, justifyOptions } from "./alignment";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
@@ -37,20 +23,10 @@ export const ContainerEditor: React.FC<{
   };
 
   const style = (element.style || {}) as ContainerStyle;
-  // Local slider state keeps dragging responsive; the style is committed on release
-  const gapSlider = useSliderValue(
-    typeof style?.gap === "number" ? style.gap : 0,
-    { onCommit: (v) => updateStyle("gap", v) }
-  );
-  const paddingXSlider = useSliderValue(
-    typeof style?.paddingX === "number" ? style.paddingX : 0,
-    { onCommit: (v) => updateStyle("paddingX", v) }
-  );
-  const paddingYSlider = useSliderValue(
-    typeof style?.paddingY === "number" ? style.paddingY : 0,
-    { onCommit: (v) => updateStyle("paddingY", v) }
-  );
-
+  const row = isRowDirection(style.flexDirection);
+  const id = (name: string) => `${element.id}-container-${name}`;
+  const pixels = (key: "gap" | "paddingX" | "paddingY") =>
+    typeof style[key] === "number" ? style[key] : 0;
 
   return (
     <div className="space-y-4">
@@ -71,159 +47,57 @@ export const ContainerEditor: React.FC<{
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-2">
-        <Label>Gap</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[gapSlider.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              gapSlider.onChange(val);
-            }}
-            onPointerDown={gapSlider.onInteractionStart}
-            onValueCommit={gapSlider.onInteractionEnd}
-            max={200}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor={id("gap")}>Gap</Label>
+          <NumberField
+            id={id("gap")}
+            value={pixels("gap")}
             min={0}
+            unit="px"
+            onChange={(v) => updateStyle("gap", v)}
           />
-          <Input
-            value={gapSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                gapSlider.onChange(0);
-                updateStyle("gap", 0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                gapSlider.onChange(val);
-                updateStyle("gap", val);
-              }
-            }}
-            onBlur={() => gapSlider.onInteractionEnd()}
-            className="h-10 w-20"
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("padding-x")}>Padding X</Label>
+          <NumberField
+            id={id("padding-x")}
+            value={pixels("paddingX")}
+            min={0}
+            unit="px"
+            onChange={(v) => updateStyle("paddingX", v)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("padding-y")}>Padding Y</Label>
+          <NumberField
+            id={id("padding-y")}
+            value={pixels("paddingY")}
+            min={0}
+            unit="px"
+            onChange={(v) => updateStyle("paddingY", v)}
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Padding X</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[paddingXSlider.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              paddingXSlider.onChange(val);
-            }}
-            onPointerDown={paddingXSlider.onInteractionStart}
-            onValueCommit={paddingXSlider.onInteractionEnd}
-            max={300}
-            min={0}
-          />
-          <Input
-            value={paddingXSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                paddingXSlider.onChange(0);
-                updateStyle("paddingX", 0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                paddingXSlider.onChange(val);
-                updateStyle("paddingX", val);
-              }
-            }}
-            onBlur={() => paddingXSlider.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Padding Y</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[paddingYSlider.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              paddingYSlider.onChange(val);
-            }}
-            onPointerDown={paddingYSlider.onInteractionStart}
-            onValueCommit={paddingYSlider.onInteractionEnd}
-            max={300}
-            min={0}
-          />
-          <Input
-            value={paddingYSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                paddingYSlider.onChange(0);
-                updateStyle("paddingY", 0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                paddingYSlider.onChange(val);
-                updateStyle("paddingY", val);
-              }
-            }}
-            onBlur={() => paddingYSlider.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Align Items</Label>
-        <ToggleGroup
-          type="single"
+        <Label htmlFor={id("align")}>Align Items</Label>
+        <SegmentedControl
+          id={id("align")}
+          aria-label="Align items"
           value={style?.alignItems || "stretch"}
-          onValueChange={(v) => v && updateStyle("alignItems", v)}
-          className="w-full"
-          variant="outline"
-        >
-          <ToggleGroupItem value="flex-start" className="w-full">
-            <AlignVerticalJustifyStart className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="center" className="w-full">
-            <AlignVerticalJustifyCenter className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="flex-end" className="w-full">
-            <AlignVerticalJustifyEnd className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="stretch" className="w-full">
-            <StretchHorizontal className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="baseline" className="w-full">
-            <Baseline className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          onValueChange={(v) => updateStyle("alignItems", v)}
+          options={alignOptions(row, { stretch: true })}
+        />
       </div>
       <div className="space-y-2">
-        <Label>Justify Content</Label>
-        <ToggleGroup
-          type="single"
+        <Label htmlFor={id("justify")}>Justify Content</Label>
+        <SegmentedControl
+          id={id("justify")}
+          aria-label="Justify content"
           value={style?.justifyContent || "flex-start"}
-          onValueChange={(v) => v && updateStyle("justifyContent", v)}
-          className="w-full"
-          variant="outline"
-        >
-          <ToggleGroupItem value="flex-start" className="w-full">
-            <AlignHorizontalJustifyStart className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="center" className="w-full">
-            <AlignHorizontalJustifyCenter className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="flex-end" className="w-full">
-            <AlignHorizontalJustifyEnd className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="space-between" className="w-full">
-            <AlignHorizontalSpaceBetween className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="space-around" className="w-full">
-            <AlignHorizontalSpaceAround className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="space-evenly" className="w-full">
-            <AlignHorizontalDistributeCenter className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          onValueChange={(v) => updateStyle("justifyContent", v)}
+          options={justifyOptions(row)}
+        />
       </div>
     </div>
   );

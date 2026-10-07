@@ -1,5 +1,5 @@
 import React from "react";
-import { Input } from "@/components/ui/input";
+import { NumberField } from "@/components/ui/number-field";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,48 +19,32 @@ import {
   type PrismaOverlay,
 } from "@/lib/types";
 
-// Whole pixels only. Sizes outside what OBS can show are clamped rather than rejected, so a
-// half-typed value doesn't fight the field it is typed in.
-const clampSize = (value: number) =>
-  Math.min(MAX_CANVAS_SIZE, Math.max(MIN_CANVAS_SIZE, Math.round(value) || MIN_CANVAS_SIZE));
-
+// Whole pixels only. Sizes outside what OBS can show are clamped rather than rejected.
 const PixelField = ({
   id,
   label,
   value,
-  onCommit,
+  onChange,
 }: {
   id: string;
   label: string;
   value: number;
-  onCommit: (value: number) => void;
-}) => {
-  // Uncontrolled, so typing isn't rewritten under the cursor. The size follows on blur or
-  // Enter, and `key` picks up a size changed from somewhere else (a preset, the other field).
-  const commit = (input: HTMLInputElement) => {
-    const next = clampSize(parseInt(input.value, 10));
-    if (input.value !== String(next)) input.value = String(next);
-    if (next !== value) onCommit(next);
-  };
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        key={value}
-        id={id}
-        type="number"
-        min={MIN_CANVAS_SIZE}
-        max={MAX_CANVAS_SIZE}
-        defaultValue={value}
-        onBlur={(e) => commit(e.currentTarget)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-      />
-    </div>
-  );
-};
+  onChange: (value: number) => void;
+}) => (
+  <div className="space-y-2">
+    <Label htmlFor={id}>{label}</Label>
+    <NumberField
+      id={id}
+      value={value}
+      min={MIN_CANVAS_SIZE}
+      max={MAX_CANVAS_SIZE}
+      unit="px"
+      onChange={(next) => {
+        if (next !== value) onChange(next);
+      }}
+    />
+  </div>
+);
 
 // The common canvas sizes, so the usual ones don't have to be typed. Anything else is
 // entered by hand, which the free size option stands in for.
@@ -126,13 +110,13 @@ export const CanvasEditor: React.FC<{
           id="canvas-width"
           label="Width"
           value={width}
-          onCommit={(value) => setSize({ width: value })}
+          onChange={(value) => setSize({ width: value })}
         />
         <PixelField
           id="canvas-height"
           label="Height"
           value={height}
-          onCommit={(value) => setSize({ height: value })}
+          onChange={(value) => setSize({ height: value })}
         />
       </div>
       <p className="text-xs text-muted-foreground">

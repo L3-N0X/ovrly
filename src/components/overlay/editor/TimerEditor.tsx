@@ -1,44 +1,34 @@
+import { ColorField } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberField } from "@/components/ui/number-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
 import { type PrismaElement, type TimerStyle } from "@/lib/types";
-import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { Info } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
-import { ColorPickerEditor } from "./ColorPickerEditor";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export const TimerStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: TimerStyle) => void;
 }> = ({ element, onChange }) => {
-  const [fgPopoverOpen, setFgPopoverOpen] = useState(false);
-  const [bgPopoverOpen, setBgPopoverOpen] = useState(false);
-
-  const debouncedOnChange = useDebouncedCallback(onChange, 400);
+  const [isPickingColor, setIsPickingColor] = useState(false);
 
   // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
   // new value to mean the server sent a new one.
   const serverStyle = useMemo(() => (element.style as TimerStyle) || {}, [element.style]);
   // Held while a colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(
-    serverStyle,
-    fgPopoverOpen || bgPopoverOpen
-  );
+  const { value: style, setValue: setStyle } = useLocalCopy(serverStyle, isPickingColor);
 
+  // Shown on the canvas right away; saving is debounced by the overlay itself.
   const handleStyleChange = (newStyle: Partial<TimerStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
     setStyle(updatedStyle);
-    debouncedOnChange(updatedStyle);
+    onChange(updatedStyle);
   };
 
-  // Local slider state keeps dragging responsive; the style is committed on release
-  const syncedFontSize = useSliderValue(typeof style?.fontSize === "number" ? style.fontSize : 128);
-  const syncedPadding = useSliderValue(typeof style?.padding === "number" ? style.padding : 0);
-  const syncedRadius = useSliderValue(typeof style?.radius === "number" ? style.radius : 0);
+  const id = (name: string) => `${element.id}-timer-${name}`;
 
   return (
     <div className="space-y-4">
@@ -82,41 +72,6 @@ export const TimerStyleEditor: React.FC<{
           className="h-10 w-full"
         />
       </div>
-      <div className="space-y-2">
-        <Label>Font Size</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[syncedFontSize.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              syncedFontSize.onChange(val);
-              handleStyleChange({ fontSize: val });
-            }}
-            onPointerDown={syncedFontSize.onInteractionStart}
-            onValueCommit={syncedFontSize.onInteractionEnd}
-            max={400}
-            min={0}
-          />
-
-          <Input
-            value={typeof style?.fontSize === "number" ? style.fontSize : 128}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                handleStyleChange({ fontSize: 0 });
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                // keep UI in sync
-                syncedFontSize.onChange(val);
-                handleStyleChange({ fontSize: val });
-              }
-            }}
-            onBlur={() => syncedFontSize.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
-      </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Font Family</Label>
@@ -128,109 +83,53 @@ export const TimerStyleEditor: React.FC<{
           />
         </div>
         <div className="space-y-2">
-          <Label>Color</Label>
-          <Popover open={fgPopoverOpen} onOpenChange={setFgPopoverOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: style.color || "#ffffff" }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <ColorPickerEditor
-                value={style.color ?? "#ffffff"}
-                onChange={(color) => {
-                  handleStyleChange({ color: color });
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor={id("font-size")}>Font Size</Label>
+          <NumberField
+            id={id("font-size")}
+            className="h-10"
+            value={typeof style?.fontSize === "number" ? style.fontSize : 128}
+            min={0}
+            unit="px"
+            onChange={(fontSize) => handleStyleChange({ fontSize })}
+          />
         </div>
         <div className="space-y-2">
-          <Label>Background</Label>
-          <Popover open={bgPopoverOpen} onOpenChange={setBgPopoverOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: style.backgroundColor || "#333333" }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <ColorPickerEditor
-                value={style.backgroundColor ?? "#ffffff"}
-                onChange={(color) => {
-                  handleStyleChange({ backgroundColor: color });
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor={id("color")}>Color</Label>
+          <ColorField
+            id={id("color")}
+            value={style.color || "#ffffff"}
+            onChange={(color) => handleStyleChange({ color })}
+            onOpenChange={setIsPickingColor}
+          />
         </div>
-        <div className="col-span-2 space-y-2">
-          <Label>Padding</Label>
-          <div className="flex gap-4">
-            <Slider
-              value={[syncedPadding.value]}
-              onValueChange={(v) => {
-                const val = v[0];
-                syncedPadding.onChange(val);
-                handleStyleChange({ padding: val });
-              }}
-              onPointerDown={syncedPadding.onInteractionStart}
-              onValueCommit={syncedPadding.onInteractionEnd}
-              max={300}
-              min={0}
-            />
-            <Input
-              value={typeof style?.padding === "number" ? style.padding : 0}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  syncedPadding.onChange(0);
-                  handleStyleChange({ padding: 0 });
-                  return;
-                }
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  syncedPadding.onChange(val);
-                  handleStyleChange({ padding: val });
-                }
-              }}
-              onBlur={() => syncedPadding.onInteractionEnd()}
-              className="h-10 w-20"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("background")}>Background</Label>
+          <ColorField
+            id={id("background")}
+            value={style.backgroundColor || "#333333"}
+            onChange={(backgroundColor) => handleStyleChange({ backgroundColor })}
+            onOpenChange={setIsPickingColor}
+          />
         </div>
-        <div className="col-span-2 space-y-2">
-          <Label>Corner Radius</Label>
-          <div className="flex gap-4">
-            <Slider
-              value={[syncedRadius.value]}
-              onValueChange={(v) => {
-                const val = v[0];
-                syncedRadius.onChange(val);
-                handleStyleChange({ radius: val });
-              }}
-              onPointerDown={syncedRadius.onInteractionStart}
-              onValueCommit={syncedRadius.onInteractionEnd}
-              max={100}
-            />
-            <Input
-              value={typeof style?.radius === "number" ? style.radius : 0}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  syncedRadius.onChange(0);
-                  handleStyleChange({ radius: 0 });
-                  return;
-                }
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  syncedRadius.onChange(val);
-                  handleStyleChange({ radius: val });
-                }
-              }}
-              onBlur={() => syncedRadius.onInteractionEnd()}
-              className="h-10 w-20"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("padding")}>Padding</Label>
+          <NumberField
+            id={id("padding")}
+            value={typeof style?.padding === "number" ? style.padding : 0}
+            min={0}
+            unit="px"
+            onChange={(padding) => handleStyleChange({ padding })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("radius")}>Corner Radius</Label>
+          <NumberField
+            id={id("radius")}
+            value={typeof style?.radius === "number" ? style.radius : 0}
+            min={0}
+            unit="px"
+            onChange={(radius) => handleStyleChange({ radius })}
+          />
         </div>
       </div>
     </div>
