@@ -3,11 +3,13 @@ import { ColorField } from "@/components/ui/color-picker";
 import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { type BingoStyle, type PrismaElement } from "@/lib/types";
+import { fontWeightOf } from "@/lib/fonts";
 import React, { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, Loader2, Trash2 } from "lucide-react";
 import { uploadImage } from "@/lib/uploads";
 import { FontPicker } from "../../FontPicker";
+import { FontWeightPicker } from "../../FontWeightPicker";
 import {
   Select,
   SelectContent,
@@ -300,7 +302,9 @@ export const BingoEditor: React.FC<{
         <div className="space-y-2">
           <Label htmlFor={id("font-family")}>Font Family</Label>
           <FontPicker
+            id={id("font-family")}
             value={style.fontFamily || ""}
+            weight={fontWeightOf(style)}
             onChange={(fontFamily) => handleStyleChange({ fontFamily })}
           />
         </div>
@@ -315,6 +319,14 @@ export const BingoEditor: React.FC<{
         <p className="text-xs text-muted-foreground">
           Labels are as large as their cell allows, up to this size, and only wrap between words.
         </p>
+        <div className="space-y-2">
+          <Label htmlFor={id("font-weight")}>Font Weight</Label>
+          <FontWeightPicker
+            id={id("font-weight")}
+            value={fontWeightOf(style)}
+            onChange={(fontWeight) => handleStyleChange({ fontWeight })}
+          />
+        </div>
         <ColorControl
           id={id("color")}
           label="Text Color"

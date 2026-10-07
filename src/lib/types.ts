@@ -92,6 +92,8 @@ export interface GlobalStyle {
 export interface BaseElementStyle {
   fontFamily?: string;
   fontSize?: number;
+  /** A CSS font-weight number; see `FONT_WEIGHTS` in lib/fonts.ts. */
+  fontWeight?: number;
   color?: string;
   // Offset from the top left corner of the parent, used when the parent is a GROUP.
   x?: number;

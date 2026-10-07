@@ -1,4 +1,5 @@
 import type { BingoStyle } from "./types";
+import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_WEIGHT } from "./fonts";
 
 export const BINGO_MIN_SIZE = 1;
 export const BINGO_MAX_SIZE = 10;
@@ -156,8 +157,9 @@ export const defaultBingoStyle = {
   padding: 4,
   gap: 4,
   color: "#ffffff",
-  fontFamily: "Roboto",
+  fontFamily: DEFAULT_FONT_FAMILY,
   fontSize: 32,
+  fontWeight: DEFAULT_FONT_WEIGHT,
   checkedCrossColor: "#facc15",
   crossThickness: 40,
   crossOpacity: 45,

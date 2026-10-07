@@ -4,6 +4,7 @@ import { Loader2, ShieldOff } from "lucide-react";
 import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 import FontLoader from "@/components/FontLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
+import { fontFamilyOf, fontWeightOf, type FontWeight } from "@/lib/fonts";
 import { UNDO_DELETE_MS, useOverlayData } from "@/lib/hooks/useOverlayData";
 import { ElementListEditor } from "@/components/overlay/editor/elementlist/ElementListEditor";
 import { subtreeOf } from "@/components/overlay/editor/elementlist/tree";
@@ -114,27 +115,22 @@ const OverlayPage: React.FC = () => {
     setShareModalOpen(!isShareModalOpen);
   };
 
+  // Every font the overlay's text needs, fetched before it is painted so the canvas doesn't
+  // flash a fallback. Renderers fill in the default family, so elements without a stored
+  // font count too.
   const loadOverlayFonts = (overlayData: PrismaOverlay | null) => {
     if (!overlayData) return null;
 
-    const fonts = new Set<string>();
-
-    if (overlayData.elements) {
-      overlayData.elements.forEach((element) => {
-        if (element.style) {
-          const elementStyle = element.style as BaseElementStyle;
-          if (elementStyle.fontFamily) {
-            const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
-            fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
-          }
-        }
-      });
-    }
-
-    return Array.from(fonts).map((fontString) => {
-      const [fontFamily, fontWeight] = fontString.split(":");
-      return <FontLoader key={fontString} fontFamily={fontFamily} fontWeight={fontWeight} />;
+    // Keyed so a family used at two weights is only asked for once per weight.
+    const fonts = new Map<string, { fontFamily: string; fontWeight: FontWeight }>();
+    overlayData.elements.forEach((element) => {
+      const style = element.style as BaseElementStyle | null;
+      const fontFamily = fontFamilyOf(style);
+      const fontWeight = fontWeightOf(style);
+      fonts.set(`${fontFamily}:${fontWeight}`, { fontFamily, fontWeight });
     });
+
+    return Array.from(fonts, ([key, font]) => <FontLoader key={key} {...font} />);
   };
 
   if (isLoading)

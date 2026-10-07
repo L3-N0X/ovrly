@@ -2,8 +2,10 @@ import { ColorField } from "@/components/ui/color-picker";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { type CounterStyle, type PrismaElement } from "@/lib/types";
+import { fontWeightOf } from "@/lib/fonts";
 import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
+import { FontWeightPicker } from "../../FontWeightPicker";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export const CounterStyleEditor: React.FC<{
@@ -33,6 +35,7 @@ export const CounterStyleEditor: React.FC<{
           <Label>Font Family</Label>
           <FontPicker
             value={style?.fontFamily || ""}
+            weight={fontWeightOf(style)}
             onChange={(font) => handleStyleChange({ fontFamily: font })}
             previewWord="1234567890"
             className="w-full h-10"
@@ -47,6 +50,14 @@ export const CounterStyleEditor: React.FC<{
             min={0}
             unit="px"
             onChange={(fontSize) => handleStyleChange({ fontSize })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("font-weight")}>Font Weight</Label>
+          <FontWeightPicker
+            id={id("font-weight")}
+            value={fontWeightOf(style)}
+            onChange={(fontWeight) => handleStyleChange({ fontWeight })}
           />
         </div>
         <div className="space-y-2">

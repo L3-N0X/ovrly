@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
-import { loadFont } from "@/lib/fonts";
+import { fontFamilyOf, fontWeightOf, loadFont } from "@/lib/fonts";
 import { canvasSize, type BaseElementStyle, type PrismaOverlay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -39,14 +39,14 @@ const OverlayPreview: React.FC<{
 
   useEffect(() => {
     if (!isVisible) return;
-    const fonts = new Set(
-      overlay.elements
-        .map((element) => (element.style as BaseElementStyle | null)?.fontFamily)
-        .filter((family): family is string => !!family)
-    );
-    fonts.forEach((family) =>
-      loadFont(family).catch((error) => console.error(`Failed to load font: ${family}`, error))
-    );
+    overlay.elements.forEach((element) => {
+      const style = element.style as BaseElementStyle | null;
+      const family = fontFamilyOf(style);
+      const weight = fontWeightOf(style);
+      loadFont(family, weight).catch((error) =>
+        console.error(`Failed to load font: ${family}`, error)
+      );
+    });
   }, [overlay.elements, isVisible]);
 
   return (

@@ -4,9 +4,11 @@ import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { type PrismaElement, type TimerStyle } from "@/lib/types";
+import { fontWeightOf } from "@/lib/fonts";
 import { Info } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
+import { FontWeightPicker } from "../../FontWeightPicker";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { DEFAULT_DURATION_FORMAT } from "@/lib/duration";
 
@@ -83,6 +85,7 @@ export const TimerStyleEditor: React.FC<{
           <Label>Font Family</Label>
           <FontPicker
             value={style?.fontFamily || ""}
+            weight={fontWeightOf(style)}
             onChange={(font) => handleStyleChange({ fontFamily: font })}
             previewWord="12:34:56"
             className="w-full h-10"
@@ -97,6 +100,14 @@ export const TimerStyleEditor: React.FC<{
             min={0}
             unit="px"
             onChange={(fontSize) => handleStyleChange({ fontSize })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={id("font-weight")}>Font Weight</Label>
+          <FontWeightPicker
+            id={id("font-weight")}
+            value={fontWeightOf(style)}
+            onChange={(fontWeight) => handleStyleChange({ fontWeight })}
           />
         </div>
         <div className="space-y-2">

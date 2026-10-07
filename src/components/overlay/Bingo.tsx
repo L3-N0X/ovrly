@@ -7,6 +7,7 @@ import {
   resolveBingoStyle,
 } from "@/lib/bingo";
 import { useBingoDataChange } from "@/lib/bingoDataContext";
+import { fontFamilyOf, fontWeightOf } from "@/lib/fonts";
 import BingoCell, { type BingoCrossOptions } from "./BingoCell";
 
 interface BingoProps {
@@ -107,7 +108,8 @@ const Bingo: FC<BingoProps> = ({ element, isEditor = false }) => {
         borderRadius: `${bingoStyle.borderRadius}px`,
         border:
           borderWidth > 0 ? `${borderWidth}px solid ${bingoStyle.borderColor}` : undefined,
-        fontFamily: bingoStyle.fontFamily,
+        fontFamily: fontFamilyOf(bingoStyle),
+        fontWeight: fontWeightOf(bingoStyle),
         color: bingoStyle.color,
       }}
     >
@@ -151,7 +153,8 @@ const Bingo: FC<BingoProps> = ({ element, isEditor = false }) => {
             isEditor={canEdit}
             isFreeSpace={data.freeMiddle && index === middleIndex}
             maxFontSize={bingoStyle.fontSize}
-            fontFamily={bingoStyle.fontFamily}
+            fontFamily={fontFamilyOf(bingoStyle)}
+            fontWeight={fontWeightOf(bingoStyle)}
             cross={cross}
             index={index}
             onToggle={() => handleToggle(index)}

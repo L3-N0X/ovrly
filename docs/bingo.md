@@ -93,8 +93,8 @@ Conventions shared with the rest of the API:
   the label overflow the cell's width, so the size shrinks). Only if even the
   minimum size can't fit a word does it allow breaking inside words. Sizes are
   measured with layout sizes (`clientWidth`, `scrollWidth`), which the editor's
-  zoom transform doesn't affect. It refits when the cell resizes, the label or
-  font changes, a web font finishes loading, and while typing.
+  zoom transform doesn't affect. It refits when the cell resizes, the label,
+  family or weight changes, a web font finishes loading, and while typing.
 - `src/components/overlay/BingoCross.tsx` draws the mark of a called cell
   *behind* the label, without changing the cell background, as an SVG in the
   cell's pixel coordinates. Two styles: `brush` (default) and `line` (two
@@ -126,7 +126,8 @@ the defaults in `src/lib/bingo.ts` (`resolveBingoStyle`):
   (0–100), `borderColor`, `borderWidth`, `borderRadius`, `padding`, `gap`.
 - Grid lines: `gridLines`, `gridLineColor`, `gridLineWidth`. Off by default so
   cards saved before they existed keep their look.
-- Text: `color`, `fontFamily`, `fontSize` (the maximum the autofit may use).
+- Text: `color`, `fontFamily`, `fontWeight`, `fontSize` (the maximum the autofit
+  may use).
 - Cross: `checkedCrossColor`, `crossThickness` (percent of the cell size),
   `crossOpacity` (0–100), `crossStyle` (`brush` / `line`). Cards saved earlier may
   carry a pixel `crossWidth`, which is ignored.

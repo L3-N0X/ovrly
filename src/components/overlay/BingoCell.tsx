@@ -29,6 +29,7 @@ interface BingoCellProps {
   maxFontSize: number;
   /** Changes the text metrics without resizing the cell, so it has to trigger a new fit. */
   fontFamily: string | undefined;
+  fontWeight: number | undefined;
   cross: BingoCrossOptions;
   /** Position on the card, which varies the brush strokes of the cross. */
   index: number;
@@ -43,6 +44,7 @@ const BingoCell: FC<BingoCellProps> = ({
   isFreeSpace,
   maxFontSize,
   fontFamily,
+  fontWeight,
   cross,
   index,
   onToggle,
@@ -169,7 +171,7 @@ const BingoCell: FC<BingoCellProps> = ({
   // A new label or font doesn't resize the cell, so the observer above won't notice it.
   useLayoutEffect(() => {
     if (!isEditing) fitText();
-  }, [displayText, fontFamily, isEditing, fitText]);
+  }, [displayText, fontFamily, fontWeight, isEditing, fitText]);
 
   // Web fonts arrive after the first fit, and their metrics differ from the fallback's.
   useEffect(() => {
@@ -298,7 +300,7 @@ const BingoCell: FC<BingoCellProps> = ({
         // a word that is too long show up as overflow while fitting. `text-wrap: balance`
         // spreads a wrapped label evenly over its lines instead of leaving one word dangling.
         className="relative max-w-full min-w-0 select-text outline-none"
-        style={{ lineHeight: 1.12, textWrap: "balance" }}
+        style={{ lineHeight: 1.12, textWrap: "balance", fontWeight }}
         contentEditable={isEditing}
         suppressContentEditableWarning
         onBlur={commitEditing}
