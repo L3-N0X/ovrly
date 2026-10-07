@@ -1,6 +1,10 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  // Relations are loaded with LATERAL JOINs in a single query instead of one
+  // query per relation. Inside a transaction every query shares one connection,
+  // and pg deprecates sending several queries on it before the first is done.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
