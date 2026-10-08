@@ -3,64 +3,84 @@ import {
   type ElementStyle,
   type PrismaElement,
   type PrismaOverlay,
-  type OnOverlayChange
+  type OnOverlayChange,
 } from "@/lib/types";
 import { BingoEditor } from "../BingoEditor";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
 import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
+import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
+import { RectangleEditor } from "../RectangleEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 
-// The settings of the element selected in the tree.
-export const ElementInspector = ({
-  element,
-  overlay,
-  onOverlayChange,
-  onBingoDataChange,
-  onDelete,
-}: {
-  element: PrismaElement;
-  overlay: PrismaOverlay;
-  onOverlayChange: OnOverlayChange;
-  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
-  onDelete: () => void;
-}) => {
-  const isInGroup =
-    overlay.elements.find((e) => e.id === element.parentId)?.type === ElementTypeEnum.GROUP;
-
-  // onOverlayChange persists the style change itself (debounced per element).
-  const updateStyle = (newStyle: ElementStyle) => {
+// Updates the selected element's style. onOverlayChange persists it itself (debounced per
+// element).
+const styleUpdater =
+  (element: PrismaElement, overlay: PrismaOverlay, onOverlayChange: OnOverlayChange) =>
+  (newStyle: ElementStyle) =>
     onOverlayChange({
       ...overlay,
       elements: overlay.elements.map((el) =>
         el.id === element.id ? { ...el, style: newStyle } : el
       ),
     });
-  };
 
-  const editorProps = { element, onOverlayChange, onChange: updateStyle, onDelete };
-
+// X/Y of an element inside a group.
+export const ElementPositionEditor = ({
+  element,
+  overlay,
+  onOverlayChange,
+}: {
+  element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: OnOverlayChange;
+}) => {
+  const updateStyle = styleUpdater(element, overlay, onOverlayChange);
   return (
-    // Keyed so local editor state (sliders, pickers) doesn't leak between elements.
-    <div key={element.id} className="animate-fadeIn">
-      {isInGroup && (
-        <GroupPositionEditor
-          element={element}
-          onChange={(position) => updateStyle({ ...(element.style || {}), ...position })}
-        />
-      )}
-      {element.type === ElementTypeEnum.TITLE && <TitleStyleEditor {...editorProps} />}
-      {element.type === ElementTypeEnum.COUNTER && <CounterStyleEditor {...editorProps} />}
-      {element.type === ElementTypeEnum.TIMER && <TimerStyleEditor {...editorProps} />}
-      {element.type === ElementTypeEnum.IMAGE && <ImageStyleEditor {...editorProps} />}
-      {element.type === ElementTypeEnum.BINGO && (
-        <BingoEditor {...editorProps} onDataChange={onBingoDataChange} />
-      )}
-      {element.type === ElementTypeEnum.CONTAINER && <ContainerEditor {...editorProps} />}
-      {element.type === ElementTypeEnum.GROUP && <GroupEditor {...editorProps} />}
-    </div>
+    <GroupPositionEditor
+      element={element}
+      onChange={(position) => updateStyle({ ...(element.style || {}), ...position })}
+    />
   );
+};
+
+// The appearance settings of the selected element.
+export const ElementStyleEditor = ({
+  element,
+  overlay,
+  onOverlayChange,
+  onBingoDataChange,
+}: {
+  element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: OnOverlayChange;
+  onBingoDataChange?: (elementId: string, data: BingoDataUpdate) => void;
+}) => {
+  const updateStyle = styleUpdater(element, overlay, onOverlayChange);
+  const editorProps = { element, onChange: updateStyle };
+
+  switch (element.type) {
+    case ElementTypeEnum.TITLE:
+      return <TitleStyleEditor {...editorProps} />;
+    case ElementTypeEnum.COUNTER:
+      return <CounterStyleEditor {...editorProps} />;
+    case ElementTypeEnum.TIMER:
+    case ElementTypeEnum.COUNTDOWN:
+      return <TimerStyleEditor {...editorProps} />;
+    case ElementTypeEnum.ICON:
+      return <IconStyleEditor {...editorProps} />;
+    case ElementTypeEnum.IMAGE:
+      return <ImageStyleEditor {...editorProps} />;
+    case ElementTypeEnum.BINGO:
+      return <BingoEditor {...editorProps} onDataChange={onBingoDataChange} />;
+    case ElementTypeEnum.CONTAINER:
+      return <ContainerEditor {...editorProps} />;
+    case ElementTypeEnum.GROUP:
+      return <GroupEditor {...editorProps} />;
+    case ElementTypeEnum.RECTANGLE:
+      return <RectangleEditor {...editorProps} />;
+  }
 };

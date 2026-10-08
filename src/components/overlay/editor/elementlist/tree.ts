@@ -1,4 +1,10 @@
-import { isParentType, type PrismaElement } from "@/lib/types";
+import {
+  CanvasModeEnum,
+  ElementTypeEnum,
+  isParentType,
+  type PrismaElement,
+  type PrismaOverlay,
+} from "@/lib/types";
 
 // Where a dragged element ends up: inside `parentId` (null = top level) at `index`.
 export interface Placement {
@@ -37,12 +43,26 @@ export const flattenTree = (elements: PrismaElement[], collapsed: Set<string>): 
   return rows;
 };
 
+// Whether the element is placed by its own x/y: it either sits directly inside a group, or it
+// sits directly on a canvas that places its elements freely. Those are the two groups it can
+// be positioned against, and the canvas can't be removed, so nothing is ever unplaced.
+export const isPlacedFreely = (overlay: PrismaOverlay, element: PrismaElement) =>
+  overlay.elements.find((e) => e.id === element.parentId)?.type === ElementTypeEnum.GROUP ||
+  (!element.parentId && overlay.canvasMode === CanvasModeEnum.FREE);
+
 // True if `id` is `ancestorId` or lies anywhere inside its subtree.
 export const isInSubtree = (elements: PrismaElement[], id: string | null, ancestorId: string) => {
   for (let current = id; current; current = elements.find((e) => e.id === current)?.parentId ?? null) {
     if (current === ancestorId) return true;
   }
   return false;
+};
+
+// The element followed by everything nested inside it.
+export const subtreeOf = (elements: PrismaElement[], id: string): PrismaElement[] => {
+  const element = elements.find((e) => e.id === id);
+  if (!element) return [];
+  return [element, ...elements.filter((e) => e.parentId === id).flatMap((e) => subtreeOf(elements, e.id))];
 };
 
 export const resolveDrop = (

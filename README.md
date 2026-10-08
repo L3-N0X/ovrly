@@ -10,10 +10,10 @@ Ovrly is a free and open-source web application that allows you to create highly
 
 * **Free & Open Source:** Self-host Ovrly and have complete control over your data and overlays.
 * **High Customizability:** Tailor every element to your needs. Change colors, fonts, sizes, and positions with an intuitive editor.
-* **Versatile Elements:** Create timers, counters, titles, images, and more. Combine them to build unique overlays.
+* **Versatile Elements:** Create timers, countdowns, counters, titles, images, icons, bingo cards and more, and bind their fields to live variables like Twitch stats. Combine them to build unique overlays.
 * **Real-time Collaboration:** Share your overlays with your broadcast team or moderators. Changes are reflected in real-time.
 * **Twitch Integration:** Secure login with your Twitch account. No extra passwords to remember.
-* **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. The default size is 800x600px.
+* **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. Every overlay has its own canvas size (1920x1080 by default), set in the editor.
 
 > [!IMPORTANT]  
 > Ovrly is currently in an **alpha** state. This means it's under active development, and you might encounter bugs or breaking changes. We appreciate your feedback and contributions to make Ovrly better!
@@ -24,19 +24,46 @@ All Elements are editable to change their content.
 
 * **Title:** A simple Textbox.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
-* **Timer:** Count up or down for speedruns, events, or breaks.
+* **Timer:** Count up for speedruns, events, or breaks.
+* **Countdown:** Count down from a set time, or to a date and time (e.g. your stream start).
 * **Image:** Add player photos, logos, or more.
-* **Bingo:** A 3x3 to 7x7 card. Mark cells as the game is called, with an optional free middle and a shuffle button.
-* **Container:** Group and organize elements within your overlay.
+* **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
+* **Container:** Group and organize elements within your overlay, lining them up in a row or column.
+* **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.
+
+## 🧩 Variables
+
+Like in Figma, fields of elements can be bound to **variables**: a title's text, a counter's value, a colour, a size, an image. Change the variable and everything bound to it follows, live. Hover a field and click the variable button next to its label to bind it; the **Variables** tab next to the editor lists, creates and changes them. Variables come from:
+
+* **You:** create texts, numbers, yes/no values, colors and images in the Variables tab.
+* **Twitch:** add any channel to get its followers, viewers, live state, title, category, name and avatar, updated about every 30 seconds while the overlay is open. Subscriber numbers are private on Twitch, so the channel has to be connected once under Settings → Twitch by someone who can sign in as it; they are then available to whoever connected it and their team.
+* **Other apps:** a game server, a Stream Deck or a bot can send variables through the [public API](docs/public-api.md) with a key from Settings → API.
 
 ## 📺 Usage in OBS
 
 1. Create and customize your overlay in the Ovrly web interface.
-2. Click the "Copy for OBS" button for your overlay.
-3. In OBS, add a new "Browser" source.
-4. Paste the copied URL into the "URL" field.
-5. Set the "Width" to `800` and "Height" to `600` (if not already set).
-6. Click "OK" and position your new overlay in your scene.
+2. Select the canvas to see its size, and change it if you like (see *The canvas* below).
+3. Click the "Copy for OBS" button for your overlay.
+4. In OBS, add a new "Browser" source.
+5. Paste the copied URL into the "URL" field.
+6. Set the "Width" and "Height" to the canvas size shown in the Ovrly canvas panel.
+7. Click "OK" and position your new overlay in your scene.
+
+## 🖼️ The canvas
+
+Every overlay is drawn on a canvas, which is sized per overlay (1920×1080 for new ones) and
+is also the group its elements live in. Select the canvas in the editor — click the empty
+canvas, the frame label or the "Canvas" row — to change it:
+
+* **Size** is what OBS is set to. Pick a preset (1080p, 720p, 1440p, 4K, vertical, the old
+  800×600) or type any width and height.
+* **Placement** decides how the elements directly on the canvas are positioned. *Auto layout*
+  arranges them in a row or column, with the gap, padding and alignment from the layout
+  settings. *Free placement* lets you drag every one of them to where you want it with the
+  move tool (M), arrows nudge them, and they may stick out past the canvas edges.
+
+Containers and groups still work inside either mode, for arranging a few elements while
+everything else is placed freely.
 
 ## 🔮 Future Plans
 
@@ -98,6 +125,12 @@ You need to set the following environment variables in a `.env` file in the root
 | `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
 
 > [!NOTE]
+> Twitch variables use the same Twitch application as the sign-in. For subscriber numbers, add
+> `<APP_BASE_URL>/api/twitch/callback` to the application's **OAuth Redirect URLs** in the
+> [Twitch developer console](https://dev.twitch.tv/console/apps), next to the sign-in callback
+> `<APP_BASE_URL>/api/auth/callback/twitch`.
+
+> [!NOTE]
 > The Google Fonts API key is compiled into the frontend bundle at build time.
 > Without it the app still runs, but the font picker shows only the bundled
 > Minecraft fonts and logs `Google Fonts API key is not configured`.
@@ -128,7 +161,10 @@ You need to set the following environment variables in a `.env` file in the root
     bun run dev
     ```
 
-    This will start the frontend at `http://localhost:5173` and the backend at `http://localhost:3000`.
+    This will start the frontend at `http://localhost:5173` and the backend at
+    `http://localhost:3000`. The backend hot reloads: save any backend file and it
+    is restarted automatically, and a change to `prisma/schema.prisma` regenerates
+    the Prisma client before the restart.
 
 5. Apply database migrations:
 
@@ -136,9 +172,9 @@ You need to set the following environment variables in a `.env` file in the root
     bunx prisma migrate deploy
     ```
 
-    The generated client is not committed to the repository. If you pull a change
-    that touches `prisma/schema.prisma`, re-run `bunx prisma generate` — a client
-    built from an older schema will not know about new models or relations.
+    The generated client is not committed to the repository. It is regenerated on
+    install and whenever `prisma/schema.prisma` changes in dev, but migrations
+    themselves are yours to apply.
 
 ### Type Checking
 
@@ -162,6 +198,8 @@ This will create an optimized production build in the `dist` directory.
 ## 📚 Further Documentation
 
 * [Bingo element](docs/bingo.md) — data model, API and rendering behaviour.
+* [Public API](docs/public-api.md) — for apps sending variables to overlays: keys, endpoints, examples.
+* [Variables](docs/variables.md) — how variables, bindings, providers and the public API are built.
 
 ## ❤️ Contributing
 

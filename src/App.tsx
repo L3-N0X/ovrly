@@ -7,27 +7,33 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoggedInRoute from "./components/auth/LoggedInRoute";
 import MainLayout from "./components/MainLayout";
 import PublicCounterPage from "./pages/PublicCounterPage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <Router>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<LoggedInRoute />}>
-              <Route index element={<HomePage />} />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <Router>
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<LoggedInRoute />}>
+                <Route index element={<HomePage />} />
+              </Route>
+              <Route path="/settings" element={<ProtectedRoute />}>
+                <Route index element={<SettingsPage />} />
+              </Route>
             </Route>
-            <Route path="/settings" element={<ProtectedRoute />}>
-              <Route index element={<SettingsPage />} />
-            </Route>
+            {/* The editor is full screen with its own top bar. */}
             <Route path="/overlay/:id" element={<ProtectedRoute />}>
               <Route index element={<OverlayPage />} />
             </Route>
-          </Route>
-          <Route path="/public/overlay/:overlayId" element={<PublicCounterPage />} />
-        </Routes>
-      </Router>
-    </ThemeProvider>
+            <Route path="/public/overlay/:overlayId" element={<PublicCounterPage />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

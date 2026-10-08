@@ -1,6 +1,8 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { NumberField } from "@/components/ui/number-field";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   Select,
   SelectContent,
@@ -8,79 +10,121 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { type ContainerStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
 import {
-  AlignHorizontalDistributeCenter,
-  AlignHorizontalJustifyCenter,
-  AlignHorizontalJustifyEnd,
-  AlignHorizontalJustifyStart,
-  AlignHorizontalSpaceAround,
-  AlignHorizontalSpaceBetween,
-  AlignVerticalJustifyCenter,
-  AlignVerticalJustifyEnd,
-  AlignVerticalJustifyStart,
-  Baseline,
-  Pencil,
-  StretchHorizontal,
-  Trash2,
-} from "lucide-react";
-import React from "react";
-import { handleValueChange } from "./helper";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { RenameElementModal } from "./RenameElementModal";
+  BORDER_RADIUS_RANGE,
+  BORDER_WIDTH_RANGE,
+  DEFAULT_BORDER_COLOR,
+  DEFAULT_BORDER_RADIUS,
+  DEFAULT_BORDER_WIDTH,
+  DEFAULT_CONTAINER_HEIGHT,
+  DEFAULT_CONTAINER_WIDTH,
+  type ContainerStyle,
+  type PrismaElement,
+} from "@/lib/types";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import React, { useMemo, useState } from "react";
+import { CANVAS_ELEMENT_ATTRIBUTE } from "../canvasSelection";
+import { alignOptions, isRowDirection, justifyOptions } from "./alignment";
+import { ColorInput, PixelInput } from "./appearance";
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: ContainerStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onChange, onOverlayChange, onDelete }) => {
-  const updateStyle = (path: string, value: string | number) => {
-    const newStyle = JSON.parse(JSON.stringify(element.style || {}));
-    onChange(handleValueChange(newStyle, path, value));
+}> = ({ element, onChange }) => {
+  const [isPickingColor, setIsPickingColor] = useState(false);
+
+  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
+  // new value to mean the server sent a new one.
+  const serverStyle = useMemo(
+    () => (element.style || {}) as ContainerStyle,
+    [element.style],
+  );
+  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
+  const { value: style, setValue: setStyle } = useLocalCopy(
+    serverStyle,
+    isPickingColor,
+  );
+
+  const updateStyle = (patch: Partial<ContainerStyle>) => {
+    const updatedStyle = { ...style, ...patch };
+    setStyle(updatedStyle);
+    onChange(updatedStyle);
   };
 
-  const style = (element.style || {}) as ContainerStyle;
-  // Local slider state keeps dragging responsive; the style is committed on release
-  const gapSlider = useSliderValue(
-    typeof style?.gap === "number" ? style.gap : 0,
-    { onCommit: (v) => updateStyle("gap", v) }
-  );
-  const paddingXSlider = useSliderValue(
-    typeof style?.paddingX === "number" ? style.paddingX : 0,
-    { onCommit: (v) => updateStyle("paddingX", v) }
-  );
-  const paddingYSlider = useSliderValue(
-    typeof style?.paddingY === "number" ? style.paddingY : 0,
-    { onCommit: (v) => updateStyle("paddingY", v) }
-  );
+  const autoWidth = style.autoWidth !== false;
+  const autoHeight = style.autoHeight !== false;
 
+  // Switching an automatic side off keeps the size the container has right now.
+  const setAuto = (side: "width" | "height", auto: boolean) => {
+    const key = side === "width" ? "autoWidth" : "autoHeight";
+    if (auto) return updateStyle({ [key]: true });
+    const box = document.querySelector(`[${CANVAS_ELEMENT_ATTRIBUTE}="${CSS.escape(element.id)}"]`)
+      ?.firstElementChild as HTMLElement | null | undefined;
+    const measured = side === "width" ? box?.offsetWidth : box?.offsetHeight;
+    updateStyle({
+      [key]: false,
+      [side]:
+        style[side] ??
+        (measured || (side === "width" ? DEFAULT_CONTAINER_WIDTH : DEFAULT_CONTAINER_HEIGHT)),
+    });
+  };
+
+  const row = isRowDirection(style.flexDirection);
+  const id = (name: string) => `${element.id}-container-${name}`;
+  const pixels = (key: "gap" | "paddingX" | "paddingY") =>
+    typeof style[key] === "number" ? style[key] : 0;
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal
-            element={element}
-            onOverlayChange={onOverlayChange}
-          >
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={id("auto-width")}
+              checked={autoWidth}
+              onCheckedChange={(auto) => setAuto("width", auto)}
+            />
+            <Label htmlFor={id("auto-width")}>Auto width</Label>
+          </div>
+          {!autoWidth && (
+            <PixelInput
+              id={id("width")}
+              label="Width"
+              property="style.width"
+              min={1}
+              value={style.width ?? DEFAULT_CONTAINER_WIDTH}
+              onChange={(width) => updateStyle({ width })}
+            />
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={id("auto-height")}
+              checked={autoHeight}
+              onCheckedChange={(auto) => setAuto("height", auto)}
+            />
+            <Label htmlFor={id("auto-height")}>Auto height</Label>
+          </div>
+          {!autoHeight && (
+            <PixelInput
+              id={id("height")}
+              label="Height"
+              property="style.height"
+              min={1}
+              value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
+              onChange={(height) => updateStyle({ height })}
+            />
+          )}
         </div>
       </div>
       <div className="space-y-2">
         <Label>Direction</Label>
         <Select
           value={style?.flexDirection || "column"}
-          onValueChange={(v) => updateStyle("flexDirection", v)}
+          onValueChange={(v) =>
+            updateStyle({ flexDirection: v as ContainerStyle["flexDirection"] })
+          }
         >
           <SelectTrigger>
             <SelectValue />
@@ -93,159 +137,99 @@ export const ContainerEditor: React.FC<{
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-2">
-        <Label>Gap</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[gapSlider.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              gapSlider.onChange(val);
-            }}
-            onPointerDown={gapSlider.onInteractionStart}
-            onValueCommit={gapSlider.onInteractionEnd}
-            max={200}
+      <div className="grid grid-cols-3 gap-3">
+        <BindableField property="style.gap" label="Gap" htmlFor={id("gap")}>
+          <NumberField
+            id={id("gap")}
+            value={pixels("gap")}
             min={0}
+            unit="px"
+            onChange={(v) => updateStyle({ gap: v })}
           />
-          <Input
-            value={gapSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                gapSlider.onChange(0);
-                updateStyle("gap", 0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                gapSlider.onChange(val);
-                updateStyle("gap", val);
-              }
-            }}
-            onBlur={() => gapSlider.onInteractionEnd()}
-            className="h-10 w-20"
+        </BindableField>
+        <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
+          <NumberField
+            id={id("padding-x")}
+            value={pixels("paddingX")}
+            min={0}
+            unit="px"
+            onChange={(v) => updateStyle({ paddingX: v })}
           />
-        </div>
+        </BindableField>
+        <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
+          <NumberField
+            id={id("padding-y")}
+            value={pixels("paddingY")}
+            min={0}
+            unit="px"
+            onChange={(v) => updateStyle({ paddingY: v })}
+          />
+        </BindableField>
       </div>
       <div className="space-y-2">
-        <Label>Padding X</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[paddingXSlider.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              paddingXSlider.onChange(val);
-            }}
-            onPointerDown={paddingXSlider.onInteractionStart}
-            onValueCommit={paddingXSlider.onInteractionEnd}
-            max={300}
-            min={0}
-          />
-          <Input
-            value={paddingXSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                paddingXSlider.onChange(0);
-                updateStyle("paddingX", 0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                paddingXSlider.onChange(val);
-                updateStyle("paddingX", val);
-              }
-            }}
-            onBlur={() => paddingXSlider.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Padding Y</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[paddingYSlider.value]}
-            onValueChange={(v) => {
-              const val = v[0];
-              paddingYSlider.onChange(val);
-            }}
-            onPointerDown={paddingYSlider.onInteractionStart}
-            onValueCommit={paddingYSlider.onInteractionEnd}
-            max={300}
-            min={0}
-          />
-          <Input
-            value={paddingYSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                paddingYSlider.onChange(0);
-                updateStyle("paddingY", 0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                paddingYSlider.onChange(val);
-                updateStyle("paddingY", val);
-              }
-            }}
-            onBlur={() => paddingYSlider.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Align Items</Label>
-        <ToggleGroup
-          type="single"
+        <Label htmlFor={id("align")}>Align Items</Label>
+        <SegmentedControl
+          id={id("align")}
+          aria-label="Align items"
           value={style?.alignItems || "stretch"}
-          onValueChange={(v) => v && updateStyle("alignItems", v)}
-          className="w-full"
-          variant="outline"
-        >
-          <ToggleGroupItem value="flex-start" className="w-full">
-            <AlignVerticalJustifyStart className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="center" className="w-full">
-            <AlignVerticalJustifyCenter className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="flex-end" className="w-full">
-            <AlignVerticalJustifyEnd className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="stretch" className="w-full">
-            <StretchHorizontal className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="baseline" className="w-full">
-            <Baseline className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          onValueChange={(v) =>
+            updateStyle({ alignItems: v as ContainerStyle["alignItems"] })
+          }
+          options={alignOptions(row, { stretch: true })}
+        />
       </div>
       <div className="space-y-2">
-        <Label>Justify Content</Label>
-        <ToggleGroup
-          type="single"
+        <Label htmlFor={id("justify")}>Justify Content</Label>
+        <SegmentedControl
+          id={id("justify")}
+          aria-label="Justify content"
           value={style?.justifyContent || "flex-start"}
-          onValueChange={(v) => v && updateStyle("justifyContent", v)}
-          className="w-full"
-          variant="outline"
-        >
-          <ToggleGroupItem value="flex-start" className="w-full">
-            <AlignHorizontalJustifyStart className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="center" className="w-full">
-            <AlignHorizontalJustifyCenter className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="flex-end" className="w-full">
-            <AlignHorizontalJustifyEnd className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="space-between" className="w-full">
-            <AlignHorizontalSpaceBetween className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="space-around" className="w-full">
-            <AlignHorizontalSpaceAround className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="space-evenly" className="w-full">
-            <AlignHorizontalDistributeCenter className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          onValueChange={(v) =>
+            updateStyle({
+              justifyContent: v as ContainerStyle["justifyContent"],
+            })
+          }
+          options={justifyOptions(row)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <ColorInput
+          id={id("background")}
+          label="Background"
+          property="style.backgroundColor"
+          value={style.backgroundColor || ""}
+          defaultColor="#000000"
+          onChange={(backgroundColor) => updateStyle({ backgroundColor })}
+          onClear={() => updateStyle({ backgroundColor: "" })}
+          onOpenChange={setIsPickingColor}
+        />
+        <PixelInput
+          id={id("border-radius")}
+          label="Corner Radius"
+          property="style.borderRadius"
+          min={BORDER_RADIUS_RANGE.min}
+          max={BORDER_RADIUS_RANGE.max}
+          value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
+          onChange={(borderRadius) => updateStyle({ borderRadius })}
+        />
+        <ColorInput
+          id={id("border-color")}
+          label="Stroke"
+          property="style.borderColor"
+          value={style.borderColor || DEFAULT_BORDER_COLOR}
+          defaultColor={DEFAULT_BORDER_COLOR}
+          onChange={(borderColor) => updateStyle({ borderColor })}
+          onOpenChange={setIsPickingColor}
+        />
+        <PixelInput
+          id={id("border-width")}
+          label="Stroke Width"
+          property="style.borderWidth"
+          min={BORDER_WIDTH_RANGE.min}
+          max={BORDER_WIDTH_RANGE.max}
+          value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
+          onChange={(borderWidth) => updateStyle({ borderWidth })}
+        />
       </div>
     </div>
   );

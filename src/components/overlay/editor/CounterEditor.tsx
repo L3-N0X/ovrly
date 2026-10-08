@@ -1,30 +1,25 @@
+import { ColorField } from "@/components/ui/color-picker";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
-import { type CounterStyle, type PrismaElement, type OnOverlayChange } from "@/lib/types";
-import React, { useEffect, useState } from "react";
+import { NumberField } from "@/components/ui/number-field";
+import { BindableField } from "@/components/variables/BindableField";
+import { type CounterStyle, type PrismaElement } from "@/lib/types";
+import { fontWeightOf } from "@/lib/fonts";
+import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
-import { Input } from "@/components/ui/input";
-import { Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ColorPickerEditor } from "./ColorPickerEditor";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { RenameElementModal } from "./RenameElementModal";
+import { FontWeightPicker } from "../../FontWeightPicker";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export const CounterStyleEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: CounterStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onOverlayChange, onChange, onDelete }) => {
-  const [style, setStyle] = useState<CounterStyle>((element.style as CounterStyle) || {});
+}> = ({ element, onChange }) => {
   const [isPickingColor, setIsPickingColor] = useState(false);
 
-  useEffect(() => {
-    if (!isPickingColor) {
-      setStyle((element.style as CounterStyle) || {});
-    }
-  }, [element.style, isPickingColor]);
+  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
+  // new value to mean the server sent a new one.
+  const serverStyle = useMemo(() => (element.style as CounterStyle) || {}, [element.style]);
+  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
+  const { value: style, setValue: setStyle } = useLocalCopy(serverStyle, isPickingColor);
 
   const handleStyleChange = (newStyle: Partial<CounterStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
@@ -32,163 +27,73 @@ export const CounterStyleEditor: React.FC<{
     onChange(updatedStyle);
   };
 
-  const fontSizeSlider = useSliderValue((style.fontSize as number) || 128, {
-    onCommit: (v) => handleStyleChange({ fontSize: v }),
-  });
-  const paddingSlider = useSliderValue((style.padding as number) || 0, {
-    onCommit: (v) => handleStyleChange({ padding: v }),
-  });
-  const radiusSlider = useSliderValue((style.radius as number) || 0, {
-    onCommit: (v) => handleStyleChange({ radius: v }),
-  });
+  const id = (name: string) => `${element.id}-counter-${name}`;
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal element={element} onOverlayChange={onOverlayChange}>
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Font Size</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[fontSizeSlider.value]}
-            onValueChange={([v]) => fontSizeSlider.onChange(v)}
-            onPointerDown={fontSizeSlider.onInteractionStart}
-            onValueCommit={fontSizeSlider.onInteractionEnd}
-            max={400}
-            min={0}
-          />
-
-          <Input
-            value={fontSizeSlider.value}
-            onChange={(e) => {
-              if (e.target.value === "") {
-                fontSizeSlider.onChange(0);
-                return;
-              }
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) {
-                fontSizeSlider.onChange(val);
-              }
-            }}
-            onBlur={() => fontSizeSlider.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
-      </div>
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Font Family</Label>
           <FontPicker
             value={style?.fontFamily || ""}
+            weight={fontWeightOf(style)}
             onChange={(font) => handleStyleChange({ fontFamily: font })}
             previewWord="1234567890"
             className="w-full h-10"
           />
         </div>
+        <BindableField property="style.fontSize" label="Font Size" htmlFor={id("font-size")}>
+          <NumberField
+            id={id("font-size")}
+            className="h-10"
+            value={(style.fontSize as number) || 128}
+            min={0}
+            unit="px"
+            onChange={(fontSize) => handleStyleChange({ fontSize })}
+          />
+        </BindableField>
         <div className="space-y-2">
-          <Label>Color</Label>
-          <Popover onOpenChange={setIsPickingColor}>
-            <PopoverTrigger asChild>
-              <button
-                className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: style.color || "#ffffff" }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <ColorPickerEditor
-                value={style.color || "#ffffff"}
-                onChange={(c) => {
-                  handleStyleChange({ color: c });
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor={id("font-weight")}>Font Weight</Label>
+          <FontWeightPicker
+            id={id("font-weight")}
+            value={fontWeightOf(style)}
+            onChange={(fontWeight) => handleStyleChange({ fontWeight })}
+          />
         </div>
-        <div className="space-y-2">
-          <Label>Background</Label>
-          <Popover onOpenChange={setIsPickingColor}>
-            <PopoverTrigger asChild>
-              <button
-                className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: style.backgroundColor || "#333333" }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <ColorPickerEditor
-                value={style.backgroundColor || "#333333"}
-                onChange={(c) => {
-                  handleStyleChange({ backgroundColor: c });
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="space-y-2">
-          <Label>Padding</Label>
-          <div className="flex gap-4">
-            <Slider
-              value={[paddingSlider.value]}
-              onValueChange={([v]) => paddingSlider.onChange(v)}
-              onPointerDown={paddingSlider.onInteractionStart}
-              onValueCommit={paddingSlider.onInteractionEnd}
-              max={300}
-              min={0}
-            />
-            <Input
-              value={paddingSlider.value}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  paddingSlider.onChange(0);
-                  return;
-                }
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  paddingSlider.onChange(val);
-                }
-              }}
-              onBlur={() => paddingSlider.onInteractionEnd()}
-              className="h-10 w-20"
-            />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Corner Radius</Label>
-          <div className="flex gap-4">
-            <Slider
-              value={[radiusSlider.value]}
-              onValueChange={([v]) => radiusSlider.onChange(v)}
-              onPointerDown={radiusSlider.onInteractionStart}
-              onValueCommit={radiusSlider.onInteractionEnd}
-              max={100}
-            />{" "}
-            <Input
-              value={radiusSlider.value}
-              onChange={(e) => {
-                if (e.target.value === "") {
-                  radiusSlider.onChange(0);
-                  return;
-                }
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val)) {
-                  radiusSlider.onChange(val);
-                }
-              }}
-              onBlur={() => radiusSlider.onInteractionEnd()}
-              className="h-10 w-20"
-            />
-          </div>
-        </div>
+        <BindableField property="style.color" label="Color" htmlFor={id("color")}>
+          <ColorField
+            id={id("color")}
+            value={style.color || "#ffffff"}
+            onChange={(color) => handleStyleChange({ color })}
+            onOpenChange={setIsPickingColor}
+          />
+        </BindableField>
+        <BindableField property="style.backgroundColor" label="Background" htmlFor={id("background")}>
+          <ColorField
+            id={id("background")}
+            value={style.backgroundColor || "#333333"}
+            onChange={(backgroundColor) => handleStyleChange({ backgroundColor })}
+            onOpenChange={setIsPickingColor}
+          />
+        </BindableField>
+        <BindableField property="style.padding" label="Padding" htmlFor={id("padding")}>
+          <NumberField
+            id={id("padding")}
+            value={(style.padding as number) || 0}
+            min={0}
+            unit="px"
+            onChange={(padding) => handleStyleChange({ padding })}
+          />
+        </BindableField>
+        <BindableField property="style.radius" label="Corner Radius" htmlFor={id("radius")}>
+          <NumberField
+            id={id("radius")}
+            value={(style.radius as number) || 0}
+            min={0}
+            unit="px"
+            onChange={(radius) => handleStyleChange({ radius })}
+          />
+        </BindableField>
       </div>
     </div>
   );

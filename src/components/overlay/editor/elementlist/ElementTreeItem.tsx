@@ -13,6 +13,7 @@ import {
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { ChevronRight } from "lucide-react";
+import { InlineRename } from "@/components/ui/inline-rename";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { DragPreview } from "./DragPreview";
@@ -33,6 +34,9 @@ export const ElementTreeItem = ({
   onToggleCollapsed,
   onExpand,
   onKeyDown,
+  renaming,
+  onStartRename,
+  onRenamed,
 }: {
   row: FlatRow;
   collapsed: boolean;
@@ -44,6 +48,11 @@ export const ElementTreeItem = ({
   onToggleCollapsed: () => void;
   onExpand: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  // Whether the name is being edited in place (double-click or F2).
+  renaming: boolean;
+  onStartRename: () => void;
+  // The new name, or null when it stays as it was.
+  onRenamed: (name: string | null) => void;
 }) => {
   const { element, depth, hasChildren } = row;
   const isParent = isParentType(element.type);
@@ -53,9 +62,9 @@ export const ElementTreeItem = ({
 
   // Read by the drag handlers at event time, so live updates don't re-register them
   // (which would cancel a drag in progress).
-  const latest = useRef({ element, collapsed, onExpand });
+  const latest = useRef({ element, collapsed, onExpand, renaming });
   useEffect(() => {
-    latest.current = { element, collapsed, onExpand };
+    latest.current = { element, collapsed, onExpand, renaming };
   });
 
   useEffect(() => {
@@ -70,6 +79,8 @@ export const ElementTreeItem = ({
     return combine(
       draggable({
         element: el,
+        // Dragging inside the name field selects text instead.
+        canDrag: () => !latest.current.renaming,
         getInitialData: () => ({ id: element.id }),
         onGenerateDragPreview: ({ nativeSetDragImage }) => {
           setCustomNativeDragPreview({
@@ -149,7 +160,9 @@ export const ElementTreeItem = ({
       aria-level={depth + 1}
       tabIndex={tabbable ? 0 : -1}
       data-tree-item-id={element.id}
-      onClick={onSelect}
+      // The second click of a double-click is for renaming, it shouldn't unselect the row.
+      onClick={(e) => e.detail < 2 && onSelect()}
+      onDoubleClick={onStartRename}
       onKeyDown={onKeyDown}
       className={cn(
         "group/row relative flex h-8 cursor-pointer select-none items-center gap-1.5 rounded-md pr-2 text-sm outline-none",
@@ -192,10 +205,16 @@ export const ElementTreeItem = ({
         element={element}
         className={cn("h-4 w-4 shrink-0", isParent ? "text-chart-1" : "text-muted-foreground")}
       />
-      <span className="truncate font-medium">{element.name}</span>
-      <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground opacity-0 group-hover/row:opacity-100">
-        {element.type}
-      </span>
+      {renaming ? (
+        <InlineRename value={element.name} aria-label="Element name" onDone={onRenamed} />
+      ) : (
+        <>
+          <span className="truncate font-medium">{element.name}</span>
+          <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground opacity-0 group-hover/row:opacity-100">
+            {element.type}
+          </span>
+        </>
+      )}
 
       {(instruction?.operation === "reorder-before" ||
         instruction?.operation === "reorder-after") && (

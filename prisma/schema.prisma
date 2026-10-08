@@ -1,6 +1,10 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  // Relations are loaded with LATERAL JOINs in a single query instead of one
+  // query per relation. Inside a transaction every query shares one connection,
+  // and pg deprecates sending several queries on it before the first is done.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -20,9 +24,18 @@ model User {
   Account               Account[]
   Overlay               Overlay[]
   Image                 Image[]
-  globalEditors         Editor[]        @relation("GlobalEditors")
-  editorFor             Editor[]        @relation("EditorFor")
-  overlaysSharedWithMe  OverlayEditor[]
+  // People this user gave access to all of their overlays.
+  accountShares         AccountShare[]  @relation("AccountShareOwner")
+  // Access other users gave this user, to all of their overlays or to single ones.
+  accountSharesWithMe   AccountShare[]  @relation("AccountShareMember")
+  overlaySharesWithMe   OverlayShare[]
+  // Twitch channels this user connected, so their subscriber stats can be shown.
+  twitchConnections     TwitchConnection[]
+  // Keys for the public API (docs/public-api.md), and the variables sent with them.
+  apiKeys               ApiKey[]
+  variables             Variable[]
+  // Providers that keep variables of this user up to date, like a Twitch channel's stats.
+  variableSources       VariableSource[]
 }
 
 model Image {
@@ -37,20 +50,41 @@ model Image {
   @@index([userId])
 }
 
-model Editor {
-  id               String   @id @default(cuid())
-  ownerId          String
-  editorId         String?
-  owner            User     @relation("GlobalEditors", fields: [ownerId], references: [id], onDelete: Cascade)
-  editor           User?    @relation("EditorFor", fields: [editorId], references: [id], onDelete: Cascade)
-  editorTwitchName String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+// What someone an overlay is shared with may do. Ordered from least to most access; the
+// owner can always do everything, including sharing and deleting.
+enum ShareRole {
+  // Sees the overlay and its live state.
+  VIEWER
+  // Also runs it: counters, timers, countdowns, titles, images, icons, bingo cards, and the
+  // values of the owner's variables.
+  CONTROLLER
+  // Also changes its design: elements, layout and styles.
+  EDITOR
+}
 
-  @@unique([ownerId, editorTwitchName])
+// Access to every overlay of `owner`, including ones created later.
+model AccountShare {
+  id         String    @id @default(cuid())
+  ownerId    String
+  owner      User      @relation("AccountShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  // Null until someone with this Twitch name signs in (linked in auth.ts).
+  userId     String?
+  user       User?     @relation("AccountShareMember", fields: [userId], references: [id], onDelete: Cascade)
+  twitchName String
+  role       ShareRole @default(EDITOR)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  @@index([editorId])
-  @@index([editorTwitchName])
+  @@unique([ownerId, twitchName])
+  @@index([userId])
+  @@index([twitchName])
+}
+
+// How the elements that sit directly on the canvas are placed: laid out by the global
+// arrangement (a flex row or column with gaps), or freely by dragging them.
+enum CanvasMode {
+  AUTO
+  FREE
 }
 
 model Overlay {
@@ -58,28 +92,40 @@ model Overlay {
   name        String
   description String?
   globalStyle Json?
+  // The size of the canvas as OBS renders it. Set per overlay, since a browser source is
+  // sized to match.
+  width       Int             @default(1920)
+  height      Int             @default(1080)
+  canvasMode  CanvasMode      @default(FREE)
   userId      String
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   elements    Element[]
-  editors     OverlayEditor[]
+  shares      OverlayShare[]
+  // Bumped every time the overlay's state is broadcast. Clients use it to tell an older
+  // snapshot (a slow fetch, an out-of-order broadcast) from a newer one.
+  revision    Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([userId])
 }
 
-model OverlayEditor {
-  id               String   @id @default(cuid())
-  overlayId        String
-  editorId         String?
-  editorTwitchName String
-  overlay          Overlay  @relation(fields: [overlayId], references: [id], onDelete: Cascade)
-  editor           User?    @relation(fields: [editorId], references: [id], onDelete: Cascade)
+// Access to a single overlay. Someone with an account share as well gets the higher role.
+model OverlayShare {
+  id         String    @id @default(cuid())
+  overlayId  String
+  overlay    Overlay   @relation(fields: [overlayId], references: [id], onDelete: Cascade)
+  // Null until someone with this Twitch name signs in (linked in auth.ts).
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twitchName String
+  role       ShareRole @default(EDITOR)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  @@unique([overlayId, editorTwitchName])
-
-  @@index([editorId])
-  @@index([editorTwitchName])
+  @@unique([overlayId, twitchName])
+  @@index([userId])
+  @@index([twitchName])
 }
 
 model Element {
@@ -95,8 +141,12 @@ model Element {
   title     Title?
   counter   Counter?
   timer     Timer?
+  countdown Countdown?
   image     ImageElement?
   bingo     Bingo?
+  icon      Icon?
+  // Properties of the element driven by variables instead of their own value.
+  bindings  VariableBinding[]
 
   // Self-relation for grouping
   parentId  String?
@@ -115,6 +165,9 @@ enum ElementType {
   IMAGE
   GROUP
   BINGO
+  COUNTDOWN
+  ICON
+  RECTANGLE
 }
 
 model Title {
@@ -131,14 +184,35 @@ model Counter {
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
+// Counts up. Counting down is what a Countdown is for.
 model Timer {
   id        String    @id @default(cuid())
   startedAt DateTime?
   pausedAt  DateTime?
-  duration  Int?
-  countDown Boolean   @default(false)
   elementId String    @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+enum CountdownMode {
+  // Counts down a length of time; it is started, paused and reset like a timer.
+  DURATION
+  // Counts down to a point in time, and always runs.
+  TARGET
+}
+
+model Countdown {
+  id        String        @id @default(cuid())
+  mode      CountdownMode @default(DURATION)
+  // The length of time it starts from and resets to, in milliseconds.
+  duration  Int           @default(300000)
+  // The time left while it is paused, in milliseconds.
+  remaining Int           @default(300000)
+  // When it reaches zero while it is running. Null while paused.
+  endsAt    DateTime?
+  // When it reaches zero in TARGET mode.
+  targetAt  DateTime?
+  elementId String        @unique
+  element   Element       @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model ImageElement {
@@ -148,14 +222,141 @@ model ImageElement {
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
+// An icon from one of the icon libraries bundled with the editor (src/lib/icons.ts). It is
+// stored by library and name, so the drawing itself always comes from the library.
+model Icon {
+  id        String  @id @default(cuid())
+  // One of the ids in lib/icons.ts.
+  library   String  @default("lucide")
+  // The icon's name within the library ("star", "heart-bold"), as the library spells it.
+  name      String  @default("star")
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
 model Bingo {
   id         String  @id @default(cuid())
-  size       Int     @default(5)
+  rows       Int     @default(5)
+  columns    Int     @default(5)
   freeMiddle Boolean @default(false)
   fields     Json
   checked    Json
   elementId  String  @unique
   element    Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+// A Twitch channel whose owner allowed ovrly to read its subscriptions. Kept apart from the
+// sign-in Account, whose token better-auth replaces (without this scope) on every sign-in.
+// Its subscriber stats may be shown in overlays of `user` and of the people on their team.
+model TwitchConnection {
+  id           String   @id @default(cuid())
+  // Who connected it.
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twitchId     String   @unique
+  login        String
+  displayName  String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// A key other applications use to call the public API (routes/publicApi.ts) on behalf of
+// `user`. Only a hash of it is stored; the key itself is shown once, when it is created.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  // The start of the key, so it can be recognised in the settings.
+  prefix     String
+  // SHA-256 of the key, hex encoded.
+  hash       String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+enum VariableType {
+  STRING
+  INTEGER
+  DOUBLE
+  BOOLEAN
+  // A "#rrggbb" or "#rrggbbaa" hex colour.
+  COLOR
+  // The URL of an image: http(s), or an upload of this server ("/uploads/...").
+  IMAGE
+}
+
+// A named value of `user` that elements of their overlays can be bound to (VariableBinding):
+// a team's points, a colour, a Twitch channel's follower count. `source` groups it ("scores",
+// "twitch:shroud"), `key` names it within that group ("red.points"). Variables are created by
+// the user in the editor, by applications through the public API (routes/publicApi.ts), or by
+// a provider (VariableSource), whose sources contain a ":" so that nothing else can write them.
+model Variable {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    String
+  key       String
+  type      VariableType
+  // A JSON string, number or boolean, matching `type`.
+  value     Json
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([userId, source, key])
+}
+
+enum VariableProvider {
+  TWITCH
+}
+
+// Something outside ovrly that keeps a set of variables of `user` up to date while one of
+// their overlays is open, like the stats of a Twitch channel (services/twitch-variables.ts).
+// Its variables are named `<name>/<key>`; deleting it deletes them.
+model VariableSource {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   VariableProvider
+  // The source its variables carry, "<provider>:<name>" ("twitch:shroud").
+  name       String
+  // What the provider knows it by: the channel id for Twitch.
+  externalId String
+  // Provider settings, e.g. the channel's display name.
+  config     Json
+  // Why some of its variables are missing, e.g. "NOT_CONNECTED" for the subscriber stats of a
+  // Twitch channel nobody connected. Null when everything could be read.
+  problem    String?
+  createdAt  DateTime         @default(now())
+
+  @@unique([userId, name])
+  @@index([externalId])
+}
+
+// One property of an element that shows a variable of the overlay owner instead of its own
+// value: a title's text, a counter's value, a colour or size in its style. The variable is
+// named by source and key rather than referenced by id, so a binding keeps working when an
+// application deletes and sends its variables again, and copies of the overlay (also into other
+// accounts) pick up the variable of the same name of their new owner.
+model VariableBinding {
+  id        String  @id @default(cuid())
+  elementId String
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+  // "text", "value", "src", or "style.<key>" (lib/bindings.ts lists them per element type).
+  property  String
+  source    String
+  key       String
+
+  @@unique([elementId, property])
+  @@index([source, key])
 }
 
 model Account {

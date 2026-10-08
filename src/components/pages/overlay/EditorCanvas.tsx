@@ -1,0 +1,656 @@
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Magnet, Maximize, Minus, MousePointer2, Move, Plus, SquarePlus } from "lucide-react";
+import { AddElementModal } from "@/components/overlay/editor/AddElementModal";
+import type { OnStructureChange } from "@/components/overlay/editor/elementlist/ElementListEditor";
+import { placeElement } from "@/components/overlay/editor/elementlist/placeElement";
+import { childrenOf, isPlacedFreely } from "@/components/overlay/editor/elementlist/tree";
+import OverlayCanvas from "@/components/overlay/OverlayCanvas";
+import type { CanvasEditing } from "@/components/overlay/canvasEditing";
+import { FREE_ITEM_ATTRIBUTE } from "@/components/overlay/canvasGeometry";
+import type { CanvasSelection } from "@/components/overlay/canvasSelection";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import {
+  canvasSize,
+  type BaseElementStyle,
+  type ElementStyle,
+  type OnOverlayChange,
+  type PrismaOverlay,
+} from "@/lib/types";
+import { CanvasHelp } from "./CanvasHelp";
+import { OVERLAY_SELECTION, type EditorSelection } from "./editorSelection";
+import { StreamBackdrop, StreamPreviewButton } from "./StreamPreview";
+import { useStreamPreview } from "./useStreamPreview";
+
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 8;
+const ZOOM_STEP = 1.25;
+const ZOOM_PRESETS = [0.5, 1, 2];
+// How far a press has to travel before it pans instead of clicking what's under it.
+const DRAG_THRESHOLD = 4;
+// Large enough to shade everything outside the overlay at any zoom (in screen pixels).
+const SHADE_SIZE = 20000;
+// Whether dragged elements snap to the edges and centres around them, kept across visits.
+const SNAPPING_STORAGE_KEY = "ovrly:snapping";
+
+type Tool = "select" | "move";
+
+// The canvas is drawn at `zoom` with its top left corner at (x, y) in the viewport.
+interface Viewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+interface PanGesture {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  panning: boolean;
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const isEditableTarget = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+interface EditorCanvasProps {
+  overlay: PrismaOverlay;
+  onOverlayChange: OnOverlayChange;
+  // Moves elements into other parents (dragging them on the canvas).
+  onStructureChange: OnStructureChange;
+  selectedId: EditorSelection;
+  onSelect: (selection: EditorSelection) => void;
+  // Delete / Backspace asks to delete the selected element.
+  onRequestDelete: (elementId: string) => void;
+  // The overlay owner's Twitch name, the stream preview's channel until another is picked.
+  ownerName: string | null;
+}
+
+// An endless canvas around the overlay that can be panned and zoomed. Elements outside the
+// overlay stay visible (shaded), so things placed off screen can still be found and picked.
+const EditorCanvas: React.FC<EditorCanvasProps> = ({
+  overlay,
+  onOverlayChange,
+  onStructureChange,
+  selectedId,
+  onSelect,
+  onRequestDelete,
+  ownerName,
+}) => {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const [tool, setTool] = useState<Tool>("select");
+  const [isAddOpen, setAddOpen] = useState(false);
+  const [snapping, setSnapping] = useState(
+    () => localStorage.getItem(SNAPPING_STORAGE_KEY) !== "false"
+  );
+  const [isPanning, setIsPanning] = useState(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const spaceHeldRef = useRef(false);
+  // Until the user pans or zooms, the overlay is kept fitted to the available space.
+  const autoFit = useRef(true);
+  const gesture = useRef<PanGesture | null>(null);
+  // A pan ends with a click on whatever is under the pointer, which must not select it.
+  const suppressClick = useRef(false);
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const streamPreview = useStreamPreview(overlay.id, ownerName);
+
+  // The canvas is sized per overlay, so everything about the frame follows it.
+  const { width: canvasWidth, height: canvasHeight } = canvasSize(overlay);
+
+  const fitToScreen = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el || !el.clientWidth || !el.clientHeight) return;
+    const { clientWidth: width, clientHeight: height } = el;
+    const padding = Math.min(56, width / 12);
+    const zoom = clamp(
+      Math.min((width - padding * 2) / canvasWidth, (height - padding * 2) / canvasHeight),
+      MIN_ZOOM,
+      MAX_ZOOM
+    );
+    autoFit.current = true;
+    setViewport({
+      zoom,
+      x: (width - canvasWidth * zoom) / 2,
+      y: (height - canvasHeight * zoom) / 2,
+    });
+  }, [canvasWidth, canvasHeight]);
+
+  useLayoutEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    // Also runs when the canvas is resized, which only moves the view while the overlay is
+    // still fitted to the screen: panning or zooming by hand takes that over.
+    if (autoFit.current) fitToScreen();
+    const observer = new ResizeObserver(() => {
+      if (autoFit.current) fitToScreen();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fitToScreen]);
+
+  // Keeps the canvas point under (px, py), in viewport pixels, where it is.
+  const zoomAt = useCallback((px: number, py: number, getZoom: (zoom: number) => number) => {
+    autoFit.current = false;
+    setViewport((current) => {
+      const zoom = clamp(getZoom(current.zoom), MIN_ZOOM, MAX_ZOOM);
+      const ratio = zoom / current.zoom;
+      return { zoom, x: px - (px - current.x) * ratio, y: py - (py - current.y) * ratio };
+    });
+  }, []);
+
+  const zoomAtCenter = useCallback(
+    (getZoom: (zoom: number) => number) => {
+      const el = viewportRef.current;
+      if (el) zoomAt(el.clientWidth / 2, el.clientHeight / 2, getZoom);
+    },
+    [zoomAt]
+  );
+
+  useEffect(() => {
+    localStorage.setItem(SNAPPING_STORAGE_KEY, String(snapping));
+  }, [snapping]);
+
+  const panBy = useCallback((dx: number, dy: number) => {
+    autoFit.current = false;
+    setViewport((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
+  }, []);
+
+  // onOverlayChange persists the style change itself (debounced per element).
+  const moveElement = useCallback(
+    (elementId: string, patch: ElementStyle) =>
+      onOverlayChange((current) => ({
+        ...current,
+        elements: current.elements.map((el) =>
+          el.id === elementId ? { ...el, style: { ...(el.style || {}), ...patch } } : el
+        ),
+      })),
+    [onOverlayChange]
+  );
+
+  // Read when an element is dropped, so a live update meanwhile doesn't rebuild the canvas.
+  const latestOverlay = useRef(overlay);
+  useEffect(() => {
+    latestOverlay.current = overlay;
+  });
+
+  // Scrolling pans and Ctrl/Cmd + scroll (or a trackpad pinch) zooms, like in Figma.
+  // Registered natively: React's wheel listener is passive, so it can't keep the page from
+  // scrolling or the browser from zooming.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const unit =
+        e.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : e.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? el.clientHeight
+            : 1;
+      const dx = e.deltaX * unit;
+      const dy = e.deltaY * unit;
+      if (e.ctrlKey || e.metaKey) {
+        const rect = el.getBoundingClientRect();
+        // Pinches send many small deltas, mouse wheel notches a few large ones; capping them
+        // keeps a single notch from jumping too far.
+        const factor = Math.exp(-clamp(dy, -50, 50) * 0.006);
+        zoomAt(e.clientX - rect.left, e.clientY - rect.top, (zoom) => zoom * factor);
+      } else if (e.shiftKey && dx === 0) {
+        panBy(-dy, 0);
+      } else {
+        panBy(-dx, -dy);
+      }
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [zoomAt, panBy]);
+
+  useEffect(() => {
+    // Shortcuts only apply while nothing else wants the keys: not while typing, and not
+    // inside dialogs or menus.
+    const isFree = (e: KeyboardEvent) =>
+      !e.defaultPrevented &&
+      !isEditableTarget(e.target) &&
+      !(
+        e.target instanceof Element &&
+        e.target.closest('[role="dialog"], [role="menu"], [role="listbox"]')
+      );
+    // Space and Escape mean something else on buttons and tree rows, so they are only taken
+    // when the canvas (or nothing in particular) has focus.
+    const isCanvasFocused = (e: KeyboardEvent) =>
+      e.target === document.body ||
+      (e.target instanceof Node && !!viewportRef.current?.contains(e.target));
+
+    const selected = overlay.elements.find((el) => el.id === selectedId);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isFree(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === " " || e.key === "Escape" || e.key === "Enter") {
+        if (!isCanvasFocused(e)) return;
+        e.preventDefault();
+        // Like in Figma: Escape goes up to the parent, Enter down to the first child.
+        if (e.key === "Escape") onSelect(selected?.parentId ?? null);
+        else if (e.key === "Enter") {
+          const child = selected && childrenOf(overlay.elements, selected.id)[0];
+          if (child) onSelect(child.id);
+        } else if (!e.repeat) {
+          spaceHeldRef.current = true;
+          setSpaceHeld(true);
+        }
+        return;
+      }
+      const nudge = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      }[e.key];
+      if (nudge) {
+        if (tool !== "move" || !selected || !isPlacedFreely(overlay, selected)) return;
+        if (!isCanvasFocused(e)) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        // Where it is drawn, which for an element that was never placed isn't its x/y.
+        const item = viewportRef.current?.querySelector<HTMLElement>(
+          `[${FREE_ITEM_ATTRIBUTE}="${CSS.escape(selected.id)}"]`
+        );
+        const [dx, dy] = [nudge[0] * step, nudge[1] * step];
+        // Built on the latest state, so presses faster than a render all count.
+        onOverlayChange((current) => ({
+          ...current,
+          elements: current.elements.map((el) => {
+            if (el.id !== selected.id) return el;
+            const style = (el.style || {}) as BaseElementStyle;
+            const x = style.x ?? item?.offsetLeft ?? 0;
+            const y = style.y ?? item?.offsetTop ?? 0;
+            return { ...el, style: { ...style, x: x + dx, y: y + dy } };
+          }),
+        }));
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (!selectedId || selectedId === OVERLAY_SELECTION) return;
+        onRequestDelete(selectedId);
+      } else if (e.shiftKey && e.code === "Digit1") fitToScreen();
+      else if (e.shiftKey && e.code === "Digit0") zoomAtCenter(() => 1);
+      else if (e.key === "+" || e.key === "=") zoomAtCenter((zoom) => zoom * ZOOM_STEP);
+      else if (e.key === "-") zoomAtCenter((zoom) => zoom / ZOOM_STEP);
+      else if (e.key.toLowerCase() === "v") setTool("select");
+      else if (e.key.toLowerCase() === "m") setTool("move");
+      else if (e.key.toLowerCase() === "a") setAddOpen(true);
+      else return;
+      e.preventDefault();
+    };
+    const releaseSpace = () => {
+      spaceHeldRef.current = false;
+      setSpaceHeld(false);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === " ") releaseSpace();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", releaseSpace);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", releaseSpace);
+    };
+  }, [fitToScreen, zoomAtCenter, onSelect, selectedId, onRequestDelete, overlay, tool, onOverlayChange]);
+
+  const startPanning = (pointerId: number) => {
+    if (!gesture.current) return;
+    gesture.current.panning = true;
+    // Captured only now: capturing on press would send the click to the canvas instead of
+    // the element that was pressed.
+    viewportRef.current?.setPointerCapture(pointerId);
+    setIsPanning(true);
+  };
+
+  const beginGesture = (e: React.PointerEvent) => {
+    gesture.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      panning: false,
+    };
+  };
+
+  const cancelGesture = () => {
+    if (gesture.current?.panning) {
+      suppressClick.current = true;
+      setIsPanning(false);
+    }
+    gesture.current = null;
+  };
+
+  const handlePointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    suppressClick.current = false;
+    if (e.pointerType === "touch") {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // A second finger turns the gesture into a pinch.
+      if (touches.current.size === 2) cancelGesture();
+      if (touches.current.size > 1) return;
+    }
+    // The middle button and space + drag pan from anywhere, before elements get the press.
+    if (e.button === 1 || (e.button === 0 && spaceHeldRef.current)) {
+      e.preventDefault();
+      e.stopPropagation();
+      beginGesture(e);
+      startPanning(e.pointerId);
+    }
+  };
+
+  // Only reached when no element claimed the press (movable elements do in the move tool).
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || gesture.current || touches.current.size > 1) return;
+    if (isEditableTarget(e.target)) return;
+    beginGesture(e);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const previous = touches.current.get(e.pointerId);
+    if (previous) {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.current.size === 2) {
+        const [a, b] = [...touches.current.entries()].map(([id, point]) =>
+          id === e.pointerId ? [previous, point] : [point, point]
+        );
+        const before = { x: (a[0].x + b[0].x) / 2, y: (a[0].y + b[0].y) / 2 };
+        const after = { x: (a[1].x + b[1].x) / 2, y: (a[1].y + b[1].y) / 2 };
+        const distanceBefore = Math.hypot(a[0].x - b[0].x, a[0].y - b[0].y);
+        const distanceAfter = Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y);
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (distanceBefore > 0) {
+          zoomAt(after.x - rect.left, after.y - rect.top, (z) => (z * distanceAfter) / distanceBefore);
+        }
+        panBy(after.x - before.x, after.y - before.y);
+        return;
+      }
+    }
+
+    const current = gesture.current;
+    if (!current || current.pointerId !== e.pointerId) return;
+    if (!current.panning) {
+      const distance = Math.hypot(e.clientX - current.startX, e.clientY - current.startY);
+      if (distance < DRAG_THRESHOLD) return;
+      startPanning(e.pointerId);
+    }
+    panBy(e.clientX - current.lastX, e.clientY - current.lastY);
+    current.lastX = e.clientX;
+    current.lastY = e.clientY;
+  };
+
+  const handlePointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    touches.current.delete(e.pointerId);
+    if (gesture.current?.pointerId === e.pointerId) cancelGesture();
+  };
+
+  const editing = useMemo<CanvasEditing | null>(() => {
+    if (tool !== "move") return null;
+    return {
+      onMove: moveElement,
+      onResize: moveElement,
+      onPlace: (elementId, placement, position) =>
+        placeElement(
+          latestOverlay.current,
+          elementId,
+          placement,
+          position,
+          onOverlayChange,
+          onStructureChange
+        ),
+      snapping,
+    };
+  }, [tool, moveElement, onOverlayChange, onStructureChange, snapping]);
+
+  const selection = useMemo<CanvasSelection>(
+    () => ({ selectedId, onSelect }),
+    [selectedId, onSelect]
+  );
+
+  // The same element every time the viewport changes, so panning and zooming don't
+  // re-render the overlay.
+  const canvas = useMemo(
+    () => <OverlayCanvas overlay={overlay} editing={editing} selection={selection} clip={false} />,
+    [overlay, editing, selection]
+  );
+
+  const { x, y, zoom } = viewport;
+  const shade = SHADE_SIZE / zoom;
+  const frameSelected = selectedId === OVERLAY_SELECTION;
+  const grabbing = isPanning || spaceHeld;
+
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-neutral-200 select-none dark:bg-neutral-950">
+      <div
+        ref={viewportRef}
+        className={cn(
+          "absolute inset-0 touch-none",
+          // Elements set their own cursors, which would hide that the canvas is being dragged.
+          grabbing && "**:cursor-[inherit]!"
+        )}
+        style={{
+          cursor: isPanning ? "grabbing" : spaceHeld ? "grab" : undefined,
+          backgroundImage: "radial-gradient(circle, rgb(128 128 128 / 0.35) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          backgroundPosition: `${x}px ${y}px`,
+        }}
+        onPointerDownCapture={handlePointerDownCapture}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        // Keeps the middle button from starting the browser's autoscroll.
+        onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+        onClickCapture={(e) => {
+          if (!suppressClick.current) return;
+          suppressClick.current = false;
+          e.stopPropagation();
+        }}
+        onClick={(e) => {
+          // Clicks on the overlay are handled by the overlay; this is the space around it.
+          if (e.target === e.currentTarget) onSelect(null);
+        }}
+      >
+        <div
+          className="absolute top-0 left-0 origin-top-left"
+          style={
+            {
+              transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+              "--canvas-zoom": zoom,
+            } as React.CSSProperties
+          }
+        >
+          <div className="relative bg-black" style={{ width: canvasWidth, height: canvasHeight }}>
+            {streamPreview.showing && streamPreview.channel && (
+              <StreamBackdrop
+                channel={streamPreview.channel}
+                source={streamPreview.settings.source}
+                opacity={streamPreview.settings.opacity}
+                stillFrame={streamPreview.still.frame}
+              />
+            )}
+            {canvas}
+          </div>
+          {/* Shades everything outside the overlay: it exists, but OBS won't show it. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-[5]">
+            {[
+              { left: -shade, top: -shade, width: canvasWidth + shade * 2, height: shade },
+              { left: -shade, top: canvasHeight, width: canvasWidth + shade * 2, height: shade },
+              { left: -shade, top: 0, width: shade, height: canvasHeight },
+              { left: canvasWidth, top: 0, width: shade, height: canvasHeight },
+            ].map((rect, i) => (
+              <div
+                key={i}
+                className="absolute bg-neutral-200/75 dark:bg-neutral-950/75"
+                style={rect}
+              />
+            ))}
+          </div>
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute top-0 left-0 z-[6] outline-solid",
+              frameSelected ? "outline-sky-400" : "outline-neutral-400/60 dark:outline-neutral-600"
+            )}
+            style={{
+              width: canvasWidth,
+              height: canvasHeight,
+              outlineWidth: `calc(${frameSelected ? 2 : 1}px / var(--canvas-zoom))`,
+            }}
+          />
+        </div>
+
+        {/* The overlay's name above its top left corner, like a frame title in Figma. */}
+        <button
+          type="button"
+          className={cn(
+            "absolute flex max-w-full items-baseline gap-2 truncate pb-1 text-xs",
+            frameSelected ? "text-sky-500" : "text-muted-foreground hover:text-foreground"
+          )}
+          style={{
+            left: x,
+            top: y,
+            maxWidth: Math.max(canvasWidth * zoom, 120),
+            transform: "translateY(-100%)",
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onSelect(OVERLAY_SELECTION)}
+        >
+          <span className="truncate font-medium">{overlay.name}</span>
+          <span className="shrink-0 tabular-nums opacity-70">
+            {canvasWidth} × {canvasHeight}
+          </span>
+        </button>
+      </div>
+
+      <div className="absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">
+        <ToolButton
+          active={tool === "select"}
+          onClick={() => setTool("select")}
+          label="Select"
+          shortcut="V"
+        >
+          <MousePointer2 />
+        </ToolButton>
+        <ToolButton
+          active={tool === "move"}
+          onClick={() => setTool("move")}
+          label="Move and arrange elements"
+          shortcut="M"
+        >
+          <Move />
+        </ToolButton>
+        <Button
+          variant={snapping ? "secondary" : "ghost"}
+          size="icon-sm"
+          title={snapping ? "Snapping on (hold Alt to bypass)" : "Snapping off"}
+          aria-label="Snap to edges and centres"
+          aria-pressed={snapping}
+          onClick={() => setSnapping((on) => !on)}
+        >
+          <Magnet />
+        </Button>
+        <div className="mx-1 h-5 w-px bg-border" />
+        <StreamPreviewButton preview={streamPreview} />
+        <AddElementModal
+          overlay={overlay}
+          onOverlayChange={onOverlayChange}
+          onAdded={onSelect}
+          open={isAddOpen}
+          onOpenChange={setAddOpen}
+        >
+          <Button variant="ghost" size="sm" title="Add element (A)">
+            <SquarePlus />
+            Add element
+          </Button>
+        </AddElementModal>
+      </div>
+
+      <CanvasHelp />
+
+      <div className="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Zoom out (-)"
+          onClick={() => zoomAtCenter((z) => z / ZOOM_STEP)}
+        >
+          <Minus />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-16 tabular-nums">
+              {Math.round(zoom * 100)}%
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="end">
+            <DropdownMenuItem onClick={fitToScreen}>
+              <Maximize />
+              Zoom to fit
+              <DropdownMenuShortcut>Shift+1</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {ZOOM_PRESETS.map((preset) => (
+              <DropdownMenuItem key={preset} onClick={() => zoomAtCenter(() => preset)}>
+                Zoom to {preset * 100}%
+                {preset === 1 && <DropdownMenuShortcut>Shift+0</DropdownMenuShortcut>}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Zoom in (+)"
+          onClick={() => zoomAtCenter((z) => z * ZOOM_STEP)}
+        >
+          <Plus />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const ToolButton = ({
+  active,
+  onClick,
+  label,
+  shortcut,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  shortcut: string;
+  children: React.ReactNode;
+}) => (
+  <Button
+    variant={active ? "default" : "ghost"}
+    size="icon-sm"
+    title={`${label} (${shortcut})`}
+    aria-label={label}
+    aria-pressed={active}
+    onClick={onClick}
+  >
+    {children}
+  </Button>
+);
+
+export default EditorCanvas;

@@ -1,7 +1,8 @@
 import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { BindableField } from "@/components/variables/BindableField";
 import type { PrismaElement } from "@/lib/types";
+import { uploadImage } from "@/lib/uploads";
 import { Image } from "lucide-react";
 
 interface ImageControlProps {
@@ -16,22 +17,8 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const response = await fetch("/api/files/upload", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const newImage = await response.json();
-        handleImageChange(element.id, newImage.url);
-      } else {
-        console.error("Failed to upload image");
-      }
+      handleImageChange(element.id, await uploadImage(file));
     } catch (error) {
       console.error("Error uploading image:", error);
     }
@@ -42,11 +29,7 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
   };
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
-        Image:
-        <span className="font-normal">{element.name}</span>
-      </Label>
+    <BindableField property="src" label="Image">
       <div className="flex items-center space-x-2">
         {(element.image?.src && (
           <img
@@ -75,7 +58,7 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
           accept="image/*"
         />
       </div>
-    </div>
+    </BindableField>
   );
 };
 

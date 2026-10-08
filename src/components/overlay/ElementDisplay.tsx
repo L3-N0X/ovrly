@@ -1,9 +1,19 @@
 import React from "react";
-import type { BaseElementStyle, CounterStyle, PrismaElement, ContainerStyle, TimerStyle } from "@/lib/types";
+import type {
+  BaseElementStyle,
+  CounterStyle,
+  PrismaElement,
+  ContainerStyle,
+  IconStyle,
+  TimerStyle,
+} from "@/lib/types";
 import Title from "./Title";
 import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
+import Countdown from "./Countdown";
+import Icon from "./Icon";
+import Rectangle from "./Rectangle";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
@@ -15,7 +25,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer } = element;
+  const { type, style, title, counter, timer, countdown, icon } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -32,16 +42,30 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         ) : null;
       case "TIMER":
         return timer ? (
-          <Timer startedAt={timer.startedAt ? new Date(timer.startedAt) : null} pausedAt={timer.pausedAt ? new Date(timer.pausedAt) : null} duration={timer.duration} countDown={timer.countDown} style={(style || {}) as TimerStyle} />
+          <Timer
+            startedAt={timer.startedAt ? new Date(timer.startedAt) : null}
+            pausedAt={timer.pausedAt ? new Date(timer.pausedAt) : null}
+            style={(style || {}) as TimerStyle}
+          />
+        ) : null;
+      case "COUNTDOWN":
+        return countdown ? (
+          <Countdown countdown={countdown} style={(style || {}) as TimerStyle} />
         ) : null;
       case "CONTAINER":
         return (
-          <Container style={(style || {}) as ContainerStyle}>
+          <Container element={element} style={(style || {}) as ContainerStyle}>
             {children.map((child) => (
               <ElementDisplay key={child.id} element={child} elements={elements} />
             ))}
           </Container>
         );
+      case "ICON":
+        return icon ? (
+          <Icon icon={icon} style={(style || {}) as IconStyle} label={element.name} />
+        ) : null;
+      case "RECTANGLE":
+        return <Rectangle element={element} />;
       case "IMAGE":
         return <Image element={element} />;
       case "BINGO":
@@ -63,21 +87,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
   const content = renderElement();
   if (!selection || !content) return content;
 
-  // `display: contents` keeps the wrapper out of the layout. Events still bubble through
-  // it, and stopping them here means the innermost element under the pointer wins.
+  // `display: contents` keeps the wrapper out of the layout. The canvas finds the elements
+  // under the pointer through it (see useCanvasGestures).
   return (
-    <div
-      {...{ [CANVAS_ELEMENT_ATTRIBUTE]: element.id }}
-      style={{ display: "contents" }}
-      onClick={(e) => {
-        e.stopPropagation();
-        selection.onSelect(element.id);
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        selection.onHover(element.id);
-      }}
-    >
+    <div {...{ [CANVAS_ELEMENT_ATTRIBUTE]: element.id }} style={{ display: "contents" }}>
       {content}
     </div>
   );

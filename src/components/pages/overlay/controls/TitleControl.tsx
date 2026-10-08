@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { BindableField } from "@/components/variables/BindableField";
 import type { PrismaElement } from "@/lib/types";
 
 interface TitleControlProps {
@@ -10,18 +10,15 @@ interface TitleControlProps {
 
 const TitleControl: React.FC<TitleControlProps> = ({ element, handleTitleChange }) => {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`count-${element.id}`} className="text-sm font-medium">
-        Title:
-        <span className="font-normal">{element.name}</span>
-      </Label>
+    <BindableField property="text" label="Text" htmlFor={`title-${element.id}`}>
       <Input
         id={`title-${element.id}`}
+        aria-label={`${element.name} text`}
         value={element.title?.text || ""}
         onChange={(e) => handleTitleChange(element.id, e.target.value)}
         placeholder="Enter title text"
       />
-    </div>
+    </BindableField>
   );
 };
 

@@ -1,29 +1,14 @@
 import React from "react";
-
-// Define a more specific type for title styles
-interface TitleStyle {
-  fontSize?: number;
-  fontFamily?: string;
-  color?: string;
-}
+import type { BaseElementStyle } from "@/lib/types";
+import { textStyle } from "./textStyle";
 
 interface TitleProps {
   text: string;
-  style: TitleStyle;
+  style: BaseElementStyle;
 }
 
-const Title: React.FC<TitleProps> = ({ text, style }) => {
-  const safeStyle = style || {};
-  const titleStyle: React.CSSProperties = {
-    fontSize: typeof safeStyle.fontSize === "number" ? `${safeStyle.fontSize}px` : "36px",
-    lineHeight: 1,
-    fontWeight: "700", // font-bold
-    fontFamily: safeStyle.fontFamily,
-    color: safeStyle.color || "#ffffff",
-    whiteSpace: "nowrap",
-  };
-
-  return <h1 style={titleStyle}>{text}</h1>;
-};
+const Title: React.FC<TitleProps> = ({ text, style }) => (
+  <h1 style={{ ...textStyle(style, 36), whiteSpace: "nowrap" }}>{text}</h1>
+);
 
 export default Title;

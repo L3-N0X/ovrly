@@ -1,90 +1,120 @@
 {
   "presets": [
     {
-      "name": "2x Counter",
-      "id": "2x-counter",
-      "description": "Overlay for 2 player scores",
-      "icon": "overlay_2_title_counter.svg",
-      "globalStyle": {
-        "outerJustifyContent": "flex-start",
-        "outerAlignItems": "flex-start",
-        "innerJustifyContent": "center",
-        "innerAlignItems": "center",
-        "flexDirection": "column",
-        "gap": 24,
-        "top": 0,
-        "left": 0,
-        "padding": 20,
-        "radius": 10
-      },
+      "id": "timer",
+      "name": "Timer",
+      "description": "A stopwatch that counts up. You start and pause it while live.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
       "elements": [
         {
-          "name": "Horizontal Alignment",
+          "name": "Timer",
+          "type": "TIMER",
+          "style": {
+            "fontFamily": "Roboto Mono",
+            "fontSize": 96,
+            "backgroundColor": "#000000b3",
+            "padding": 24,
+            "radius": 20,
+            "x": 48,
+            "y": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "countdown",
+      "name": "Countdown",
+      "description": "A “Starting soon” screen counting down to your stream, or from a few minutes.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Countdown column",
           "type": "CONTAINER",
           "style": {
-            "flexDirection": "row",
-            "gap": 33,
-            "alignItems": "baseline",
-            "justifyContent": "space-between"
+            "flexDirection": "column",
+            "gap": 16,
+            "alignItems": "center",
+            "x": 660,
+            "y": 380
           },
           "children": [
             {
-              "name": "Player 1",
+              "name": "Label",
               "type": "TITLE",
               "style": {
                 "fontFamily": "Roboto",
-                "fontSize": 100
+                "fontSize": 64
               },
               "title": {
-                "text": "Player 1"
+                "text": "Starting soon"
               }
             },
             {
-              "name": "Score 1",
-              "type": "COUNTER",
+              "name": "Countdown",
+              "type": "COUNTDOWN",
               "style": {
                 "fontFamily": "Roboto Mono",
-                "backgroundColor": "#ffffff44",
-                "padding": 22,
-                "radius": 29
+                "fontSize": 128,
+                "backgroundColor": "#000000b3",
+                "padding": 24,
+                "radius": 20,
+                "format": "mm:ss"
               },
-              "counter": {
-                "value": 0
+              "countdown": {
+                "mode": "DURATION",
+                "duration": 300000
               }
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "counter",
+      "name": "Counter",
+      "description": "One labeled number, like deaths or wins, that you count live.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
         {
-          "name": "Horizontal Alignment 2",
+          "name": "Counter row",
           "type": "CONTAINER",
           "style": {
             "flexDirection": "row",
-            "gap": 32,
-            "alignItems": "baseline",
-            "justifyContent": "space-between",
-            "paddingY": 0,
-            "paddingX": 0
+            "gap": 24,
+            "alignItems": "center",
+            "x": 48,
+            "y": 48
           },
           "children": [
             {
-              "name": "Player 2",
+              "name": "Label",
               "type": "TITLE",
               "style": {
                 "fontFamily": "Roboto",
-                "fontSize": 100
+                "fontSize": 72
               },
               "title": {
-                "text": "Player 2"
+                "text": "Deaths"
               }
             },
             {
-              "name": "Score 2",
+              "name": "Counter",
               "type": "COUNTER",
               "style": {
                 "fontFamily": "Roboto Mono",
-                "backgroundColor": "#ffffff44",
-                "padding": 23,
-                "radius": 28
+                "fontSize": 72,
+                "backgroundColor": "#ffffff26",
+                "padding": 20,
+                "radius": 16
               },
               "counter": {
                 "value": 0
@@ -95,26 +125,79 @@
       ]
     },
     {
-      "name": "Free Layout",
-      "id": "free-layout",
-      "description": "Place elements anywhere by dragging them in the preview",
-      "icon": "overlay_free_layout.svg",
-      "globalStyle": {
-        "outerJustifyContent": "flex-start",
-        "outerAlignItems": "flex-start",
-        "flexDirection": "column",
-        "gap": 0,
-        "top": 0,
-        "left": 0,
-        "padding": 0
-      },
+      "id": "twitch-followers",
+      "name": "Followers",
+      "description": "The follower count of your Twitch channel, updated live while you stream.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
       "elements": [
         {
-          "name": "Canvas",
-          "type": "GROUP",
+          "name": "Followers row",
+          "type": "CONTAINER",
           "style": {
-            "width": 800,
-            "height": 600
+            "flexDirection": "row",
+            "gap": 24,
+            "alignItems": "center",
+            "x": 48,
+            "y": 48
+          },
+          "children": [
+            {
+              "name": "Label",
+              "type": "TITLE",
+              "style": {
+                "fontFamily": "Roboto",
+                "fontSize": 72
+              },
+              "title": {
+                "text": "Followers"
+              }
+            },
+            {
+              "name": "Followers",
+              "type": "COUNTER",
+              "style": {
+                "fontFamily": "Roboto Mono",
+                "fontSize": 72,
+                "backgroundColor": "#9146ff",
+                "padding": 20,
+                "radius": 16
+              },
+              "counter": {
+                "value": 0
+              },
+              "bindings": [
+                {
+                  "property": "value",
+                  "source": "twitch:@me",
+                  "key": "followers"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bingo",
+      "name": "Bingo",
+      "description": "A bingo card with a title. Fill in the fields and mark them live.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Bingo column",
+          "type": "CONTAINER",
+          "style": {
+            "flexDirection": "column",
+            "gap": 20,
+            "alignItems": "flex-start",
+            "x": 48,
+            "y": 48
           },
           "children": [
             {
@@ -122,29 +205,151 @@
               "type": "TITLE",
               "style": {
                 "fontFamily": "Roboto",
-                "fontSize": 64,
-                "x": 40,
-                "y": 40
+                "fontSize": 56
               },
               "title": {
-                "text": "My Stream"
+                "text": "Stream Bingo"
               }
             },
             {
-              "name": "Counter",
-              "type": "COUNTER",
+              "name": "Bingo card",
+              "type": "BINGO",
               "style": {
-                "fontFamily": "Roboto Mono",
-                "fontSize": 64,
-                "backgroundColor": "#ffffff44",
-                "padding": 16,
-                "radius": 16,
-                "x": 40,
-                "y": 140
+                "width": 520,
+                "height": 520,
+                "fontSize": 40,
+                "gridLines": true,
+                "padding": 0
               },
-              "counter": {
-                "value": 0
+              "bingo": {
+                "rows": 5,
+                "columns": 5,
+                "freeMiddle": true,
+                "fields": [
+                  "Chat says W",
+                  "First death",
+                  "Technical difficulties",
+                  "Talking while muted",
+                  "Raid incoming",
+                  "New sub",
+                  "Backseating in chat",
+                  "Rage moment",
+                  "Forgot to drink",
+                  "Lag spike",
+                  "Pet cameo",
+                  "Emote spam",
+                  "",
+                  "“One more game”",
+                  "Hype train",
+                  "Gifted subs",
+                  "“Clip it!”",
+                  "Snack break",
+                  "Wrong scene",
+                  "“I meant to do that”",
+                  "Fall damage",
+                  "New follower",
+                  "Song request",
+                  "Chat was right",
+                  "Lost track of time"
+                ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scoreboard",
+      "name": "Scoreboard",
+      "description": "Two players and their scores, for versus matches.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Scoreboard",
+          "type": "CONTAINER",
+          "style": {
+            "flexDirection": "column",
+            "gap": 16,
+            "x": 48,
+            "y": 48
+          },
+          "children": [
+            {
+              "name": "Player 1 row",
+              "type": "CONTAINER",
+              "style": {
+                "flexDirection": "row",
+                "gap": 32,
+                "alignItems": "center",
+                "justifyContent": "space-between"
+              },
+              "children": [
+                {
+                  "name": "Player 1",
+                  "type": "TITLE",
+                  "style": {
+                    "fontFamily": "Roboto",
+                    "fontSize": 64
+                  },
+                  "title": {
+                    "text": "Player 1"
+                  }
+                },
+                {
+                  "name": "Score 1",
+                  "type": "COUNTER",
+                  "style": {
+                    "fontFamily": "Roboto Mono",
+                    "fontSize": 64,
+                    "backgroundColor": "#ffffff26",
+                    "padding": 20,
+                    "radius": 16
+                  },
+                  "counter": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Player 2 row",
+              "type": "CONTAINER",
+              "style": {
+                "flexDirection": "row",
+                "gap": 32,
+                "alignItems": "center",
+                "justifyContent": "space-between"
+              },
+              "children": [
+                {
+                  "name": "Player 2",
+                  "type": "TITLE",
+                  "style": {
+                    "fontFamily": "Roboto",
+                    "fontSize": 64
+                  },
+                  "title": {
+                    "text": "Player 2"
+                  }
+                },
+                {
+                  "name": "Score 2",
+                  "type": "COUNTER",
+                  "style": {
+                    "fontFamily": "Roboto Mono",
+                    "fontSize": 64,
+                    "backgroundColor": "#ffffff26",
+                    "padding": 20,
+                    "radius": 16
+                  },
+                  "counter": {
+                    "value": 0
+                  }
+                }
+              ]
             }
           ]
         }

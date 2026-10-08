@@ -1,5 +1,5 @@
 import { prisma } from "../auth";
-import { authenticate } from "./authMiddleware";
+import { authenticate, getOverlayAccess } from "./authMiddleware";
 import type { WebSocketData } from "../types";
 
 const OVERLAY_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -57,12 +57,21 @@ export const authorizeWebSocket = async (req: Request): Promise<WebSocketHandsha
 
   const overlay = await prisma.overlay.findUnique({
     where: { id: overlayId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
   if (!overlay) {
     return { ok: false, status: 404, message: "Overlay not found" };
   }
 
   const session = req.headers.has("cookie") ? await authenticate(req).catch(() => null) : null;
-  return { ok: true, data: { overlayId, userId: session?.user.id ?? null } };
+  const access = session ? await getOverlayAccess(session.user, overlayId) : null;
+  return {
+    ok: true,
+    data: {
+      overlayId,
+      userId: session?.user.id ?? null,
+      ownerId: overlay.userId,
+      seesVariables: access !== null,
+    },
+  };
 };

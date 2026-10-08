@@ -1,18 +1,17 @@
 import { useEffect } from "react";
-import { loadFont } from "@/lib/fonts";
+import { loadFont, type FontWeight } from "@/lib/fonts";
 
 interface FontLoaderProps {
   fontFamily?: string;
-  fontWeight?: string;
+  fontWeight?: FontWeight;
 }
 
 const FontLoader: React.FC<FontLoaderProps> = ({ fontFamily, fontWeight }) => {
   useEffect(() => {
-    if (fontFamily) {
-      loadFont(fontFamily, fontWeight || "400").catch((error) => {
-        console.error(`Failed to load font: ${fontFamily}`, error);
-      });
-    }
+    if (!fontFamily) return;
+    loadFont(fontFamily, fontWeight).catch((error) => {
+      console.error(`Failed to load font: ${fontFamily}`, error);
+    });
   }, [fontFamily, fontWeight]);
 
   return null;

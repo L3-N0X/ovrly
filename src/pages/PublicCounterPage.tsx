@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import OverlayCanvas from "../components/overlay/OverlayCanvas";
 import FontLoader from "../components/FontLoader";
-import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
+import {
+  DEFAULT_CANVAS_HEIGHT,
+  DEFAULT_CANVAS_WIDTH,
+  type PrismaOverlay,
+  type BaseElementStyle,
+} from "@/lib/types";
+import { fontFamilyOf, fontWeightOf, type FontWeight } from "@/lib/fonts";
 import { connectOverlaySocket } from "@/lib/overlaySocket";
 
 const PublicCounterPage = () => {
@@ -13,18 +19,19 @@ const PublicCounterPage = () => {
     if (!overlayId) return;
 
     let disposed = false;
-    // Bumped by every broadcast: a fetch that started before one arrived holds older data
-    // and must not overwrite it.
-    let broadcastCount = 0;
+    // Snapshots can arrive out of order (a fetch that started before a broadcast, two
+    // broadcasts overtaking each other); the revision tells which one is newer.
+    let revision = -1;
+    const show = (data: PrismaOverlay) => {
+      if (disposed || data.revision < revision) return;
+      revision = data.revision;
+      setOverlay(data);
+    };
 
     const fetchOverlay = async () => {
-      const startedAt = broadcastCount;
       try {
         const response = await fetch(`/api/public/overlays/${overlayId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (!disposed && startedAt === broadcastCount) setOverlay(data);
-        }
+        if (response.ok) show(await response.json());
       } catch (error) {
         console.error("Failed to fetch overlay data:", error);
       }
@@ -36,10 +43,7 @@ const PublicCounterPage = () => {
     // Reconnects on its own (an OBS source can't be reloaded by hand), and refetches whenever
     // it (re)connects to pick up whatever was broadcast while it wasn't connected.
     const disconnect = connectOverlaySocket(overlayId, {
-      onOverlay: (updated) => {
-        broadcastCount++;
-        setOverlay(updated);
-      },
+      onOverlay: show,
       onOpen: fetchOverlay,
     });
 
@@ -49,39 +53,26 @@ const PublicCounterPage = () => {
     };
   }, [overlayId]);
 
-  // Function to extract and load fonts from overlay data
+  // Every font the overlay's text needs, each family and weight once. Renderers fill in the
+  // default family, so elements without a stored font count too.
   const loadOverlayFonts = () => {
     if (!overlay) return null;
 
-    // Extract unique font families and weights from overlay elements
-    const fonts = new Set<string>();
-
-    // Check individual elements for font families and weights
-    if (overlay.elements) {
-      overlay.elements.forEach((element) => {
-        // Check if the element style exists before accessing its properties
-        if (element.style) {
-          // Type guard to check if the style has fontFamily property
-          const elementStyle = element.style as BaseElementStyle;
-          if (elementStyle.fontFamily) {
-            // Check if style has fontWeight (even though it's not in the type)
-            const fontWeight = (elementStyle as { fontWeight?: string }).fontWeight || "400";
-            fonts.add(`${elementStyle.fontFamily}:${fontWeight}`);
-          }
-        }
-      });
-    }
-
-    // Render FontLoader for each unique font family and weight
-    return Array.from(fonts).map((fontString) => {
-      const [fontFamily, fontWeight] = fontString.split(":");
-      return <FontLoader key={fontString} fontFamily={fontFamily} fontWeight={fontWeight} />;
+    // Keyed so a family used at two weights is only asked for once per weight.
+    const fonts = new Map<string, { fontFamily: string; fontWeight: FontWeight }>();
+    overlay.elements.forEach((element) => {
+      const style = element.style as BaseElementStyle | null;
+      const fontFamily = fontFamilyOf(style);
+      const fontWeight = fontWeightOf(style);
+      fonts.set(`${fontFamily}:${fontWeight}`, { fontFamily, fontWeight });
     });
+
+    return Array.from(fonts, ([key, font]) => <FontLoader key={key} {...font} />);
   };
 
   if (!overlay) {
-    // Render a blank 800x600 box while loading
-    return <div style={{ width: "800px", height: "600px" }} />;
+    // A blank box of the default size while loading, so OBS doesn't flash a collapsed source.
+    return <div style={{ width: DEFAULT_CANVAS_WIDTH, height: DEFAULT_CANVAS_HEIGHT }} />;
   }
 
   return (

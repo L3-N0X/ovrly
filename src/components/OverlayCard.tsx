@@ -1,12 +1,22 @@
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { Link } from "react-router-dom";
 import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Check,
+  ClipboardCopy,
+  CopyPlus,
+  ExternalLink,
+  Layers,
+  Link2,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import AvatarStack, { Avatar } from "@/components/home/AvatarStack";
+import { PendingBadge, RoleBadge } from "@/components/sharing/RoleBadge";
+import OverlayPreview from "@/components/home/OverlayPreview";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,110 +24,227 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClipboardCopy, CopyPlus, ExternalLink, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { hasRole, ROLE_INFO } from "@/lib/sharing";
+import type { OverlaySummary } from "@/lib/types";
 
-interface Element {
-  id: string;
-  name: string;
-  type: string;
-  style?: Record<string, unknown>;
-}
+const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * 24 * 60 * 60],
+  ["month", 30 * 24 * 60 * 60],
+  ["week", 7 * 24 * 60 * 60],
+  ["day", 24 * 60 * 60],
+  ["hour", 60 * 60],
+  ["minute", 60],
+];
 
-interface Overlay {
-  id: string;
-  name: string;
-  description: string | null;
-  userId: string;
-  elements: Element[];
-  createdAt: string;
-}
-
-interface User {
-  id: string;
-  name: string;
-}
+// "3 days ago", "last week", ... falling back to "just now" for the last minute.
+const timeAgo = (date: string) => {
+  const seconds = (new Date(date).getTime() - Date.now()) / 1000;
+  for (const [unit, size] of UNITS) {
+    if (Math.abs(seconds) >= size) return relativeTime.format(Math.round(seconds / size), unit);
+  }
+  return "just now";
+};
 
 interface OverlayCardProps {
-  overlay: Overlay;
-  user: { user: User };
-  navigate: (path: string) => void;
-  handleCopyPublicUrl: (id: string) => void;
-  handleDuplicateOverlay: (id: string) => void;
-  handleDeleteOverlay: (id: string) => void;
-  copiedId: string | null;
+  overlay: OverlaySummary;
+  isCopied: boolean;
+  onCopyPublicUrl: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (overlay: OverlaySummary) => void;
+  onManageAccess: (id: string) => void;
 }
 
 const OverlayCard: React.FC<OverlayCardProps> = ({
   overlay,
-  user,
-  navigate,
-  handleCopyPublicUrl,
-  handleDuplicateOverlay,
-  handleDeleteOverlay,
-  copiedId,
+  isCopied,
+  onCopyPublicUrl,
+  onDuplicate,
+  onDelete,
+  onManageAccess,
 }) => {
+  const editorUrl = `/overlay/${overlay.id}`;
+  const role = overlay.myRole;
+  const isOwner = role === "OWNER";
+  const canEdit = hasRole(role, "EDITOR");
+  // Editors open the editor; controllers and viewers get the live controls.
+  const openLabel = canEdit
+    ? "Open editor"
+    : hasRole(role, "CONTROLLER")
+      ? "Open controls"
+      : "View live";
+  const owner = overlay.members.find((m) => m.role === "OWNER");
+  const elementCount = overlay.elements.length;
+
   return (
-    <Card
-      className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer"
-      onClick={() => navigate(`/overlay/${overlay.id}`)}
-    >
-      <CardHeader>
-        <CardTitle className="truncate text-lg">{overlay.name}</CardTitle>
-        {overlay.description && <CardDescription>{overlay.description}</CardDescription>}
-        <CardAction>
-          <div className="flex items-center gap-1">
+    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 focus-within:border-primary/40">
+      <div className="relative">
+        <OverlayPreview
+          overlay={overlay}
+          className="transition-transform duration-500 group-hover:scale-[1.02]"
+        />
+        {/* Fades in on hover to show what clicking the card does. */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
+          <span className="flex items-center gap-2 rounded-full bg-background/95 px-4 py-2 text-sm font-medium text-foreground shadow-lg">
+            {(() => {
+              const Icon = canEdit ? Pencil : ROLE_INFO[role].icon;
+              return <Icon className="size-4" />;
+            })()}
+            {openLabel}
+          </span>
+        </div>
+        <div className="pointer-events-none absolute top-3 left-3 flex gap-1.5">
+          {!isOwner && (
+            <span className="flex items-center gap-1.5 rounded-full bg-black/60 py-1 pr-2.5 pl-1 text-xs font-medium text-white backdrop-blur">
+              {owner ? <Avatar member={owner} className="size-5 text-[10px]" /> : <Users className="size-3.5" />}
+              {owner?.name ?? "Shared"}
+              <span className="text-white/60">· {ROLE_INFO[role].verb}</span>
+            </span>
+          )}
+        </div>
+        <span className="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white/90 backdrop-blur">
+          <Layers className="size-3" />
+          {elementCount} {elementCount === 1 ? "element" : "elements"}
+        </span>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-4 border-t p-4">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold">
+              {/* Stretched over the whole card, so the card is one big link. Controls sit
+                  above it (relative z-10) and stay clickable. */}
+              <Link
+                to={editorUrl}
+                className="outline-none after:absolute after:inset-0 after:content-['']"
+              >
+                {overlay.name}
+              </Link>
+            </h3>
+            <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+              {overlay.description || "No description"}
+            </p>
+          </div>
+          <div className="relative z-10 flex shrink-0 items-center">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title={isCopied ? "Copied!" : "Copy browser source URL for OBS"}
+              aria-label="Copy browser source URL for OBS"
+              onClick={() => onCopyPublicUrl(overlay.id)}
+            >
+              {isCopied ? <Check className="text-emerald-500" /> : <Link2 />}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => e.stopPropagation()} // Prevent card click
-                >
-                  <MoreHorizontal className="h-5 w-5" />
+                <Button variant="ghost" size="icon-sm" aria-label="More actions">
+                  <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate(`/overlay/${overlay.id}`)}>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  <span>Open Editor</span>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link to={editorUrl}>
+                    <Pencil />
+                    {openLabel}
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleCopyPublicUrl(overlay.id)}>
-                  <ClipboardCopy className="mr-2 h-4 w-4" />
-                  <span>{copiedId === overlay.id ? "Copied!" : "Copy for OBS"}</span>
+                <DropdownMenuItem asChild>
+                  <a href={`/public/overlay/${overlay.id}`} target="_blank" rel="noreferrer">
+                    <ExternalLink />
+                    Open public view
+                  </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDuplicateOverlay(overlay.id)}>
-                  <CopyPlus className="mr-2 h-4 w-4" />
-                  <span>Duplicate</span>
+                <DropdownMenuItem onClick={() => onCopyPublicUrl(overlay.id)}>
+                  <ClipboardCopy />
+                  Copy URL for OBS
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => handleDeleteOverlay(overlay.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  <span>Delete</span>
+                <DropdownMenuItem onClick={() => onManageAccess(overlay.id)}>
+                  {isOwner ? <UserPlus /> : <Users />}
+                  {isOwner ? "Share" : "People with access"}
                 </DropdownMenuItem>
+                {/* A copy takes the whole design along, so it's for editors. */}
+                {canEdit && (
+                  <DropdownMenuItem onClick={() => onDuplicate(overlay.id)}>
+                    <CopyPlus />
+                    Duplicate
+                  </DropdownMenuItem>
+                )}
+                {/* Only the owner may delete an overlay. */}
+                {isOwner && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => onDelete(overlay)}>
+                      <Trash2 />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardAction>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center">
-            {overlay.userId !== user.user.id && (
-              <div className="flex items-center mr-4" title="Shared with you">
-                <Users className="h-4 w-4 mr-1" />
-                <span>Shared</span>
-              </div>
-            )}
-          </div>
         </div>
-      </CardHeader>
-      <CardFooter className="flex-grow">
-        <p className="text-xs text-muted-foreground self-end">
-          Created on {new Date(overlay.createdAt).toLocaleDateString()}
-        </p>
-      </CardFooter>
-    </Card>
+
+        <div className="mt-auto flex items-center justify-between gap-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative z-10 -m-1 flex items-center gap-2 rounded-full p-1 outline-none transition-colors hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                aria-label={`${overlay.members.length} ${
+                  overlay.members.length === 1 ? "person has" : "people have"
+                } access`}
+              >
+                <AvatarStack members={overlay.members} />
+                {isOwner && overlay.members.length === 1 && (
+                  <span className="pr-2 text-xs text-muted-foreground">Only you</span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 p-0">
+              <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+                People with access
+              </div>
+              <ul className="max-h-60 space-y-0.5 overflow-y-auto p-1.5">
+                {overlay.members.map((member) => (
+                  <li key={member.name} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5">
+                    <Avatar
+                      member={member}
+                      className={member.pending ? "size-7 opacity-60" : "size-7"}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm">{member.name}</span>
+                    {member.pending ? (
+                      <PendingBadge />
+                    ) : (
+                      <RoleBadge role={member.role} />
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t p-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => onManageAccess(overlay.id)}
+                >
+                  {isOwner ? <UserPlus /> : <Users />}
+                  {isOwner ? "Share" : "View details"}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <time
+            dateTime={overlay.createdAt}
+            title={`Created ${new Date(overlay.createdAt).toLocaleString()}`}
+            className="shrink-0 text-xs text-muted-foreground"
+          >
+            Created {timeAgo(overlay.createdAt)}
+          </time>
+        </div>
+      </div>
+    </article>
   );
 };
 

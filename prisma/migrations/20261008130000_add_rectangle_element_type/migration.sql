@@ -1,0 +1,1 @@
+ALTER TYPE "ElementType" ADD VALUE 'RECTANGLE';

@@ -9,15 +9,19 @@ README; this file covers the data model, API and rendering behaviour.
 
 | Field         | Type      | Notes                                                       |
 | ------------- | --------- | ----------------------------------------------------------- |
-| `size`        | `Int`     | Edge length of the square grid. 3–7, defaults to 5.          |
-| `freeMiddle`  | `Boolean` | Marks the centre cell as permanently called. Odd sizes only. |
-| `fields`      | `Json`    | `string[]` of `size * size` labels. Max 120 chars each.      |
-| `checked`     | `Json`    | `boolean[]` of `size * size` mark states.                    |
+| `rows`        | `Int`     | Number of rows. 1–10, defaults to 5.                                  |
+| `columns`     | `Int`     | Number of columns. 1–10, defaults to 5. Cards need not be square.     |
+| `freeMiddle`  | `Boolean` | Marks the centre cell as permanently called. Odd rows and columns only. |
+| `fields`      | `Json`    | Row-major `string[]` of `rows * columns` labels. Max 120 chars each.  |
+| `checked`     | `Json`    | Row-major `boolean[]` of `rows * columns` mark states.                |
 
-Migration: `prisma/migrations/20251216145651_add_bingo`.
+Migrations: `prisma/migrations/20251216145651_add_bingo`, and
+`20261006150000_bingo_rows_columns`, which turned the old square `size` into
+`rows` and `columns`. `normalizeBingoState` / `normalizeBingoData` still accept a
+legacy `size` (used for both dimensions) from presets and older exports.
 
-The array lengths are a function of `size`, so they are always rewritten
-together — see [Validation](#validation) for the rules.
+The array lengths are a function of `rows` and `columns`, so they are always
+rewritten together — see [Validation](#validation) for the rules.
 
 ### Shared modules
 
@@ -25,7 +29,7 @@ Bingo rules live in two mirrored modules, because the server must not trust the
 client and the client must not crash on a partially applied edit:
 
 - `lib/bingo.ts` — server side. `normalizeBingoState`, `parseBingoUpdate`,
-  `shuffleBingoFields`, `sanitizeBingoField`.
+  `resizeBingoCells`, `shuffleBingoFields`, `sanitizeBingoField`.
 - `src/lib/bingo.ts` — client side. Same normalisation plus `resolveBingoStyle`
   (style defaults) and `applyBingoDataUpdate` (optimistic local update).
 
@@ -39,13 +43,15 @@ whitespace collapse to a single space, and the label is trimmed.
 returns either an error message or a **complete** update, and it:
 
 - rejects unknown keys and empty payloads;
-- requires `size` to be an integer in 3–7;
-- resizes `fields` (positionally, blanking new cells) and clears `checked` when
-  `size` changes, so callers never resize arrays themselves;
+- requires `rows` and `columns` to be integers in 1–10;
+- resizes `fields` and `checked` when either dimension changes, keeping every
+  cell in its row and column (cells that no longer fit are dropped, new ones are
+  blank and unmarked), so callers never resize arrays themselves;
 - requires `fields` to be an array of strings and `checked` an array of booleans,
-  each exactly `size * size` long for the *resulting* size;
-- forces `freeMiddle` to `false` for even sizes, which prevents a dangling flag
-  when a card is resized.
+  each exactly `rows * columns` long for the *resulting* shape, or a
+  `{ index: value }` patch of single cells;
+- forces `freeMiddle` to `false` unless both dimensions are odd, which prevents a
+  dangling flag when a card is resized.
 
 `routes/elements.ts` (`PATCH /api/elements/:id`) and
 `routes/overlays.ts` (preset import and overlay duplication, via
@@ -58,7 +64,7 @@ hand-crafted request cannot produce a permanently broken card.
 | ------ | ------------------------------- | ------------------------------------------- |
 | `POST` | `/api/bingo/:elementId/toggle`  | Flip `checked[index]`. Body `{ "index": n }`. |
 | `POST` | `/api/bingo/:elementId/shuffle` | Shuffle `fields`.                           |
-| `PATCH`| `/api/elements/:elementId`      | Update `data.size` / `freeMiddle` / `fields` / `checked`. |
+| `PATCH`| `/api/elements/:elementId`      | Update `data.rows` / `columns` / `freeMiddle` / `fields` / `checked`. |
 
 Conventions shared with the rest of the API:
 
@@ -72,15 +78,33 @@ Conventions shared with the rest of the API:
 
 ## Rendering
 
-- `src/components/overlay/Bingo.tsx` draws the grid. The card is sized in pixels
-  from `BingoStyle.width` / `height` (default 320×320) so it fits inside the
-  800×600 canvas instead of filling it. Grid tracks use `minmax(0, 1fr)` so cells
-  can shrink below their content.
-- `src/components/overlay/BingoCell.tsx` renders one cell and autofits the label
-  with a binary search that never exceeds `BingoStyle.fontSize`. It searches with
-  `white-space: nowrap` first so a long label does not register as "fits" merely
-  because it is already broken across lines, then falls back to wrapping if even
-  the minimum size does not fit on one line.
+- `src/components/overlay/Bingo.tsx` draws the card. Its width is
+  `BingoStyle.width` (default 320) and its height is computed by
+  `bingoCardHeight`, so every cell is square whatever the rows and columns; a
+  stored `height` from older cards is ignored. Grid tracks use `minmax(0, 1fr)` so cells
+  can shrink below their content. An optional background image sits between the
+  background colour and the cells.
+- With `gridLines` on, the gap becomes `gridLineWidth`, the padding is dropped
+  and lines are drawn in the gaps from edge to edge, so the cells form a table
+  whose outer edge is the card's outline.
+- `src/components/overlay/BingoCell.tsx` renders one cell and autofits the label:
+  a binary search for the largest size up to `BingoStyle.fontSize` at which the
+  label fits while wrapping only between words (a word that is too long makes
+  the label overflow the cell's width, so the size shrinks). Only if even the
+  minimum size can't fit a word does it allow breaking inside words. Sizes are
+  measured with layout sizes (`clientWidth`, `scrollWidth`), which the editor's
+  zoom transform doesn't affect. It refits when the cell resizes, the label,
+  family or weight changes, a web font finishes loading, and while typing.
+- `src/components/overlay/BingoCross.tsx` draws the mark of a called cell
+  *behind* the label, without changing the cell background, as an SVG in the
+  cell's pixel coordinates. Two styles: `brush` (default) and `line` (two
+  straight, round-capped strokes). The brush is a dry-brush X: each diagonal is
+  a bundle of thin bristles with ragged starts and ends (more ragged towards
+  the edges), occasional gaps that leave light streaks, and a few stray hairs
+  past the ends. The randomness comes from a seeded PRNG keyed by the cell's
+  index, so every viewer sees the same strokes and the crosses on a card
+  differ from each other. `crossOpacity` applies to the whole drawing, so
+  overlapping bristles aren't darker.
 - Cells are read-only unless the canvas was mounted as the editor.
   `OverlayCanvas` takes an `isEditor` prop (set by `OverlayPreview`) and
   `Bingo` additionally requires a `BingoDataProvider` to be present, so the
@@ -95,23 +119,28 @@ Conventions shared with the rest of the API:
 ## Style
 
 `BingoStyle` (see `src/lib/types.ts`) is stored on `Element.style` and merged over
-the defaults in `src/lib/bingo.ts`:
+the defaults in `src/lib/bingo.ts` (`resolveBingoStyle`):
 
-`width`, `height`, `backgroundColor`, `borderColor`, `borderWidth`,
-`borderRadius`, `padding`, `gap`, `color`, `checkedBackgroundColor`,
-`checkedColor`, `checkedCrossColor`, `crossWidth`, `fontFamily`, `fontSize`.
-
-`checkedCrossColor` is separate from `checkedColor` so the cross stays legible
-over the cell background. The cross is drawn as an SVG using
-`vectorEffect="non-scaling-stroke"`, which keeps its width in pixels even though
-the viewBox is stretched to fit non-square cells.
+- Card: `width` (the height follows from it), `backgroundColor`, `backgroundImage` (URL),
+  `backgroundImageFit` (`cover` / `contain` / `fill`), `backgroundImageOpacity`
+  (0–100), `borderColor`, `borderWidth`, `borderRadius`, `padding`, `gap`.
+- Grid lines: `gridLines`, `gridLineColor`, `gridLineWidth`. Off by default so
+  cards saved before they existed keep their look.
+- Text: `color`, `fontFamily`, `fontWeight`, `fontSize` (the maximum the autofit
+  may use).
+- Cross: `checkedCrossColor`, `crossThickness` (percent of the cell size),
+  `crossOpacity` (0–100), `crossStyle` (`brush` / `line`). Cards saved earlier may
+  carry a pixel `crossWidth`, which is ignored.
 
 ## Editing
 
-- Labels are edited in **Data Controls** (`BingoControl.tsx`) and inline on the
-  canvas. Both go through `useOverlayData.handleBingoDataChange`, which applies
-  the change optimistically and then persists it (debounced per element).
-- Card size and the free-middle switch live in **Appearance → Elements**
+- Labels are edited and cells marked in the **Content** controls
+  (`BingoControl.tsx`, a mark button on every field plus **Clear Marks**) and
+  inline on the canvas. All of it goes through
+  `useOverlayData.handleBingoDataChange`, which applies the change
+  optimistically and then persists it (debounced per element). Clearing only
+  unmarks the cells that are marked, as a cell patch.
+- Rows, columns and the free-middle switch live in **Appearance → Elements**
   (`BingoEditor.tsx`), which forwards through
   `OverlayPage → StyleEditor → ElementListEditor → ElementListItem`. It receives
   the same handler plus `ws`, so slider drags update the OBS preview live.

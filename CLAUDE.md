@@ -1,0 +1,50 @@
+# CLAUDE.md
+
+Guidance for coding agents. `AGENTS.md` and `GEMINI.md` are symlinks to this file.
+
+## Test user (local agent login)
+
+Real users sign in with Twitch only (usernames are used for sharing, so there is no email sign-up in the UI). For agents there is an email/password account in the local dev database:
+
+| Field    | Value                 |
+| -------- | --------------------- |
+| Email    | `test@ovrly.local`    |
+| Password | `ovrly-test-password` |
+| Name     | `ovrly_test`          |
+
+- Email/password auth is `emailAndPassword` in `auth.ts`, enabled only when `AUTH_EMAIL_PASSWORD="true"` (set in the local `.env`, never in production). No frontend form exists; sign in with a POST to `/api/auth/sign-in/email` (`{ email, password }`, `Origin` must equal `APP_BASE_URL`) or `authClient.signIn.email(...)` from the browser console/tests.
+- Create the user (idempotent): `bun run scripts/create-test-user.ts` (needs `.env` loaded and the DB running).
+- The database exists on the user's machine only. Do not use this account anywhere else.
+
+## Project summary
+
+Web-based overlay editor for live streaming: users build overlays from elements (titles, counters, timers, countdowns, icons, images, bingo, groups, rectangles) whose fields can be bound to variables (Twitch stats, values sent by other apps) and share them with others by Twitch name.
+
+- **Frontend:** React, TypeScript, Vite 8, Tailwind CSS (`src/`).
+- **Backend:** Bun `Bun.serve` with plain handler functions in `routes/`, WebSockets for live updates (`server.ts`, `auth.ts`, `routes/`, `middleware/`, `lib/`, `services/`, `types/`).
+- **Database:** Prisma 7 with PostgreSQL; **auth:** `better-auth` (Twitch).
+
+### Commands
+
+- `bun install`, then `bun run dev` (frontend `http://localhost:5173`, backend `http://localhost:3000`)
+- `bun run dev` restarts the backend itself: `scripts/dev-server.ts` watches the paths in `tsconfig.server.json` plus `prisma/schema.prisma`, regenerates the Prisma client when the schema changes, then restarts a fresh `server.ts`. Run migrations yourself (`bunx prisma migrate dev`) — the watcher never touches the database. `bun run dev:server` runs the backend on its own; both it and `server.ts` honour `PORT`.
+- `bun run build` (typechecks all three tsconfig projects, then Vite build), `bun run typecheck`, `bun run lint`
+- `docker compose up --build` reproduces a deployment
+
+### Conventions
+
+- ESLint config in `eslint.config.js`; no tests or commit conventions exist yet.
+- Verbatim TS: use `import type {}` for types. Backend uses relative imports; the `@/` alias is frontend only.
+- `bun run typecheck` covers `tsconfig.app.json`, `tsconfig.node.json` and `tsconfig.server.json`. `src/generated` is excluded.
+- **Prisma 7:** client generated to `src/generated/prisma` (import from `../src/generated/prisma/client`, not `@prisma/client`). Every client needs a driver adapter; use the single shared client exported from `auth.ts`. URLs live in `prisma.config.ts` (needs `DATABASE_URL` for migrate). Generation runs in `scripts/postinstall.ts`.
+- **Library notes:** Vite 8 uses `build.rolldownOptions` and `import.meta.dirname`; react-window 2 uses `<List rowComponent rowCount rowHeight rowProps />`; pragmatic-drag-and-drop 4 moved `preserve-offset-on-source` to `utils/`; ESLint 10 presets are under `configs.flat`, and `react-hooks/set-state-in-effect` is a warning on purpose.
+- **Sharing and roles:** `OverlayShare` (one overlay) and `AccountShare` (all of the owner's overlays) carry a `ShareRole`: `VIEWER` < `CONTROLLER` (content) < `EDITOR` (design); the higher role wins, only the owner shares/deletes. Check access with `requireOverlayRole` (`middleware/authMiddleware.ts`); helpers in `lib/sharing.ts` and `src/lib/sharing.ts`. `routes/sharing.ts` publishes `{ "type": "access" }` on the overlay's WebSocket channel.
+- **Canvas:** the canvas is the overlay itself (`Overlay.width`/`height`, `canvasMode` `AUTO` or `FREE`), not an element; top-level elements keep `parentId: null` (`isPlacedFreely` in `tree.ts`). Settings UI is `editor/CanvasEditor.tsx` (`OVERLAY_SELECTION`).
+- **Canvas editing:** every press, click, hover and drag on the editor canvas goes through `useCanvasGestures` on the overlay root (elements carry only `data-canvas-element`); Figma-style picking is `canvasPicking.ts`, snapping/measuring `canvasGeometry.ts`, drag feedback a small store in `canvasDrag.ts` drawn by `DragLayer`. Reparenting goes through `placeElement` (`elementlist/placeElement.ts`), which also gives elements moved into a group or free canvas an x/y that keeps them visible.
+- **Variables:** Figma-style. A `Variable` belongs to an account (`source` + `key`, typed, JSON value); a `VariableBinding` binds one property of an element (`text`, `value`, `src`, `style.<key>`) to one by name. The bindable properties and the variable types each accepts are listed twice, in `lib/bindings.ts` and `src/lib/bindings.ts`; keep them in sync. Overlay payloads carry the owner's variables they are bound to (`withVariables` in `services/overlay-query.ts`, never others: the OBS URL is public), and `OverlayCanvas` resolves them with `resolveOverlay`, so renderers and stored element data never see bound values. Fields become bindable by wrapping them in `BindableField` (needs `VariablesProvider` and `BindingElementContext`); the Variables tab is `VariablesPanel`. Every write goes through `services/variables.ts`, which publishes bound overlays and `variables-<ownerId>`. Design in `docs/variables.md`.
+- **Variable providers:** sources named `<provider>:<name>` (a `VariableSource` row) are written only by ovrly; names the API accepts never contain `:`, so they stay read only. Twitch (`services/twitch-variables.ts`) polls Helix every 30s for owners with an open overlay socket. Followers/viewers/title use the app token; subscriber variables need a `TwitchConnection` (own OAuth flow in `routes/twitch.ts`, redirect `<APP_BASE_URL>/api/twitch/callback`) and only exist for the connecting user or their account-share team. Presets bind to `twitch:@me`, which becomes the creator's channel.
+- **Public API:** apps send variables to `/api/v1` with an `ApiKey` (`routes/publicApi.ts`, own CORS, routed before `handleCors`). Keep `docs/public-api.md` in sync with the routes.
+- **Rectangles:** `RECTANGLE` elements hold no content of their own, so they need no Prisma model - only a `RectangleStyle` (`width`, `height`, `backgroundColor`, `borderColor`, `borderWidth`, `borderRadius`; see `DEFAULT_BORDER_*` and `DEFAULT_RECTANGLE_*` in `src/lib/types.ts`). Like groups and images they are sized by `useElementResize` and carry a resize handle while editing. To add an element type: extend the Prisma `ElementType` enum (with a migration), `ElementTypeEnum`, `ELEMENT_TYPES` in `routes/elements.ts` and `ELEMENT_TYPE_NAMES` in `lib/naming.ts`.
+- **Fonts:** `BaseElementStyle` has `fontFamily`, `fontSize` and `fontWeight`; renderers resolve them through `fontFamilyOf`/`fontWeightOf` (`src/lib/fonts.ts`, which also holds `DEFAULT_FONT_FAMILY` and `FONT_WEIGHTS`) so an element with nothing stored still names a real font. `FontPicker` lists Google Fonts (live API, needs `VITE_GOOGLE_FONTS_API_KEY`) plus `public/custom-fonts.json`; its list is virtualized with react-window, so it does not use cmdk. `loadFont` keys its cache by family *and* weight, registers custom fonts through the `FontFace` API (one file answers for every weight, which is how the Minecraft fonts work) and falls back to regular for a Google weight a family lacks. Every editor with a font size has a weight dropdown too, and `BingoCell` refits when family or weight changes.
+- **Icons:** `ICON` elements store only `{ library, name }` (`Icon` model; `lib/icons.ts` validates, `routes/elements.ts` patches it as content). The drawings come from the `@iconify-json/*` packages (lucide, ph, tabler, pixelarticons), loaded lazily per library as separate chunks by `src/lib/icons.ts`; `IconPicker.tsx` browses them. Add a library by installing its `@iconify-json/<set>` package and adding it to both `lib/icons.ts` and `src/lib/icons.ts` (plus `IconLibrary` in `src/lib/types.ts`). Libraries that draw one icon in several styles (Phosphor weights, Tabler filled) list them as `variants` named by suffix.
+- **Docker:** the production stage copies the whole builder tree (`COPY --from=builder /app ./`); never turn it into a per-directory allowlist. The CI `docker` job smoke-tests the built image. The base image tracks `oven/bun:1` unpinned.

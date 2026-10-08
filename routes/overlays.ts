@@ -1,16 +1,58 @@
 import type { Prisma } from "../src/generated/prisma/client";
 import { normalizeBingoState } from "../lib/bingo";
 import { prisma } from "../auth";
-import { authenticate, getOverlayAccess, getSharedOverlayIds } from "../middleware/authMiddleware";
-import { corsHeaders } from "../middleware/cors";
-import { findOverlayWithElements, overlayElementsInclude } from "../services/overlay-query";
+import {
+  authenticate,
+  forbiddenMessage,
+  getOverlayAccess,
+  getSharedOverlayRoles,
+  requireOverlayRole,
+} from "../middleware/authMiddleware";
+import { corsHeaders, json } from "../middleware/cors";
+import { hasRole, higherRole, personKey, type AccessRole } from "../lib/sharing";
+import {
+  findOverlayWithElements,
+  overlayElementsInclude,
+  publishOverlay,
+  revisionHeaders,
+  withVariables,
+  writeIdOf,
+} from "../services/overlay-query";
+import { lockOverlay } from "../services/locks";
+import { isStyleObject, mergeStyle } from "../lib/style";
+import { countdownSeed } from "../lib/countdown";
+import { iconSeed } from "../lib/icons";
+import { bindingSeeds, OWN_TWITCH_SOURCE } from "../lib/bindings";
+import { ownTwitchSource } from "../services/twitch-variables";
+import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
+
+// The canvas size bounds, shared with the editor so both clamp the same values.
+const MIN_CANVAS_SIZE = 16;
+const MAX_CANVAS_SIZE = 7680;
+
+type CanvasMode = "AUTO" | "FREE";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ElementSeed = any;
 
+// Someone who can open an overlay, as listed on the home page.
+interface OverlayMember {
+  name: string;
+  image: string | null;
+  role: AccessRole;
+  // Invited by Twitch name, but hasn't signed in to ovrly yet.
+  pending: boolean;
+}
+
 // Builds the nested create input for a sibling list. Children are created through Prisma's
 // nested writes, so each root element and its whole subtree go in with a single statement.
-function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
+// `ownTwitch` is the source of the creator's own Twitch channel, which presets bind to as
+// OWN_TWITCH_SOURCE; bindings to it are dropped when there is none.
+function buildElementCreates(
+  overlayId: string,
+  elements: ElementSeed[],
+  ownTwitch: string | null
+): Prisma.ElementUncheckedCreateWithoutParentInput[] {
   let position = 0;
   return elements.map((element): Prisma.ElementUncheckedCreateWithoutParentInput => {
     const data: Prisma.ElementUncheckedCreateWithoutParentInput = {
@@ -27,10 +69,26 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     if (element.counter) {
       data.counter = { create: { value: element.counter.value } };
     }
-    if (element.timer) {
-      data.timer = {
-        create: { duration: element.timer.duration, countDown: element.timer.countDown },
-      };
+    // Timers and countdowns start out stopped; only a countdown's settings are copied.
+    if (element.type === "TIMER") {
+      data.timer = { create: {} };
+    }
+    if (element.type === "COUNTDOWN") {
+      data.countdown = { create: countdownSeed(element.countdown) };
+    }
+    // Bound by name: in another account they show that account's variables of the same name.
+    const bindings = bindingSeeds(element.type, element.bindings).flatMap((binding) =>
+      binding.source !== OWN_TWITCH_SOURCE
+        ? [binding]
+        : ownTwitch
+          ? [{ ...binding, source: ownTwitch }]
+          : []
+    );
+    if (bindings.length > 0) {
+      data.bindings = { create: bindings };
+    }
+    if (element.type === "ICON") {
+      data.icon = { create: iconSeed(element.icon) };
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };
@@ -41,7 +99,7 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
       data.bingo = { create: normalizeBingoState(element.bingo) };
     }
     if (element.children && element.children.length > 0) {
-      data.children = { create: buildElementCreates(overlayId, element.children) };
+      data.children = { create: buildElementCreates(overlayId, element.children, ownTwitch) };
     }
     return data;
   });
@@ -53,14 +111,24 @@ async function createOverlayWithElements(
   data: Prisma.OverlayUncheckedCreateInput,
   elements: ElementSeed[]
 ) {
+  // Looked up (and added) before the transaction, which shouldn't wait on Twitch.
+  const ownTwitch = usesOwnTwitch(elements) ? (await ownTwitchSource(data.userId))?.name ?? null : null;
   return prisma.$transaction(async (tx) => {
     const overlay = await tx.overlay.create({ data });
-    for (const element of buildElementCreates(overlay.id, elements)) {
+    for (const element of buildElementCreates(overlay.id, elements, ownTwitch)) {
       await tx.element.create({ data: element });
     }
     return overlay;
   });
 }
+
+const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
+  elements.some(
+    (element) =>
+      (Array.isArray(element.bindings) &&
+        element.bindings.some((b: { source?: unknown }) => b?.source === OWN_TWITCH_SOURCE)) ||
+      (Array.isArray(element.children) && usesOwnTwitch(element.children))
+  );
 
 // Turns the flat element list of an overlay back into a tree of seeds, whatever its depth.
 function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
@@ -80,6 +148,45 @@ function toElementTree<T extends { id: string; parentId: string | null; position
   return build(null);
 }
 
+interface OverlayPreset {
+  id: string;
+  name: string;
+  globalStyle?: Prisma.InputJsonValue;
+  elements?: ElementSeed[];
+  width?: unknown;
+  height?: unknown;
+  canvasMode?: unknown;
+}
+
+const loadPresets = async (): Promise<OverlayPreset[]> => {
+  const presetsPath = `${process.cwd()}/public/presets/overlay-presets.json`;
+  const { presets } = JSON.parse(await Bun.file(presetsPath).text()) as {
+    presets: OverlayPreset[];
+  };
+  return presets;
+};
+
+// The canvas size and placement a preset asks for, when it asks for a valid one.
+function presetCanvas(preset: {
+  width?: unknown;
+  height?: unknown;
+  canvasMode?: unknown;
+}): Pick<Prisma.OverlayUncheckedCreateInput, "width" | "height" | "canvasMode"> {
+  const size = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.min(MAX_CANVAS_SIZE, Math.max(MIN_CANVAS_SIZE, Math.round(value)))
+      : undefined;
+  const width = size(preset.width);
+  const height = size(preset.height);
+  const canvasMode: CanvasMode | undefined =
+    preset.canvasMode === "AUTO" || preset.canvasMode === "FREE" ? preset.canvasMode : undefined;
+  return {
+    ...(width !== undefined ? { width } : {}),
+    ...(height !== undefined ? { height } : {}),
+    ...(canvasMode ? { canvasMode } : {}),
+  };
+}
+
 export const handleOverlaysRoutes = async (
   req: Request,
   server: { publish: (channel: string, message: string) => unknown | Promise<unknown> },
@@ -96,21 +203,22 @@ export const handleOverlaysRoutes = async (
     }
 
     const overlayId = duplicateMatch[1];
-    // Only someone who can open the overlay may copy it into their own account.
-    const access = await getOverlayAccess(session.user, overlayId);
-    const originalOverlay = access ? await findOverlayWithElements(overlayId) : null;
+    // Copying an overlay takes its whole design along, so it's reserved for editors.
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
+    const originalOverlay = await findOverlayWithElements(overlayId);
 
     if (!originalOverlay) {
-      return new Response(JSON.stringify({ error: "Overlay not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Overlay not found" }, 404);
     }
 
     const newOverlay = await createOverlayWithElements(
       {
         name: `Copy of ${originalOverlay.name}`,
         description: originalOverlay.description,
+        width: originalOverlay.width,
+        height: originalOverlay.height,
+        canvasMode: originalOverlay.canvasMode,
         userId: session.user.id,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         globalStyle: originalOverlay.globalStyle as any,
@@ -153,15 +261,27 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "PATCH") {
+      if (!hasRole(access.role, "EDITOR")) {
+        return json({ error: forbiddenMessage("EDITOR"), requiredRole: "EDITOR" }, 403);
+      }
       try {
         const body = (await req.json()) as {
           name?: unknown;
           description?: unknown;
           globalStyle?: unknown;
+          width?: unknown;
+          height?: unknown;
+          canvasMode?: unknown;
         } | null;
-        const { name, description, globalStyle } = body ?? {};
-        const dataToUpdate: { name?: string; description?: string | null; globalStyle?: object } =
-          {};
+        const { name, description, globalStyle, width, height, canvasMode } = body ?? {};
+        const dataToUpdate: {
+          name?: string;
+          description?: string | null;
+          globalStyle?: object;
+          width?: number;
+          height?: number;
+          canvasMode?: CanvasMode;
+        } = {};
 
         if (typeof name === "string" && name.trim()) {
           dataToUpdate.name = name.trim();
@@ -170,27 +290,50 @@ export const handleOverlaysRoutes = async (
         if (description === null || typeof description === "string") {
           dataToUpdate.description = description || null;
         }
-        if (globalStyle && typeof globalStyle === "object" && !Array.isArray(globalStyle)) {
-          dataToUpdate.globalStyle = globalStyle;
+        // The canvas size OBS is set to. Bounded so a bad value can't produce an overlay
+        // nothing can be placed in.
+        for (const [key, value] of [
+          ["width", width],
+          ["height", height],
+        ] as const) {
+          if (typeof value === "number" && Number.isFinite(value)) {
+            dataToUpdate[key] = Math.min(MAX_CANVAS_SIZE, Math.max(MIN_CANVAS_SIZE, Math.round(value)));
+          }
         }
+        if (canvasMode === "AUTO" || canvasMode === "FREE") {
+          dataToUpdate.canvasMode = canvasMode;
+        }
+        const globalStylePatch = isStyleObject(globalStyle) ? globalStyle : null;
 
-        if (Object.keys(dataToUpdate).length === 0) {
+        if (Object.keys(dataToUpdate).length === 0 && !globalStylePatch) {
           return new Response(JSON.stringify({ error: "No valid fields to update" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        const updatedOverlay = await prisma.overlay.update({
-          where: { id: overlayId },
-          data: dataToUpdate,
-          include: overlayElementsInclude,
+        await prisma.$transaction(async (tx) => {
+          // `globalStyle` is a patch (see mergeStyle), merged into the stored style under the
+          // overlay's lock so concurrent changes to different properties are all kept.
+          if (globalStylePatch) {
+            await lockOverlay(tx, overlayId);
+            const current = await tx.overlay.findUnique({
+              where: { id: overlayId },
+              select: { globalStyle: true },
+            });
+            dataToUpdate.globalStyle = mergeStyle(current?.globalStyle, globalStylePatch);
+          }
+          await tx.overlay.update({ where: { id: overlayId }, data: dataToUpdate });
         });
 
-        server.publish(`overlay-${overlayId}`, JSON.stringify(updatedOverlay));
+        const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
 
         return new Response(JSON.stringify(updatedOverlay), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: {
+            ...corsHeaders,
+            ...revisionHeaders(updatedOverlay),
+            "Content-Type": "application/json",
+          },
         });
       } catch (e) {
         console.error("PATCH /api/overlays/:id Error:", e);
@@ -204,12 +347,11 @@ export const handleOverlaysRoutes = async (
     if (req.method === "DELETE") {
       // Editors may change an overlay, but only its owner may delete it.
       if (!access.isOwner) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ error: forbiddenMessage("OWNER"), requiredRole: "OWNER" }, 403);
       }
       await prisma.overlay.delete({ where: { id: overlayId } });
+      // Others who have it open would otherwise keep editing an overlay that's gone.
+      server.publish(`overlay-${overlayId}`, JSON.stringify({ type: "deleted" }));
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
@@ -230,121 +372,118 @@ export const handleOverlaysRoutes = async (
     }
 
     if (req.method === "GET") {
-      const sharedOverlayIds = await getSharedOverlayIds(session.user);
-      const overlays = await prisma.overlay.findMany({
-        where: {
-          OR: [{ userId: session.user.id }, { id: { in: sharedOverlayIds } }],
+      const sharedRoles = await getSharedOverlayRoles(session.user);
+      const overlays = await withVariables(
+        prisma,
+        await prisma.overlay.findMany({
+          where: {
+            OR: [{ userId: session.user.id }, { id: { in: [...sharedRoles.keys()] } }],
+          },
+          include: {
+            ...overlayElementsInclude,
+            user: { select: { name: true, image: true } },
+            shares: {
+              select: { twitchName: true, role: true, user: { select: { name: true, image: true } } },
+            },
+          },
+        })
+      );
+
+      // Account shares reach every overlay of their owner, so they belong to each one's list
+      // of people with access.
+      const ownerIds = [...new Set(overlays.map((o) => o.userId))];
+      const accountShares = await prisma.accountShare.findMany({
+        where: { ownerId: { in: ownerIds } },
+        select: {
+          ownerId: true,
+          twitchName: true,
+          role: true,
+          user: { select: { name: true, image: true } },
         },
-        include: overlayElementsInclude,
       });
 
-      return new Response(JSON.stringify(overlays), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const withMembers = overlays.map(({ user, shares, ...overlay }) => {
+        const owner: OverlayMember = {
+          name: user.name,
+          image: user.image,
+          role: "OWNER",
+          pending: false,
+        };
+        const members = new Map<string, OverlayMember>([[personKey(user.name), owner]]);
+        const add = (share: (typeof shares)[number]) => {
+          const name = share.user?.name ?? share.twitchName;
+          const existing = members.get(personKey(name));
+          // Someone shared twice (directly and through the account) is listed once, with the
+          // role that allows more.
+          if (existing) {
+            existing.role = higherRole(existing.role, share.role);
+            return;
+          }
+          members.set(personKey(name), {
+            name,
+            image: share.user?.image ?? null,
+            role: share.role,
+            pending: !share.user,
+          });
+        };
+        shares.forEach(add);
+        accountShares.filter((share) => share.ownerId === overlay.userId).forEach(add);
+
+        const myRole: AccessRole =
+          overlay.userId === session.user.id ? "OWNER" : sharedRoles.get(overlay.id)!;
+        return { ...overlay, members: [...members.values()], myRole };
       });
+
+      return json(withMembers);
     }
 
     if (req.method === "POST") {
       try {
-        const { name, description, type, elementName, presetId } = (await req.json()) as {
-          name?: string;
-          description?: string;
-          type?: string;
-          elementName?: string;
-          presetId?: string;
+        const { name, description, presetId } = (await req.json()) as {
+          name?: unknown;
+          description?: unknown;
+          presetId?: unknown;
         };
 
-        // If presetId is provided, create overlay based on preset
-        if (presetId) {
-          // Load the preset
-          const presetsPath = `${process.cwd()}/public/presets/overlay-presets.json`;
-          const presetsContent = await Bun.file(presetsPath).text();
-          const presets = JSON.parse(presetsContent);
-
-          const selectedPreset = presets.presets.find((p: { id: string }) => p.id === presetId);
-          if (!selectedPreset) {
-            return new Response(JSON.stringify({ error: "Invalid preset ID" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          if (!name) {
-            return new Response(JSON.stringify({ error: "Name is required" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          const newOverlay = await createOverlayWithElements(
-            {
-              name,
-              description,
-              userId: session.user.id,
-              globalStyle: selectedPreset.globalStyle || {},
-            },
-            selectedPreset.elements
-          );
-
-          const overlayWithElements = await findOverlayWithElements(newOverlay.id);
-
-          return new Response(JSON.stringify(overlayWithElements), {
-            status: 201,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+        // A template to start from. Without one, the overlay starts as an empty canvas.
+        let preset: OverlayPreset | null = null;
+        if (presetId !== undefined) {
+          const presets = await loadPresets();
+          preset = presets.find((p) => p.id === presetId) ?? null;
+          if (!preset) return json({ error: "Invalid preset ID" }, 400);
         }
-        // Otherwise, use the legacy method with a single element
-        else if (name && type && elementName) {
-          const elementCreateData: {
-            name: string;
-            type: "TITLE" | "COUNTER" | "CONTAINER";
-            style: object;
-            title?: { create: { text: string } };
-            counter?: { create: { value: number } };
-          } = {
-            name: elementName,
-            type: type as "TITLE" | "COUNTER" | "CONTAINER",
-            style: {}, // Initialize with empty style object instead of null
-          };
 
-          if (type === "TITLE") {
-            elementCreateData.title = { create: { text: "New Title" } };
-          } else if (type === "COUNTER") {
-            elementCreateData.counter = { create: { value: 0 } };
-          } else {
-            return new Response(JSON.stringify({ error: "Invalid element type" }), {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-
-          const newOverlay = await prisma.overlay.create({
-            data: {
-              name,
-              description,
-              userId: session.user.id,
-              globalStyle: {},
-              elements: {
-                create: [elementCreateData],
-              },
-            },
-            include: overlayElementsInclude,
+        // Nobody knows what to call an overlay before building it, so the name is optional:
+        // it defaults to the template's name (or "Untitled"), numbered like Figma does when
+        // one of that name already exists.
+        let overlayName = typeof name === "string" ? name.trim() : "";
+        if (!overlayName) {
+          const own = await prisma.overlay.findMany({
+            where: { userId: session.user.id },
+            select: { name: true },
           });
-
-          return new Response(JSON.stringify(newOverlay), {
-            status: 201,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        } else {
-          return new Response(
-            JSON.stringify({
-              error: "Either presetId or name, type, and elementName are required",
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
+          overlayName = nextDefaultName(
+            preset?.name ?? UNTITLED_OVERLAY_NAME,
+            own.map((o) => o.name)
           );
         }
+
+        // A preset may bring its own canvas size and placement; anything it leaves out
+        // falls back to the column defaults (1920x1080, free placement).
+        const newOverlay = await createOverlayWithElements(
+          {
+            name: overlayName,
+            description:
+              typeof description === "string" && description.trim() ? description.trim() : null,
+            userId: session.user.id,
+            globalStyle: preset?.globalStyle || {},
+            ...(preset ? presetCanvas(preset) : {}),
+          },
+          preset?.elements ?? []
+        );
+
+        const overlayWithElements = await findOverlayWithElements(newOverlay.id);
+        return json(overlayWithElements, 201);
       } catch (e) {
         console.error(e);
         return new Response(JSON.stringify({ error: "Invalid request body" }), {

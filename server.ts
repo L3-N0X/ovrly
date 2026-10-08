@@ -3,15 +3,19 @@ import { handleCors } from "./middleware/cors";
 import { handleAuthRoutes } from "./routes/auth";
 import { handlePresetsRoutes } from "./routes/presets";
 import { handlePublicOverlaysRoutes } from "./routes/publicOverlays";
-import { handleEditorsRoutes } from "./routes/editors";
 import { handleFilesRoutes, handleUploadsRoutes } from "./routes/files";
 import { handleElementsRoutes } from "./routes/elements";
 import { handleOverlaysRoutes } from "./routes/overlays";
 import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
-import { handleOverlayEditorsRoutes } from "./routes/overlay-editors";
+import { handleSharingRoutes } from "./routes/sharing";
+import { handleTwitchRoutes } from "./routes/twitch";
+import { handlePublicApiRoutes } from "./routes/publicApi";
+import { handleVariablesRoutes } from "./routes/variables";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
+import { refreshOpenedOverlay, startTwitchVariables } from "./services/twitch-variables";
+import { variablesChannel } from "./services/variables";
 import type { WebSocketData } from "./types";
 import path from "path";
 import type { ServerWebSocket } from "bun";
@@ -62,12 +66,20 @@ const HEARTBEAT_MESSAGE = JSON.stringify({ type: "heartbeat" });
 const sockets = new Set<ServerWebSocket<WebSocketData>>();
 
 const server = Bun.serve<WebSocketData>({
-  port: 3000,
+  // Overridable so a second instance can run next to one on 3000 (dev tooling
+  // uses this); the documented deployments all rely on the default.
+  port: Number(process.env.PORT ?? 3000),
   // The multipart envelope adds a little on top of the file itself.
   maxRequestBodySize: MAX_UPLOAD_BYTES + 1024 * 1024,
   async fetch(req, server) {
     const url = new URL(req.url);
     const reqPath = url.pathname;
+
+    // The public API answers its own preflights: it may be called from any origin.
+    const publicApiResponse = await handlePublicApiRoutes(req, server, reqPath);
+    if (publicApiResponse) {
+      return publicApiResponse;
+    }
 
     // Handle CORS preflight
     const corsResponse = handleCors(req);
@@ -132,16 +144,22 @@ const server = Bun.serve<WebSocketData>({
         return publicOverlayResponse;
       }
 
-      // Handle editor routes
-      const editorResponse = await handleEditorsRoutes(req, reqPath);
-      if (editorResponse) {
-        return editorResponse;
+      // Handle sharing routes (who has access to what, and with which role)
+      const sharingResponse = await handleSharingRoutes(req, server, reqPath);
+      if (sharingResponse) {
+        return sharingResponse;
       }
 
-      // Handle overlay editor routes
-      const overlayEditorResponse = await handleOverlayEditorsRoutes(req, reqPath);
-      if (overlayEditorResponse) {
-        return overlayEditorResponse;
+      // Handle API key and variable routes (what the public API writes)
+      const variablesResponse = await handleVariablesRoutes(req, server, reqPath);
+      if (variablesResponse) {
+        return variablesResponse;
+      }
+
+      // Handle Twitch routes (connecting channels for their subscriber stats)
+      const twitchResponse = await handleTwitchRoutes(req, reqPath);
+      if (twitchResponse) {
+        return twitchResponse;
       }
 
       // Handle preset routes
@@ -177,9 +195,13 @@ const server = Bun.serve<WebSocketData>({
     // answering (half-open TCP connection) is dropped once it has been silent this long.
     idleTimeout: 60,
     open(ws) {
-      const { overlayId } = ws.data;
+      const { overlayId, ownerId, seesVariables } = ws.data;
       sockets.add(ws);
       ws.subscribe(`overlay-${overlayId}`);
+      if (seesVariables) ws.subscribe(variablesChannel(ownerId));
+      // Twitch channels are only polled while an overlay of their user is open, so they may
+      // be out of date.
+      refreshOpenedOverlay(ownerId);
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
     message() {
@@ -198,6 +220,8 @@ setInterval(() => {
     ws.send(HEARTBEAT_MESSAGE);
   }
 }, HEARTBEAT_INTERVAL_MS);
+
+startTwitchVariables(server, () => [...sockets].map((ws) => ws.data.ownerId));
 
 console.log(`Server running on port ${server.port}`);
 console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);

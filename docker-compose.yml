@@ -70,7 +70,7 @@ services:
     ports:
       # Application port, use this to access the web interface
       # Can be forwarded or proxied as needed
-      - "3000:3000"
+      - "3030:3000"
     depends_on:
       db:
         condition: service_healthy

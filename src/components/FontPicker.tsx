@@ -2,35 +2,34 @@
 
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { Font } from "@/lib/fonts";
-import { fetchAllFonts, loadFont } from "@/lib/fonts";
+import type { Font, FontWeight } from "@/lib/fonts";
+import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_WEIGHT, fetchAllFonts, loadFont } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Filter } from "lucide-react";
+import { Check, ChevronsUpDown, Filter, Search } from "lucide-react";
 import * as React from "react";
 import { List } from "react-window";
-import type { RowComponentProps } from "react-window";
+import type { ListImperativeAPI, RowComponentProps } from "react-window";
+
+/** Height of one font row: the family name above its preview word. */
+const ROW_HEIGHT = 55;
 
 function FontListItem({
   font,
+  weight,
   isSelected,
   onSelect,
   previewWord,
 }: {
   font: Font;
+  weight: FontWeight;
   isSelected: boolean;
   onSelect: () => void;
   previewWord: string;
@@ -39,41 +38,48 @@ function FontListItem({
 
   React.useEffect(() => {
     if (!isFontLoaded) {
-      loadFont(font.family)
+      loadFont(font.family, weight)
         .then(() => setIsFontLoaded(true))
         .catch((error) => console.error("Failed to load font:", error));
     }
-  }, [isFontLoaded, font.family]);
+  }, [isFontLoaded, font.family, weight]);
 
   return (
-    <CommandItem
-      value={font.family}
-      onSelect={onSelect}
-      className="data-[selected=true]:bg-accent flex cursor-pointer items-center gap-2 p-2"
+    <button
+      type="button"
+      role="option"
+      aria-selected={isSelected}
+      onClick={onSelect}
+      className="data-[selected=true]:bg-accent flex h-full w-full cursor-pointer items-center gap-2 p-2 text-left"
       data-selected={isSelected}
     >
       <Check className={cn("h-3 w-3 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
-      <div className="flex flex-col gap-0">
-        <span className="text-xs text-muted-foreground font-medium">{font.family}</span>
+      <div className="flex min-w-0 flex-col">
+        <span className="text-muted-foreground truncate text-xs font-medium">{font.family}</span>
         <span
           className={cn(
-            "text-xl transition-opacity duration-300",
+            "truncate text-xl transition-opacity duration-300",
             isFontLoaded ? "opacity-100" : "opacity-0"
           )}
           style={{
             fontFamily: isFontLoaded ? font.family : "system-ui",
+            fontWeight: weight,
           }}
         >
           {previewWord}
         </span>
       </div>
-    </CommandItem>
+    </button>
   );
 }
 
 interface FontPickerProps {
   onChange?: (font: Font["family"]) => void;
+  /** A family from the catalog. Empty means the element has none stored yet. */
   value?: string;
+  id?: string;
+  /** The weight the element's text uses, which the previews are drawn at. */
+  weight?: FontWeight;
   width?: number;
   height?: number;
   className?: string;
@@ -81,54 +87,71 @@ interface FontPickerProps {
   previewWord?: string;
 }
 
+/**
+ * Picks a font family out of the Google Fonts catalog plus the custom fonts in
+ * public/custom-fonts.json. The list is virtualized, because the catalog runs to thousands of
+ * families and a preview loads each one as it is drawn.
+ *
+ * cmdk is deliberately not used here: it filters and reorders the items it has registered,
+ * which is only the handful of rows the virtual list happens to have mounted, so searching
+ * and keyboard navigation would fight the list rather than drive it.
+ */
 export function FontPicker({
   onChange,
   value,
+  id,
+  weight = DEFAULT_FONT_WEIGHT,
   width,
   height = 300,
   className,
   showFilters = true,
   previewWord = "The quick brown fox",
 }: FontPickerProps) {
-  const [selectedFont, setSelectedFont] = React.useState<Font | null>(null);
   const [search, setSearch] = React.useState("");
   const [isOpen, setIsOpen] = React.useState(false);
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [fonts, setFonts] = React.useState<Font[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const listRef = React.useRef<ListImperativeAPI>(null);
+
+  // An element always has a font: the one it picked, or the app default. Resolving it here
+  // rather than in each editor is what keeps an element that never chose one from reading
+  // "Select font..." while it is in fact already rendering text.
+  const selectedFamily = value || DEFAULT_FONT_FAMILY;
 
   React.useEffect(() => {
-    const loadFonts = async () => {
-      try {
-        setIsLoading(true);
-        const fetchedFonts = await fetchAllFonts();
+    let cancelled = false;
+
+    fetchAllFonts()
+      .then((fetchedFonts) => {
+        if (cancelled) return;
         setFonts(fetchedFonts);
-        const font = fetchedFonts.find((font) => font.family === value);
-        if (font) {
-          setSelectedFont(font);
-        }
         setError(null);
-      } catch (err) {
+      })
+      .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof Error ? err : new Error("Failed to load fonts"));
         console.error("Error loading fonts:", err);
-      } finally {
-        setIsLoading(false);
-      }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
     };
+  }, []);
 
-    loadFonts();
-  }, [value]);
-
-  const categories = React.useMemo(() => {
-    const uniqueCategories = new Set(fonts.map((font) => font.category));
-    return Array.from(uniqueCategories).sort();
-  }, [fonts]);
+  const categories = React.useMemo(
+    () => Array.from(new Set(fonts.map((font) => font.category))).sort(),
+    [fonts]
+  );
 
   const filteredFonts = React.useMemo(() => {
-    return fonts.filter((font: Font) => {
-      const matchesSearch = font.family.toLowerCase().includes(search.toLowerCase());
+    const needle = search.trim().toLowerCase();
+    return fonts.filter((font) => {
+      const matchesSearch = !needle || font.family.toLowerCase().includes(needle);
       const matchesCategory =
         !showFilters || selectedCategory === "all" || font.category === selectedCategory;
       return matchesSearch && matchesCategory;
@@ -137,63 +160,87 @@ export function FontPicker({
 
   const handleSelectFont = React.useCallback(
     (font: Font) => {
-      setSelectedFont(font);
       onChange?.(font.family);
       setIsOpen(false);
     },
     [onChange]
   );
 
-  const handleOpenChange = React.useCallback((open: boolean) => {
-    setIsOpen(open);
-  }, []);
+  const scrollBy = React.useCallback(
+    (direction: 1 | -1) => {
+      const index = Math.min(
+        Math.max(0, filteredFonts.findIndex((font) => font.family === selectedFamily)),
+        filteredFonts.length - 1
+      );
+      listRef.current?.scrollToRow({ index: index + direction });
+    },
+    [filteredFonts, selectedFamily]
+  );
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      scrollBy(event.key === "ArrowDown" ? 1 : -1);
+    } else if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      listRef.current?.scrollToRow({ index: event.key === "Home" ? 0 : filteredFonts.length - 1 });
+    } else if (event.key === "Escape") {
+      setSearch("");
+    }
+  };
 
   interface FontRowProps {
-  fonts: Font[];
-  selectedFamily?: string;
-  onSelect: (font: Font) => void;
-  previewWord: string;
-}
+    fonts: Font[];
+    selectedFamily: string;
+    weight: FontWeight;
+    onSelect: (font: Font) => void;
+    previewWord: string;
+  }
 
-const Row = React.useCallback(
-  ({
-    index,
-    style,
-    fonts,
-    selectedFamily,
-    onSelect,
-    previewWord,
-  }: RowComponentProps<FontRowProps>) => {
-    const font = fonts[index];
-    return (
-      <div style={style}>
-        <FontListItem
-          font={font}
-          isSelected={selectedFamily === font.family}
-          onSelect={() => onSelect(font)}
-          previewWord={previewWord}
-        />
-      </div>
-    );
-  },
-  []
-);
+  const Row = React.useCallback(
+    ({
+      index,
+      style,
+      fonts,
+      selectedFamily,
+      weight,
+      onSelect,
+      previewWord,
+    }: RowComponentProps<FontRowProps>) => {
+      const font = fonts[index];
+      return (
+        <div style={style}>
+          <FontListItem
+            font={font}
+            weight={weight}
+            isSelected={selectedFamily === font.family}
+            onSelect={() => onSelect(font)}
+            previewWord={previewWord}
+          />
+        </div>
+      );
+    },
+    []
+  );
 
-const rowProps = React.useMemo(
-  () => ({
-    fonts: filteredFonts,
-    selectedFamily: selectedFont?.family,
-    onSelect: handleSelectFont,
-    previewWord,
-  }),
-  [filteredFonts, selectedFont?.family, handleSelectFont, previewWord]
-);
+  const rowProps = React.useMemo(
+    () => ({
+      fonts: filteredFonts,
+      selectedFamily,
+      weight,
+      onSelect: handleSelectFont,
+      previewWord,
+    }),
+    [filteredFonts, selectedFamily, weight, handleSelectFont, previewWord]
+  );
+
+  const showEmpty = !isLoading && !error && filteredFonts.length === 0;
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
-          ref={buttonRef}
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={isOpen}
@@ -202,80 +249,73 @@ const rowProps = React.useMemo(
           className={cn("group relative justify-between", className)}
           style={{ width }}
         >
-          <span className="truncate">
-            {selectedFont
-              ? filteredFonts.find((font) => font.family === selectedFont.family)?.family
-              : "Select font..."}
-          </span>
+          <span className="truncate">{selectedFamily}</span>
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0" style={{ width, height }} align="start">
-        <Command>
-          <CommandInput
+      <PopoverContent className="flex flex-col overflow-hidden p-0" style={{ width, height }}>
+        <div className="flex h-9 shrink-0 items-center gap-2 border-b px-3">
+          <Search className="text-muted-foreground size-4 shrink-0 opacity-50" />
+          <Input
             placeholder="Search fonts..."
             value={search}
-            onValueChange={setSearch}
-            className="border-none focus:ring-0"
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            className="h-full flex-1 border-none bg-transparent px-0 py-0 shadow-none focus-visible:ring-0"
           />
-          <div className="flex items-center justify-between gap-2 border-b px-3 py-1">
-            {showFilters && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="hover:bg-accent flex h-8 items-center gap-2 px-2"
-                  >
-                    <Filter className="text-muted-foreground h-4 w-4" />
-                    <span className="text-sm capitalize">
-                      {selectedCategory === "all" ? "All Categories" : selectedCategory}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-3 w-3 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[200px]">
-                  <DropdownMenuRadioGroup
-                    value={selectedCategory}
-                    onValueChange={setSelectedCategory}
-                  >
-                    <DropdownMenuRadioItem value="all">All Categories</DropdownMenuRadioItem>
-                    {categories.map((category) => (
-                      <DropdownMenuRadioItem key={category} value={category} className="capitalize">
-                        {category}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <span className="text-muted-foreground text-xs">{filteredFonts.length} fonts</span>
-          </div>
+        </div>
+        <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b px-3">
+          {showFilters && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hover:bg-accent h-7 px-2 text-sm font-normal capitalize"
+                >
+                  <Filter className="text-muted-foreground h-4 w-4" />
+                  {selectedCategory === "all" ? "All Categories" : selectedCategory}
+                  <ChevronsUpDown className="ml-2 h-3 w-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[200px]">
+                <DropdownMenuRadioGroup value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <DropdownMenuRadioItem value="all">All Categories</DropdownMenuRadioItem>
+                  {categories.map((category) => (
+                    <DropdownMenuRadioItem key={category} value={category} className="capitalize">
+                      {category}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <span className="text-muted-foreground text-xs">{filteredFonts.length} fonts</span>
+        </div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center p-4">
+            <div className="flex h-full items-center justify-center">
               <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-border" />
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center p-4 text-sm text-destructive">
+            <div className="flex h-full items-center justify-center p-4 text-sm text-destructive">
               Failed to load fonts. Please try again later.
             </div>
+          ) : showEmpty ? (
+            <div className="flex h-full items-center justify-center p-4 text-sm">
+              No fonts found.
+            </div>
           ) : (
-            <>
-              <CommandEmpty>No fonts found.</CommandEmpty>
-              <CommandGroup>
-                <div style={{ height }}>
-                  <List
-                    style={{ height, width: "100%" }}
-                    rowComponent={Row}
-                    rowCount={filteredFonts.length}
-                    rowHeight={55}
-                    rowProps={rowProps}
-                  />
-                </div>
-              </CommandGroup>
-            </>
+            <List
+              listRef={listRef}
+              style={{ height: "100%", width: "100%" }}
+              rowComponent={Row}
+              rowCount={filteredFonts.length}
+              rowHeight={ROW_HEIGHT}
+              rowProps={rowProps}
+            />
           )}
-        </Command>
+        </div>
       </PopoverContent>
     </Popover>
   );

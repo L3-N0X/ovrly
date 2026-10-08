@@ -1,23 +1,22 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import type { PrismaElement } from "@/lib/types";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import { NumberInputWithControls } from "@/components/ui/number-input-with-controls";
+import { durationPartsToMs, ZERO_DURATION } from "@/lib/duration";
+import { DurationFields } from "./DurationFields";
 
 interface TimerEditModalProps {
   element: PrismaElement;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: (elementId: string, update: { duration?: number; countDown?: boolean }) => void;
   onAddTime: (elementId: string, timeToAdd: number) => void;
 }
 
@@ -25,88 +24,65 @@ export const TimerEditModal: React.FC<TimerEditModalProps> = ({
   element,
   isOpen,
   onClose,
-  onUpdate,
   onAddTime,
 }) => {
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
-  const [seconds, setSeconds] = useState(0);
-
-  useEffect(() => {
-    if (isOpen) {
-      setHours(0);
-      setMinutes(0);
-      setSeconds(0);
-    }
-  }, [isOpen]);
-
   if (!element.timer) return null;
 
-  const handleAddTime = (multiplier: 1 | -1) => {
-    const timeInMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
-    onAddTime(element.id, timeInMs * multiplier);
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Adjust “{element.name}”</DialogTitle>
+          <DialogDescription>Add time to the timer or take some away.</DialogDescription>
+        </DialogHeader>
+        {/* Mounted with the dialog, so every opening starts at zero. */}
+        <AddTimeForm
+          idPrefix="timer"
+          onAddTime={(ms) => {
+            onAddTime(element.id, ms);
+            onClose();
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Hours, minutes and seconds with buttons to add or remove them. Enter adds the time.
+export const AddTimeForm = ({
+  idPrefix,
+  onAddTime,
+}: {
+  idPrefix: string;
+  onAddTime: (ms: number) => void;
+}) => {
+  const [time, setTime] = useState(ZERO_DURATION);
+  const totalMs = durationPartsToMs(time);
+
+  const apply = (multiplier: 1 | -1) => {
+    if (totalMs === 0) return;
+    onAddTime(totalMs * multiplier);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent aria-description="Change the timers time">
-        <DialogHeader>
-          <DialogTitle>Edit Timer: {element.name}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            <NumberInputWithControls
-              id="hours"
-              label="Hours"
-              value={hours}
-              onChange={setHours}
-              onIncrement={() => setHours((prev) => prev + 1)}
-              onDecrement={() => setHours((prev) => Math.max(0, prev - 1))}
-            />
-            <NumberInputWithControls
-              id="minutes"
-              label="Minutes"
-              value={minutes}
-              onChange={setMinutes}
-              onIncrement={() => setMinutes((prev) => prev + 1)}
-              onDecrement={() => setMinutes((prev) => Math.max(0, prev - 1))}
-            />
-            <NumberInputWithControls
-              id="seconds"
-              label="Seconds"
-              value={seconds}
-              onChange={setSeconds}
-              onIncrement={() => setSeconds((prev) => prev + 1)}
-              onDecrement={() => setSeconds((prev) => Math.max(0, prev - 1))}
-            />
-          </div>
-          <div className="flex justify-center gap-2">
-            <Button onClick={() => handleAddTime(1)} variant="outline">
-              <Plus />
-              Add Time
-            </Button>
-            <Button onClick={() => handleAddTime(-1)} variant="outline">
-              <Minus />
-              Remove Time
-            </Button>
-          </div>
-          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-            <div className="space-y-0.5">
-              <Label>Count Down</Label>
-              <p className="text-xs text-muted-foreground">
-                Invert the timer to count down to zero.
-              </p>
-            </div>
-            <Switch
-              checked={element.timer.countDown}
-              onCheckedChange={(checked) => onUpdate(element.id, { countDown: checked })}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <form
+      className="grid gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        apply(1);
+      }}
+    >
+      <DurationFields idPrefix={idPrefix} value={time} onChange={setTime} autoFocus />
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => apply(-1)} disabled={totalMs === 0}>
+          <Minus />
+          Remove time
+        </Button>
+        <Button type="submit" disabled={totalMs === 0}>
+          <Plus />
+          Add time
+        </Button>
+      </DialogFooter>
+    </form>
   );
 };

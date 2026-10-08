@@ -1,46 +1,22 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { BindableField } from "@/components/variables/BindableField";
 import {
+  DEFAULT_BORDER_COLOR,
+  DEFAULT_BORDER_RADIUS,
+  DEFAULT_BORDER_WIDTH,
   DEFAULT_GROUP_HEIGHT,
   DEFAULT_GROUP_WIDTH,
+  BORDER_RADIUS_RANGE,
+  BORDER_WIDTH_RANGE,
   type GroupStyle,
   type PrismaElement,
-  type OnOverlayChange
 } from "@/lib/types";
-import { useSliderValue } from "@/lib/hooks/useSliderValue";
-import { Pencil, Trash2 } from "lucide-react";
-import React from "react";
-import { ColorPickerEditor } from "./ColorPickerEditor";
-import { RenameElementModal } from "./RenameElementModal";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import React, { useMemo, useState } from "react";
+import { ColorInput, PixelInput } from "./appearance";
 
-// Whole pixels only; an empty or invalid field leaves the value untouched.
-const PixelInput: React.FC<{
-  id: string;
-  label: string;
-  value: number;
-  min?: number;
-  onChange: (value: number) => void;
-}> = ({ id, label, value, min = 0, onChange }) => (
-  <div className="space-y-2">
-    <Label htmlFor={id}>{label}</Label>
-    <Input
-      id={id}
-      type="number"
-      min={min}
-      value={value}
-      onChange={(e) => {
-        const val = parseInt(e.target.value, 10);
-        if (!isNaN(val)) onChange(Math.max(min, val));
-      }}
-      className="h-10"
-    />
-  </div>
-);
-
-// X/Y of an element that sits directly inside a group, for placing it precisely.
+// X/Y of an element that sits directly inside a group, for placing it precisely. Measured
+// from the group's top left corner; negative or large values place it outside the group.
 export const GroupPositionEditor: React.FC<{
   element: PrismaElement;
   onChange: (position: { x: number; y: number }) => void;
@@ -49,52 +25,59 @@ export const GroupPositionEditor: React.FC<{
   const x = style.x ?? 0;
   const y = style.y ?? 0;
   return (
-    <div className="grid grid-cols-2 gap-4 p-4 mb-2 border rounded-lg">
-      <PixelInput id={`${element.id}-x`} label="X" value={x} onChange={(x) => onChange({ x, y })} />
-      <PixelInput id={`${element.id}-y`} label="Y" value={y} onChange={(y) => onChange({ x, y })} />
+    <div className="grid grid-cols-2 gap-4">
+      <PixelInput
+        id={`${element.id}-x`}
+        label="X"
+        property="style.x"
+        value={x}
+        onChange={(x) => onChange({ x, y })}
+      />
+      <PixelInput
+        id={`${element.id}-y`}
+        label="Y"
+        property="style.y"
+        value={y}
+        onChange={(y) => onChange({ x, y })}
+      />
     </div>
   );
 };
 
 export const GroupEditor: React.FC<{
   element: PrismaElement;
-  onOverlayChange: OnOverlayChange;
   onChange: (newStyle: GroupStyle) => void;
-  onDelete?: () => void;
-}> = ({ element, onChange, onOverlayChange, onDelete }) => {
-  const style = (element.style || {}) as GroupStyle;
-  const updateStyle = (patch: Partial<GroupStyle>) => onChange({ ...style, ...patch });
-
-  const radiusSlider = useSliderValue(typeof style.radius === "number" ? style.radius : 0, {
-    onCommit: (v) => updateStyle({ radius: v }),
-  });
+}> = ({ element, onChange }) => {
+  const [isPickingColor, setIsPickingColor] = useState(false);
+  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
+  // new value to mean the server sent a new one.
+  const serverStyle = useMemo(
+    () => (element.style || {}) as GroupStyle,
+    [element.style],
+  );
+  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
+  const { value: style, setValue: setStyle } = useLocalCopy(
+    serverStyle,
+    isPickingColor,
+  );
+  const updateStyle = (patch: Partial<GroupStyle>) => {
+    const updatedStyle = { ...style, ...patch };
+    setStyle(updatedStyle);
+    onChange(updatedStyle);
+  };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <div className="flex justify-between items-center">
-        <h4 className="font-semibold">Edit: {element.name}</h4>
-        <div className="flex items-center">
-          <RenameElementModal
-            element={element}
-            onOverlayChange={onOverlayChange}
-          >
-            <Button variant="ghost" size="icon-lg">
-              <Pencil />
-            </Button>
-          </RenameElementModal>
-          <Button variant="destructiveGhost" size="icon-lg" onClick={onDelete}>
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Elements in a group are placed freely. Turn on "Move elements" in the preview to drag
-        them into position.
+        Elements in a group are placed freely. Pick the Move tool (M) above the
+        canvas to drag them into position, even past the group's edges or
+        outside the overlay.
       </p>
       <div className="grid grid-cols-2 gap-4">
         <PixelInput
           id={`${element.id}-width`}
           label="Width"
+          property="style.width"
           min={1}
           value={style.width ?? DEFAULT_GROUP_WIDTH}
           onChange={(width) => updateStyle({ width })}
@@ -102,57 +85,69 @@ export const GroupEditor: React.FC<{
         <PixelInput
           id={`${element.id}-height`}
           label="Height"
+          property="style.height"
           min={1}
           value={style.height ?? DEFAULT_GROUP_HEIGHT}
           onChange={(height) => updateStyle({ height })}
         />
       </div>
-      <div className="space-y-2">
-        <Label>Background</Label>
-        <div className="flex gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="w-full h-10 rounded-md border"
-                style={{ backgroundColor: style.backgroundColor || "transparent" }}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <ColorPickerEditor
-                value={style.backgroundColor || "#00000000"}
-                onChange={(c) => updateStyle({ backgroundColor: c })}
-              />
-            </PopoverContent>
-          </Popover>
-          {style.backgroundColor && (
-            // Style updates are merged on the server, so an omitted key wouldn't clear it.
-            <Button variant="outline" onClick={() => updateStyle({ backgroundColor: "" })}>
-              Clear
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Corner Radius</Label>
-        <div className="flex gap-4">
-          <Slider
-            value={[radiusSlider.value]}
-            onValueChange={([v]) => radiusSlider.onChange(v)}
-            onPointerDown={radiusSlider.onInteractionStart}
-            onValueCommit={radiusSlider.onInteractionEnd}
-            max={200}
-            min={0}
-          />
-          <Input
-            value={radiusSlider.value}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              radiusSlider.onChange(isNaN(val) ? 0 : val);
-            }}
-            onBlur={() => radiusSlider.onInteractionEnd()}
-            className="h-10 w-20"
-          />
-        </div>
+      <BindableField
+        property="style.clip"
+        inline
+        htmlFor={`${element.id}-clip`}
+        label={
+          <>
+            Clip content
+            <span className="ml-1 font-normal text-muted-foreground">
+              (hide what sticks out of the group)
+            </span>
+          </>
+        }
+      >
+        <Switch
+          id={`${element.id}-clip`}
+          checked={!!style.clip}
+          onCheckedChange={(clip) => updateStyle({ clip })}
+        />
+      </BindableField>
+      <div className="grid grid-cols-2 gap-4">
+        <ColorInput
+          id={`${element.id}-background`}
+          label="Background"
+          property="style.backgroundColor"
+          value={style.backgroundColor || ""}
+          defaultColor="#000000"
+          onChange={(backgroundColor) => updateStyle({ backgroundColor })}
+          onClear={() => updateStyle({ backgroundColor: "" })}
+          onOpenChange={setIsPickingColor}
+        />
+        <PixelInput
+          id={`${element.id}-radius`}
+          label="Corner Radius"
+          property="style.radius"
+          min={BORDER_RADIUS_RANGE.min}
+          max={BORDER_RADIUS_RANGE.max}
+          value={style.radius ?? DEFAULT_BORDER_RADIUS}
+          onChange={(radius) => updateStyle({ radius })}
+        />
+        <ColorInput
+          id={`${element.id}-border-color`}
+          label="Stroke"
+          property="style.borderColor"
+          value={style.borderColor || DEFAULT_BORDER_COLOR}
+          defaultColor={DEFAULT_BORDER_COLOR}
+          onChange={(borderColor) => updateStyle({ borderColor })}
+          onOpenChange={setIsPickingColor}
+        />
+        <PixelInput
+          id={`${element.id}-border-width`}
+          label="Stroke Width"
+          property="style.borderWidth"
+          min={BORDER_WIDTH_RANGE.min}
+          max={BORDER_WIDTH_RANGE.max}
+          value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
+          onChange={(borderWidth) => updateStyle({ borderWidth })}
+        />
       </div>
     </div>
   );
