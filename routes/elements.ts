@@ -32,6 +32,7 @@ const ELEMENT_TYPES = [
   "CONTAINER",
   "GROUP",
   "ICON",
+  "RECTANGLE",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -144,6 +145,9 @@ export const handleElementsRoutes = async (
       } else if (type === "GROUP") {
         // Children are positioned freely inside it; it starts out covering the whole canvas,
         // whose size is filled in below, under the overlay's lock.
+        elementCreateData.style = {};
+      } else if (type === "RECTANGLE") {
+        // Nothing to draw yet; the size falls back to the defaults until it is styled.
         elementCreateData.style = {};
       } else {
         return new Response(JSON.stringify({ error: "Invalid element type" }), {

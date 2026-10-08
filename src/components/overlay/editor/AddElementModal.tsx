@@ -23,6 +23,7 @@ import {
   Plus,
   Rows3,
   Shapes,
+  Square,
   Star,
   Timer,
   Type,
@@ -190,6 +191,17 @@ const LAYOUT_OPTIONS: ElementOption[] = [
           {/* Elements may stick out of a group. */}
           <div className="absolute top-3 -right-3 h-4 w-7 rounded-sm bg-emerald-500/80" />
         </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.RECTANGLE,
+    label: "Rectangle",
+    description: "A plain shape with a fill and an optional border, sized however you like.",
+    icon: Square,
+    preview: (
+      <Stage>
+        <div className="h-16 w-28 rounded-md border-2 border-white/70 bg-white/10" />
       </Stage>
     ),
   },

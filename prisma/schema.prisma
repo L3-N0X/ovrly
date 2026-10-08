@@ -167,6 +167,7 @@ enum ElementType {
   BINGO
   COUNTDOWN
   ICON
+  RECTANGLE
 }
 
 model Title {

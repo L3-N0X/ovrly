@@ -38,6 +38,7 @@ export const ELEMENT_TYPE_NAMES: Record<string, string> = {
   ICON: "Icon",
   CONTAINER: "Container",
   GROUP: "Group",
+  RECTANGLE: "Rectangle",
 };
 
 // What an overlay started from an empty canvas is called.

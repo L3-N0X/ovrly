@@ -106,6 +106,15 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.radius": "number",
     ...POSITION,
   },
+  RECTANGLE: {
+    "style.width": "number",
+    "style.height": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+  },
 };
 
 export const bindingKind = (type: ElementType, property: string): BindingKind | undefined =>

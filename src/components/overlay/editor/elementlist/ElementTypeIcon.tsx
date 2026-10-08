@@ -8,6 +8,7 @@ import {
   Image,
   Rows3,
   Shapes,
+  Square,
   Timer,
   Type,
 } from "lucide-react";
@@ -36,6 +37,8 @@ export const ElementTypeIcon = ({
       return <Grid3x3 className={className} />;
     case ElementTypeEnum.GROUP:
       return <Frame className={className} />;
+    case ElementTypeEnum.RECTANGLE:
+      return <Square className={className} />;
     case ElementTypeEnum.CONTAINER: {
       // Mirrors the container's layout direction
       const direction = (element.style as ContainerStyle | null)?.flexDirection ?? "column";

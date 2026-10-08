@@ -10,6 +10,7 @@ export const ElementTypeEnum = {
   BINGO: "BINGO",
   GROUP: "GROUP",
   ICON: "ICON",
+  RECTANGLE: "RECTANGLE",
 } as const;
 
 // Element types that hold other elements.
@@ -208,6 +209,10 @@ export const DEFAULT_BORDER_RADIUS = 0;
 export const BORDER_WIDTH_RANGE = { min: 0, max: 100 };
 export const BORDER_RADIUS_RANGE = { min: 0, max: 200 };
 
+// The size a rectangle starts out at: big enough to see, small enough not to cover the canvas.
+export const DEFAULT_RECTANGLE_WIDTH = 320;
+export const DEFAULT_RECTANGLE_HEIGHT = 200;
+
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
@@ -223,6 +228,21 @@ export interface GroupStyle extends BaseElementStyle {
   borderWidth?: number;
   /** 0 by default, so the corners are square. */
   radius?: number;
+}
+
+// Specific style for a Rectangle element: a plain shape, sized freely and drawn with a fill and
+// an optional stroke.
+export interface RectangleStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  /** Nothing by default, so the rectangle has no fill until it is given one. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
 }
 
 // Specific style for a Bingo element
@@ -264,6 +284,7 @@ export type ElementStyle =
   | TimerStyle
   | ImageStyle
   | IconStyle
+  | RectangleStyle
   | BingoStyle
   | GroupStyle;
 

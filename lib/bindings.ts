@@ -78,6 +78,15 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.radius": "number",
     ...POSITION,
   },
+  RECTANGLE: {
+    "style.width": "number",
+    "style.height": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+  },
 };
 
 export const isBindableProperty = (elementType: string, property: unknown): property is string =>
