@@ -1,5 +1,5 @@
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_RADIUS,
@@ -29,12 +29,14 @@ export const GroupPositionEditor: React.FC<{
       <PixelInput
         id={`${element.id}-x`}
         label="X"
+        property="style.x"
         value={x}
         onChange={(x) => onChange({ x, y })}
       />
       <PixelInput
         id={`${element.id}-y`}
         label="Y"
+        property="style.y"
         value={y}
         onChange={(y) => onChange({ x, y })}
       />
@@ -75,6 +77,7 @@ export const GroupEditor: React.FC<{
         <PixelInput
           id={`${element.id}-width`}
           label="Width"
+          property="style.width"
           min={1}
           value={style.width ?? DEFAULT_GROUP_WIDTH}
           onChange={(width) => updateStyle({ width })}
@@ -82,28 +85,36 @@ export const GroupEditor: React.FC<{
         <PixelInput
           id={`${element.id}-height`}
           label="Height"
+          property="style.height"
           min={1}
           value={style.height ?? DEFAULT_GROUP_HEIGHT}
           onChange={(height) => updateStyle({ height })}
         />
       </div>
-      <div className="flex items-center space-x-2">
+      <BindableField
+        property="style.clip"
+        inline
+        htmlFor={`${element.id}-clip`}
+        label={
+          <>
+            Clip content
+            <span className="ml-1 font-normal text-muted-foreground">
+              (hide what sticks out of the group)
+            </span>
+          </>
+        }
+      >
         <Switch
           id={`${element.id}-clip`}
           checked={!!style.clip}
           onCheckedChange={(clip) => updateStyle({ clip })}
         />
-        <Label htmlFor={`${element.id}-clip`}>
-          Clip content
-          <span className="ml-1 font-normal text-muted-foreground">
-            (hide what sticks out of the group)
-          </span>
-        </Label>
-      </div>
+      </BindableField>
       <div className="grid grid-cols-2 gap-4">
         <ColorInput
           id={`${element.id}-background`}
           label="Background"
+          property="style.backgroundColor"
           value={style.backgroundColor || ""}
           defaultColor="#000000"
           onChange={(backgroundColor) => updateStyle({ backgroundColor })}
@@ -113,6 +124,7 @@ export const GroupEditor: React.FC<{
         <PixelInput
           id={`${element.id}-radius`}
           label="Corner Radius"
+          property="style.radius"
           min={BORDER_RADIUS_RANGE.min}
           max={BORDER_RADIUS_RANGE.max}
           value={style.radius ?? DEFAULT_BORDER_RADIUS}
@@ -121,6 +133,7 @@ export const GroupEditor: React.FC<{
         <ColorInput
           id={`${element.id}-border-color`}
           label="Stroke"
+          property="style.borderColor"
           value={style.borderColor || DEFAULT_BORDER_COLOR}
           defaultColor={DEFAULT_BORDER_COLOR}
           onChange={(borderColor) => updateStyle({ borderColor })}
@@ -129,6 +142,7 @@ export const GroupEditor: React.FC<{
         <PixelInput
           id={`${element.id}-border-width`}
           label="Stroke Width"
+          property="style.borderWidth"
           min={BORDER_WIDTH_RANGE.min}
           max={BORDER_WIDTH_RANGE.max}
           value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}

@@ -127,7 +127,7 @@
     {
       "id": "twitch-followers",
       "name": "Followers",
-      "description": "The follower count of a Twitch channel, updated live while you stream.",
+      "description": "The follower count of your Twitch channel, updated live while you stream.",
       "width": 1920,
       "height": 1080,
       "canvasMode": "FREE",
@@ -157,7 +157,7 @@
             },
             {
               "name": "Followers",
-              "type": "TWITCH_STAT",
+              "type": "COUNTER",
               "style": {
                 "fontFamily": "Roboto Mono",
                 "fontSize": 72,
@@ -165,9 +165,16 @@
                 "padding": 20,
                 "radius": 16
               },
-              "twitchStat": {
-                "stat": "FOLLOWERS"
-              }
+              "counter": {
+                "value": 0
+              },
+              "bindings": [
+                {
+                  "property": "value",
+                  "source": "twitch:@me",
+                  "key": "followers"
+                }
+              ]
             }
           ]
         }

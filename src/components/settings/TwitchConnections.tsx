@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Plug, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { twitchApi, type TwitchConnection, type TwitchConnectionsResponse } from "@/lib/twitchStats";
+import { twitchApi, type TwitchConnection, type TwitchConnectionsResponse } from "@/lib/twitch";
 
 // Why connecting failed, by the code routes/twitch.ts sends back.
 const ERROR_MESSAGES: Record<string, string> = {
@@ -68,7 +68,7 @@ export const TwitchConnections: React.FC<{
         <div className="space-y-1 p-5 pb-4">
           <h2 className="font-medium">Connect a channel</h2>
           <p className="text-sm text-muted-foreground">
-            Twitch stat elements show followers and viewers of any channel right away.
+            Followers, viewers and the stream of any channel work right away once you add the channel in an overlay's Variables tab.
             Subscribers and sub points are private on Twitch: to show them, sign in to Twitch as
             the channel and allow ovrly to read its subscriptions. They are then shown in your
             overlays and in those of the people on your team.

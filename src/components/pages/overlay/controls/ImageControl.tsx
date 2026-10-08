@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { BindableField } from "@/components/variables/BindableField";
 import type { PrismaElement } from "@/lib/types";
 import { uploadImage } from "@/lib/uploads";
 import { Image } from "lucide-react";
@@ -28,34 +29,36 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
   };
 
   return (
-    <div className="flex items-center space-x-2">
-      {(element.image?.src && (
-        <img
-          src={element.image?.src || ""}
-          alt={element.name}
-          className="w-15 h-15 object-cover rounded-md bg-secondary"
-        />
-      )) || (
-        <div className="w-15 h-15 rounded-md bg-secondary flex items-center justify-center">
-          <Image className="w-8 h-8 text-muted-foreground" />
+    <BindableField property="src" label="Image">
+      <div className="flex items-center space-x-2">
+        {(element.image?.src && (
+          <img
+            src={element.image?.src || ""}
+            alt={element.name}
+            className="w-15 h-15 object-cover rounded-md bg-secondary"
+          />
+        )) || (
+          <div className="w-15 h-15 rounded-md bg-secondary flex items-center justify-center">
+            <Image className="w-8 h-8 text-muted-foreground" />
+          </div>
+        )}
+        <div className="flex flex-col flex-1 min-w-0 mr-0">
+          <p className="text-sm text-muted-foreground mb-1 h-5 truncate overflow-hidden whitespace-nowrap">
+            {element.image?.src.replace(/^.*[\\/]/, "") || "No image uploaded"}
+          </p>
+          <Button onClick={handleButtonClick} variant="secondary" className="flex-grow">
+            {element.image?.src ? "Change Image" : "Upload Image"}
+          </Button>
         </div>
-      )}
-      <div className="flex flex-col flex-1 min-w-0 mr-0">
-        <p className="text-sm text-muted-foreground mb-1 h-5 truncate overflow-hidden whitespace-nowrap">
-          {element.image?.src.replace(/^.*[\\/]/, "") || "No image uploaded"}
-        </p>
-        <Button onClick={handleButtonClick} variant="secondary" className="flex-grow">
-          {element.image?.src ? "Change Image" : "Upload Image"}
-        </Button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept="image/*"
+        />
       </div>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        className="hidden"
-        accept="image/*"
-      />
-    </div>
+    </BindableField>
   );
 };
 

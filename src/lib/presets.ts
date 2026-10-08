@@ -12,6 +12,7 @@ import {
   type IconLibrary,
   type PrismaElement,
   type PrismaOverlay,
+  type VariableBinding,
 } from "./types";
 
 // An element of a template, nested the way it is stored in overlay-presets.json.
@@ -22,10 +23,8 @@ export interface PresetElement {
   title?: { text: string };
   counter?: { value: number };
   countdown?: Partial<Pick<NonNullable<PrismaElement["countdown"]>, "mode" | "duration">>;
-  twitchStat?: Partial<
-    Pick<NonNullable<PrismaElement["twitchStat"]>, "stat" | "channelLogin" | "channelId" | "channelName">
-  >;
-  variable?: { source: string; key: string };
+  // "twitch:@me" stands for the Twitch channel of whoever creates the overlay.
+  bindings?: VariableBinding[];
   image?: { src: string };
   icon?: { library: IconLibrary; name: string };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
@@ -83,32 +82,8 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
                 targetAt: null,
               }
             : null,
-        // Previews have nothing fetched, so they show a dash like a stat that is still loading.
-        twitchStat:
-          seed.type === ElementTypeEnum.TWITCH_STAT
-            ? {
-                id,
-                stat: seed.twitchStat?.stat ?? "FOLLOWERS",
-                channelLogin: seed.twitchStat?.channelLogin ?? "",
-                channelId: seed.twitchStat?.channelId ?? null,
-                channelName: seed.twitchStat?.channelName ?? null,
-                value: null,
-                status: "PENDING",
-                fetchedAt: null,
-              }
-            : null,
-        // Previews show which variable it is, without a value.
-        variable:
-          seed.type === ElementTypeEnum.VARIABLE
-            ? {
-                id,
-                source: seed.variable?.source ?? "",
-                key: seed.variable?.key ?? "",
-                type: null,
-                value: null,
-                updatedAt: null,
-              }
-            : null,
+        // Previews have no variables, so bound fields show the template's own values.
+        bindings: seed.bindings ?? [],
         icon:
           seed.type === ElementTypeEnum.ICON
             ? { id, ...(seed.icon ?? DEFAULT_ICON) }

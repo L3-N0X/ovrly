@@ -14,7 +14,8 @@ import { handlePublicApiRoutes } from "./routes/publicApi";
 import { handleVariablesRoutes } from "./routes/variables";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
-import { refreshOpenedOverlay, startTwitchStats } from "./services/twitch-stats";
+import { refreshOpenedOverlay, startTwitchVariables } from "./services/twitch-variables";
+import { variablesChannel } from "./services/variables";
 import type { WebSocketData } from "./types";
 import path from "path";
 import type { ServerWebSocket } from "bun";
@@ -194,11 +195,13 @@ const server = Bun.serve<WebSocketData>({
     // answering (half-open TCP connection) is dropped once it has been silent this long.
     idleTimeout: 60,
     open(ws) {
-      const { overlayId } = ws.data;
+      const { overlayId, ownerId, seesVariables } = ws.data;
       sockets.add(ws);
       ws.subscribe(`overlay-${overlayId}`);
-      // Its Twitch stats are only polled while it is open, so they may be out of date.
-      refreshOpenedOverlay(overlayId);
+      if (seesVariables) ws.subscribe(variablesChannel(ownerId));
+      // Twitch channels are only polled while an overlay of their user is open, so they may
+      // be out of date.
+      refreshOpenedOverlay(ownerId);
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
     message() {
@@ -218,7 +221,7 @@ setInterval(() => {
   }
 }, HEARTBEAT_INTERVAL_MS);
 
-startTwitchStats(server, () => [...sockets].map((ws) => ws.data.overlayId));
+startTwitchVariables(server, () => [...sockets].map((ws) => ws.data.ownerId));
 
 console.log(`Server running on port ${server.port}`);
 console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);

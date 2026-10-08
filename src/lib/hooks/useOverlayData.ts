@@ -164,6 +164,8 @@ export const useOverlayData = () => {
   const [error, setError] = useState<string | null>(null);
   // What the user may do with the overlay (and who else has access). Null until it's known.
   const [access, setAccess] = useState<OverlayAccess | null>(null);
+  // Goes up whenever the owner's variables may have changed, so lists of them are fetched again.
+  const [variablesVersion, setVariablesVersion] = useState(0);
 
   // Mirrors `overlay` synchronously so handlers invoked from stale closures (debounced
   // editors, drag and drop monitors, socket callbacks) always build on the latest state.
@@ -407,10 +409,16 @@ export const useOverlayData = () => {
 
     // Only `id` may restart the socket: reconnecting on every state change would drop
     // broadcasts that arrive in between.
+    const bumpVariables = () => setVariablesVersion((version) => version + 1);
     const disconnect = connectOverlaySocket(id, {
       onOverlay: applyServerOverlay,
-      onOpen: refreshOverlay,
+      onOpen: () => {
+        refreshOverlay();
+        // Changes while the socket was down were missed too.
+        bumpVariables();
+      },
       onAccessChange: refreshAccess,
+      onVariablesChange: bumpVariables,
       onDeleted: () => {
         if (deletingOverlay.current) return;
         pending.forEach(cancelQueued);
@@ -656,6 +664,23 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Binds a property of an element to a variable of the owner ({ source, key }), or detaches it
+  // with null so the property shows its own value again.
+  const handleBindingChange = useCallback(
+    (elementId: string, property: string, target: { source: string; key: string } | null) => {
+      updateElement(
+        elementId,
+        `binding:${property}`,
+        { bindings: { [property]: target } },
+        (el) => {
+          const others = (el.bindings ?? []).filter((binding) => binding.property !== property);
+          el.bindings = target ? [...others, { property, ...target }] : others;
+        }
+      );
+    },
+    [updateElement]
+  );
+
   const handleIconChange = useCallback(
     (elementId: string, icon: { library: IconLibrary; name: string }) => {
       updateElement(elementId, "icon", { data: icon }, (el) => {
@@ -791,11 +816,13 @@ export const useOverlayData = () => {
     handleTitleChange,
     handleImageChange,
     handleIconChange,
+    handleBindingChange,
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerAddTime,
     handleCountdownAction,
     handleDeleteOverlay,
+    variablesVersion,
   };
 };

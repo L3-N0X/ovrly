@@ -1,16 +1,20 @@
 import { prisma } from "../auth";
 import {
   isNumericType,
+  isProviderSource,
   MAX_VARIABLES_PER_USER,
+  parseVariableValue,
   type VariableType,
   type VariableValue,
 } from "../lib/variables";
 import { Prisma } from "../src/generated/prisma/client";
 import { publishOverlay } from "./overlay-query";
 
-// Writes variables of an account and passes them on to the variable elements showing them.
-// Elements keep a copy of their variable's type and value (VariableBinding), like Twitch stats
-// keep theirs, so a change is copied to them and their overlays are broadcast.
+// Writes the variables of an account. Elements are bound to variables by name
+// (VariableBinding) and every overlay payload carries the values of the variables it is bound to
+// (overlay-query.ts), so a change only has to be broadcast: to every overlay of the account bound
+// to it, and to the account's variable channel, which editors listen on to keep their list of
+// variables current.
 
 type Publisher = { publish: (channel: string, message: string) => unknown | Promise<unknown> };
 type Tx = Prisma.TransactionClient;
@@ -30,6 +34,10 @@ export class VariableError extends Error {
   }
 }
 
+// The WebSocket channel told whenever a variable of `userId` changes. It only carries
+// `{ "type": "variables" }`; whoever listens fetches the list again.
+export const variablesChannel = (userId: string) => `variables-${userId}`;
+
 const lockVariables = (tx: Tx, userId: string, source: string, keys: string[]) =>
   tx.$queryRaw`
     SELECT 1 FROM "Variable"
@@ -37,36 +45,21 @@ const lockVariables = (tx: Tx, userId: string, source: string, keys: string[]) =
     ORDER BY "key"
     FOR UPDATE`;
 
-// Copies the variable `source`/`key` of `userId` (or its absence) into every element showing it,
-// in that user's overlays, and returns those overlays.
-const copyToBindings = async (
-  tx: Tx,
-  userId: string,
-  source: string,
-  key: string,
-  variable: { type: VariableType; value: VariableValue } | null
-) => {
-  const where = { source, key, element: { overlay: { userId } } };
-  const updated = await tx.variableBinding.updateMany({
-    where,
-    data: {
-      type: variable?.type ?? null,
-      value: variable ? variable.value : Prisma.DbNull,
-      updatedAt: new Date(),
-    },
-  });
-  if (updated.count === 0) return [];
+// The overlays of `userId` with an element bound to one of these variables.
+const overlaysBoundTo = async (tx: Tx, userId: string, source: string, keys: string[]) => {
+  if (keys.length === 0) return [];
   const bindings = await tx.variableBinding.findMany({
-    where,
+    where: { source, key: { in: keys }, element: { overlay: { userId } } },
     select: { element: { select: { overlayId: true } } },
   });
   return bindings.map((binding) => binding.element.overlayId);
 };
 
-const publishAll = async (server: Publisher, overlayIds: Iterable<string>) => {
+const publishChanges = async (server: Publisher, userId: string, overlayIds: Iterable<string>) => {
   for (const overlayId of new Set(overlayIds)) {
     await publishOverlay(server, overlayId);
   }
+  server.publish(variablesChannel(userId), JSON.stringify({ type: "variables" }));
 };
 
 const sameValue = (
@@ -74,26 +67,33 @@ const sameValue = (
   next: VariableWrite
 ) => current !== undefined && current.type === next.type && current.value === next.value;
 
-// Creates or replaces variables of one source. Only the ones that changed are written, so an
-// application may send all of its values every time without causing broadcasts.
+const byKey = (a: { key: string }, b: { key: string }) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+
+/**
+ * Creates or replaces variables of one source. Only the ones that changed are written, so an
+ * application may send all of its values every time without causing broadcasts. With
+ * `onlyNew`, a variable that exists already is an error instead (creating one in the editor).
+ */
 export const setVariables = async (
   server: Publisher,
   userId: string,
   source: string,
-  writes: VariableWrite[]
+  writes: VariableWrite[],
+  { onlyNew = false } = {}
 ) => {
   // Sorted, so two requests writing the same keys lock them in the same order.
-  const sorted = [...new Map(writes.map((write) => [write.key, write])).values()].sort((a, b) =>
-    a.key < b.key ? -1 : a.key > b.key ? 1 : 0
-  );
+  const sorted = [...new Map(writes.map((write) => [write.key, write])).values()].sort(byKey);
   const keys = sorted.map((write) => write.key);
 
-  const overlayIds = await prisma.$transaction(async (tx) => {
+  const changed = await prisma.$transaction(async (tx) => {
     await lockVariables(tx, userId, source, keys);
     const existing = await tx.variable.findMany({
       where: { userId, source, key: { in: keys } },
       select: { key: true, type: true, value: true },
     });
+    if (onlyNew && existing.length > 0) {
+      throw new VariableError(`“${existing[0].key}” exists already in ${source}`, 409);
+    }
     const current = new Map(existing.map((variable) => [variable.key, variable]));
 
     const added = sorted.filter((write) => !current.has(write.key)).length;
@@ -107,7 +107,7 @@ export const setVariables = async (
       }
     }
 
-    const affected: string[] = [];
+    const changedKeys: string[] = [];
     for (const write of sorted) {
       if (sameValue(current.get(write.key), write)) continue;
       await tx.variable.upsert({
@@ -115,13 +115,39 @@ export const setVariables = async (
         create: { userId, source, key: write.key, type: write.type, value: write.value },
         update: { type: write.type, value: write.value },
       });
-      affected.push(...(await copyToBindings(tx, userId, source, write.key, write)));
+      changedKeys.push(write.key);
     }
-    return affected;
+    return { keys: changedKeys, overlayIds: await overlaysBoundTo(tx, userId, source, changedKeys) };
   });
 
-  await publishAll(server, overlayIds);
+  if (changed.keys.length > 0) await publishChanges(server, userId, changed.overlayIds);
   return listVariables(userId, { source, keys });
+};
+
+/**
+ * Sets the value of one variable, keeping its type: what changing it in the editor does.
+ * Variables of providers can't be changed; their provider would overwrite them anyway.
+ */
+export const setVariableValue = async (
+  server: Publisher,
+  userId: string,
+  variableId: string,
+  value: unknown
+) => {
+  const variable = await prisma.variable.findFirst({
+    where: { id: variableId, userId },
+    select: { source: true, key: true, type: true },
+  });
+  if (!variable) throw new VariableError("Variable not found", 404);
+  if (isProviderSource(variable.source)) {
+    throw new VariableError("This variable is kept up to date by its provider", 409);
+  }
+  const parsed = parseVariableValue(variable.type, value);
+  if (!parsed.ok) throw new VariableError(parsed.error, 400);
+  const [updated] = await setVariables(server, userId, variable.source, [
+    { key: variable.key, type: variable.type, value: parsed.value },
+  ]);
+  return updated;
 };
 
 // Adds `by` to a number variable, on the server, so increments sent at the same time all count.
@@ -153,16 +179,17 @@ export const incrementVariable = async (
       where: { userId_source_key: { userId, source, key } },
       data: { value },
     });
-    return copyToBindings(tx, userId, source, key, { type: variable.type, value });
+    return overlaysBoundTo(tx, userId, source, [key]);
   });
 
-  await publishAll(server, overlayIds);
+  await publishChanges(server, userId, overlayIds);
   const [variable] = await listVariables(userId, { source, keys: [key] });
   return variable;
 };
 
-// Deletes variables: all of a source, or the given keys of it. Elements showing them keep their
-// binding and show nothing until the variable is sent again. Returns how many were deleted.
+// Deletes variables: all of a source, or the given keys of it. Elements bound to them keep their
+// binding and show their own value until a variable of that name exists again. Returns how many
+// were deleted.
 export const deleteVariables = async (
   server: Publisher,
   userId: string,
@@ -174,17 +201,15 @@ export const deleteVariables = async (
       where: { userId, source, ...(keys ? { key: { in: keys } } : {}) },
       select: { key: true },
     });
-    await tx.variable.deleteMany({
-      where: { userId, source, key: { in: deleted.map((variable) => variable.key) } },
-    });
-    const affected: string[] = [];
-    for (const { key } of deleted) {
-      affected.push(...(await copyToBindings(tx, userId, source, key, null)));
-    }
-    return { count: deleted.length, overlayIds: affected };
+    const deletedKeys = deleted.map((variable) => variable.key);
+    await tx.variable.deleteMany({ where: { userId, source, key: { in: deletedKeys } } });
+    return {
+      count: deleted.length,
+      overlayIds: await overlaysBoundTo(tx, userId, source, deletedKeys),
+    };
   });
 
-  await publishAll(server, overlayIds);
+  if (count > 0) await publishChanges(server, userId, overlayIds);
   return count;
 };
 
@@ -199,32 +224,24 @@ export const listVariables = (userId: string, filter: { source?: string; keys?: 
     select: { id: true, source: true, key: true, type: true, value: true, updatedAt: true },
   });
 
-// What a binding to `source`/`key` shows for the variables of `userId` right now.
-export const bindingState = async (tx: Tx, userId: string, source: string, key: string) => {
-  const variable = source
-    ? await tx.variable.findUnique({
-        where: { userId_source_key: { userId, source, key } },
-        select: { type: true, value: true, updatedAt: true },
-      })
-    : null;
-  return {
-    source,
-    key,
-    type: variable?.type ?? null,
-    value: variable ? (variable.value as Prisma.InputJsonValue) : Prisma.DbNull,
-    updatedAt: variable?.updatedAt ?? null,
-  };
-};
-
-// Fills in the values of every binding of an overlay from its owner's variables. Used for
-// overlays created from presets, imports and copies, whose bindings only name their variable.
-export const fillOverlayBindings = async (tx: Tx, overlayId: string, userId: string) => {
-  const bindings = await tx.variableBinding.findMany({
-    where: { element: { overlayId }, source: { not: "" } },
-    select: { id: true, source: true, key: true },
+// The providers keeping variables of `userId` up to date.
+export const listVariableSources = (userId: string) =>
+  prisma.variableSource.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, provider: true, name: true, config: true, problem: true, createdAt: true },
   });
-  for (const binding of bindings) {
-    const { type, value, updatedAt } = await bindingState(tx, userId, binding.source, binding.key);
-    await tx.variableBinding.update({ where: { id: binding.id }, data: { type, value, updatedAt } });
-  }
+
+// Deletes a provider and the variables it kept up to date.
+export const deleteVariableSource = async (server: Publisher, userId: string, sourceId: string) => {
+  const source = await prisma.variableSource.findFirst({
+    where: { id: sourceId, userId },
+    select: { name: true },
+  });
+  if (!source) return false;
+  await prisma.variableSource.deleteMany({ where: { id: sourceId } });
+  await deleteVariables(server, userId, source.name);
+  // The list of sources changed even when it had no variables yet.
+  server.publish(variablesChannel(userId), JSON.stringify({ type: "variables" }));
+  return true;
 };

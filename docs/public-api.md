@@ -1,9 +1,10 @@
 # Public API
 
 The public API lets other applications send **variables** to an ovrly account. A
-variable is a named value (a text, a number, a yes/no value or a colour) that
-overlays show with a **Variable** element and update live whenever the
-application sends a new value.
+variable is a named value (a text, a number, a yes/no value, a colour or an
+image) that fields of overlay elements are bound to: a title's text, a
+counter's value, a colour, a size. Everything bound to a variable updates live
+whenever the application sends a new value.
 
 Typical integrations:
 
@@ -26,8 +27,10 @@ How it is built is described in [variables.md](variables.md).
      -d '{ "type": "integer", "value": 12 }'
    ```
 
-3. In an overlay, add a **Variable** element and pick
-   `minecraft-tournament / red.points` in the content panel.
+3. In an overlay, hover a field that takes a number (a counter's **Value**, a
+   font size, ...), click the variable button next to its label and pick
+   `red.points` under `minecraft-tournament`. The **Variables** tab next to the
+   editor lists every variable of the account.
 4. Every following request updates the overlay live, in the editor and in OBS.
 
 ## Concepts
@@ -38,6 +41,7 @@ How it is built is described in [variables.md](variables.md).
 | Source   | Names the application sending the variables, e.g. `minecraft-tournament` or `streamdeck`.    |
 | Key      | Names one variable within its source, e.g. `red.points`.                                     |
 | Variable | `source` + `key` + `type` + `value`. Unique per account by `source` and `key`.               |
+| Provider | Something ovrly keeps up to date itself, e.g. a Twitch channel (source `twitch:<channel>`).   |
 
 Variables belong to the **account**, not to an overlay: every overlay of the
 account can show them, and so can people the account's overlays are shared
@@ -51,15 +55,23 @@ Sources and keys are 1–64 characters long, start with a letter or digit, and
 may contain letters, digits, `.`, `_` and `-`. They are case-sensitive. Dots
 are a convention for grouping (`red.points`, `red.name`), nothing more.
 
+Sources of providers have a `:` in them (`twitch:shroud`), which names sent by
+applications never do. Their variables can be read like any other (write the
+`:` as is or as `%3A`), but not written: ovrly keeps them up to date, and
+writes answer `409 read_only`. See [Provider variables](#provider-variables).
+
 ### Types
 
-| Type      | JSON value                          | Example         | Shown as                |
-| --------- | ----------------------------------- | --------------- | ----------------------- |
-| `string`  | string, at most 1000 characters     | `"Team Red"`    | the text                |
-| `integer` | whole number (safe JS integer)      | `12`            | `1,234` (locale format) |
-| `double`  | finite number                       | `1.5`           | `1.5`                   |
-| `boolean` | `true` or `false`                   | `true`          | `true` / `false`        |
-| `color`   | hex colour `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` | `"#ff8800"` | a colour swatch |
+| Type      | JSON value                                                  | Example         | Can be bound to                       |
+| --------- | ----------------------------------------------------------- | --------------- | ------------------------------------- |
+| `string`  | string, at most 1000 characters                             | `"Team Red"`    | texts                                 |
+| `integer` | whole number (safe JS integer)                              | `12`            | numbers (sizes, counters), texts      |
+| `double`  | finite number                                               | `1.5`           | numbers, texts                        |
+| `boolean` | `true` or `false`                                           | `true`          | switches (group clipping, grid lines) |
+| `color`   | hex colour `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`        | `"#ff8800"`     | colours                               |
+| `image`   | http(s) URL, at most 2048 characters; `""` for no image     | `"https://…"`   | images                                |
+
+Numbers bound to a text are shown in the viewer's locale format (`1,234`).
 
 Types are sent in lowercase; uppercase is accepted as well. Colours are stored
 in lowercase. Sending a variable with a different type than before replaces
@@ -98,6 +110,7 @@ Errors come with an HTTP status and a body like:
 | 404    | `not_found`          | No such variable, or no such endpoint.                      |
 | 405    | `method_not_allowed` | The endpoint exists, the method doesn't.                    |
 | 409    | `conflict`           | Incrementing a non-number variable, or the account is full. |
+| 409    | `read_only`          | Writing to a [provider's](#provider-variables) source.      |
 | 429    | `rate_limited`       | Too many requests; wait `Retry-After` seconds.              |
 
 ### Limits
@@ -205,8 +218,33 @@ Deletes one variable. `204` on success, `404` if it didn't exist.
 
 Deletes every variable of a source. Returns `{ "deleted": <count> }`.
 
-Elements showing a deleted variable keep pointing at it and show `–` until it
-is sent again.
+Fields bound to a deleted variable stay bound and show their own value until
+the variable is sent again.
+
+## Provider variables
+
+ovrly keeps some variables up to date itself. They show up in `GET /variables`
+like any other and can be read, but not written.
+
+### Twitch
+
+Each Twitch channel added in an overlay's Variables tab gets the source
+`twitch:<channel>` (lowercase login) with:
+
+| Key           | Type      | Value                                                  |
+| ------------- | --------- | ------------------------------------------------------ |
+| `name`        | `string`  | Display name                                           |
+| `avatar`      | `image`   | Profile picture                                        |
+| `followers`   | `integer` | Followers                                              |
+| `live`        | `boolean` | Whether the channel is live                            |
+| `viewers`     | `integer` | Viewers, 0 while offline                               |
+| `title`       | `string`  | Stream title                                           |
+| `category`    | `string`  | Game or category                                       |
+| `subscribers` | `integer` | Only for channels connected under Settings → Twitch    |
+| `sub-points`  | `integer` | Tier 1 counts 1, tier 2 counts 2, tier 3 counts 6; same |
+
+They are refreshed about every 30 seconds while one of the account's overlays
+is open.
 
 ## Examples
 

@@ -1,6 +1,7 @@
 import { ColorField } from "@/components/ui/color-picker";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
+import { BindableField } from "@/components/variables/BindableField";
 import { type BaseElementStyle, type PrismaElement } from "@/lib/types";
 import { fontWeightOf } from "@/lib/fonts";
 import React, { useMemo, useState } from "react";
@@ -41,8 +42,7 @@ export const TitleStyleEditor: React.FC<{
           previewWord={element.title?.text}
         />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("font-size")}>Font Size</Label>
+      <BindableField property="style.fontSize" label="Font Size" htmlFor={id("font-size")}>
         <NumberField
           id={id("font-size")}
           className="h-10"
@@ -51,7 +51,7 @@ export const TitleStyleEditor: React.FC<{
           unit="px"
           onChange={(fontSize) => handleStyleChange({ fontSize })}
         />
-      </div>
+      </BindableField>
       <div className="space-y-2">
         <Label htmlFor={id("font-weight")}>Font Weight</Label>
         <FontWeightPicker
@@ -60,15 +60,14 @@ export const TitleStyleEditor: React.FC<{
           onChange={(fontWeight) => handleStyleChange({ fontWeight })}
         />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("color")}>Color</Label>
+      <BindableField property="style.color" label="Color" htmlFor={id("color")}>
         <ColorField
           id={id("color")}
           value={style.color || "#ffffff"}
           onChange={(color) => handleStyleChange({ color })}
           onOpenChange={setIsPickingColor}
         />
-      </div>
+      </BindableField>
     </div>
   );
 };

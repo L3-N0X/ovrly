@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BindableField } from "@/components/variables/BindableField";
 import { type PrismaElement, type TimerStyle } from "@/lib/types";
 import { fontWeightOf } from "@/lib/fonts";
 import { Info } from "lucide-react";
@@ -91,8 +92,7 @@ export const TimerStyleEditor: React.FC<{
             className="w-full h-10"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("font-size")}>Font Size</Label>
+        <BindableField property="style.fontSize" label="Font Size" htmlFor={id("font-size")}>
           <NumberField
             id={id("font-size")}
             className="h-10"
@@ -101,7 +101,7 @@ export const TimerStyleEditor: React.FC<{
             unit="px"
             onChange={(fontSize) => handleStyleChange({ fontSize })}
           />
-        </div>
+        </BindableField>
         <div className="space-y-2">
           <Label htmlFor={id("font-weight")}>Font Weight</Label>
           <FontWeightPicker
@@ -110,26 +110,23 @@ export const TimerStyleEditor: React.FC<{
             onChange={(fontWeight) => handleStyleChange({ fontWeight })}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("color")}>Color</Label>
+        <BindableField property="style.color" label="Color" htmlFor={id("color")}>
           <ColorField
             id={id("color")}
             value={style.color || "#ffffff"}
             onChange={(color) => handleStyleChange({ color })}
             onOpenChange={setIsPickingColor}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("background")}>Background</Label>
+        </BindableField>
+        <BindableField property="style.backgroundColor" label="Background" htmlFor={id("background")}>
           <ColorField
             id={id("background")}
             value={style.backgroundColor || "#333333"}
             onChange={(backgroundColor) => handleStyleChange({ backgroundColor })}
             onOpenChange={setIsPickingColor}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("padding")}>Padding</Label>
+        </BindableField>
+        <BindableField property="style.padding" label="Padding" htmlFor={id("padding")}>
           <NumberField
             id={id("padding")}
             value={typeof style?.padding === "number" ? style.padding : 0}
@@ -137,9 +134,8 @@ export const TimerStyleEditor: React.FC<{
             unit="px"
             onChange={(padding) => handleStyleChange({ padding })}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("radius")}>Corner Radius</Label>
+        </BindableField>
+        <BindableField property="style.radius" label="Corner Radius" htmlFor={id("radius")}>
           <NumberField
             id={id("radius")}
             value={typeof style?.radius === "number" ? style.radius : 0}
@@ -147,7 +143,7 @@ export const TimerStyleEditor: React.FC<{
             unit="px"
             onChange={(radius) => handleStyleChange({ radius })}
           />
-        </div>
+        </BindableField>
       </div>
     </div>
   );

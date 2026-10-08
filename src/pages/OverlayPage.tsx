@@ -14,13 +14,13 @@ import Inspector from "@/components/pages/overlay/Inspector";
 import type { ContentHandlers } from "@/components/pages/overlay/controls/ElementContentControl";
 import type { EditorSelection } from "@/components/pages/overlay/editorSelection";
 import ControlView from "@/components/pages/overlay/ControlView";
+import { PanelTabs } from "@/components/pages/overlay/PanelTabs";
+import { VariablesPanel } from "@/components/variables/VariablesPanel";
+import { VariablesProvider } from "@/components/variables/VariablesProvider";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { hasRole } from "@/lib/sharing";
-import {
-  DeleteElementDialog,
-  UndoDeleteToast,
-} from "@/components/pages/overlay/ElementDeletion";
+import { DeleteElementDialog, UndoDeleteToast } from "@/components/pages/overlay/ElementDeletion";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -45,12 +45,22 @@ const OverlayPage: React.FC = () => {
     handleTimerAddTime,
     handleCountdownAction,
     handleDeleteOverlay,
+    handleBindingChange,
+    variablesVersion,
   } = useOverlayData();
   const navigate = useNavigate();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   // Shared by the canvas, the layers panel and the inspector.
   const [selectedId, setSelectedId] = useState<EditorSelection>(null);
-  const inspectorRef = useRef<HTMLElement>(null);
+  const inspectorRef = useRef<HTMLDivElement>(null);
+  // The right hand panel: the selection's settings, or the owner's variables.
+  const [panel, setPanel] = useState<"editor" | "variables">("editor");
+  const showVariables = useCallback(() => setPanel("variables"), []);
+  // Picking something on the canvas or in the layers panel brings its settings back.
+  const select = useCallback((selection: EditorSelection) => {
+    setSelectedId(selection);
+    if (selection) setPanel("editor");
+  }, []);
   // The element waiting for the user to confirm its deletion.
   const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
   // The latest deletion, while it can still be undone.
@@ -181,6 +191,8 @@ const OverlayPage: React.FC = () => {
             role={canControl ? "CONTROLLER" : "VIEWER"}
             content={content}
             ownerName={access?.owner.name}
+            panel={panel}
+            onPanelChange={setPanel}
           />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -193,7 +205,7 @@ const OverlayPage: React.FC = () => {
                 onOverlayChange={handleOverlayChange}
                 onStructureChange={handleStructureChange}
                 selectedId={selectedId}
-                onSelect={setSelectedId}
+                onSelect={select}
               />
             </aside>
             <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">
@@ -202,24 +214,30 @@ const OverlayPage: React.FC = () => {
                 onOverlayChange={handleOverlayChange}
                 onStructureChange={handleStructureChange}
                 selectedId={selectedId}
-                onSelect={setSelectedId}
+                onSelect={select}
                 onRequestDelete={setDeleteRequestId}
                 ownerName={access?.owner.name ?? null}
               />
             </main>
             <aside
-              ref={inspectorRef}
               aria-label="Inspector"
-              className="order-2 shrink-0 border-t bg-background lg:order-3 lg:w-[340px] lg:overflow-y-auto lg:border-t-0 lg:border-l xl:w-[360px]"
+              className="order-2 flex shrink-0 flex-col border-t bg-background lg:order-3 lg:w-[340px] lg:border-t-0 lg:border-l xl:w-[360px]"
             >
-              <Inspector
-                overlay={overlay}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onOverlayChange={handleOverlayChange}
-                onRequestDelete={setDeleteRequestId}
-                content={content}
-              />
+              <PanelTabs label="Panel" tabs={PANEL_TABS} value={panel} onValueChange={setPanel} />
+              <div ref={inspectorRef} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+                {panel === "editor" ? (
+                  <Inspector
+                    overlay={overlay}
+                    selectedId={selectedId}
+                    onSelect={select}
+                    onOverlayChange={handleOverlayChange}
+                    onRequestDelete={setDeleteRequestId}
+                    content={content}
+                  />
+                ) : (
+                  <VariablesPanel overlay={overlay} />
+                )}
+              </div>
             </aside>
           </div>
         )}
@@ -249,12 +267,27 @@ const OverlayPage: React.FC = () => {
     </>
   );
 
-  // Without the provider the canvas treats bingo cards as read only.
+  // Without the providers the canvas treats bingo cards as read only and fields can't be bound;
+  // viewers can't see the owner's variables.
   return canControl ? (
-    <BingoDataProvider onBingoDataChange={handleBingoDataChange}>{page}</BingoDataProvider>
+    <VariablesProvider
+      overlayId={id}
+      version={variablesVersion}
+      canControl={canControl}
+      canEdit={canEdit}
+      onBind={handleBindingChange}
+      showVariables={showVariables}
+    >
+      <BingoDataProvider onBingoDataChange={handleBingoDataChange}>{page}</BingoDataProvider>
+    </VariablesProvider>
   ) : (
     page
   );
 };
+
+const PANEL_TABS = [
+  { value: "editor", label: "Editor" },
+  { value: "variables", label: "Variables" },
+] as const;
 
 export default OverlayPage;

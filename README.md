@@ -10,7 +10,7 @@ Ovrly is a free and open-source web application that allows you to create highly
 
 * **Free & Open Source:** Self-host Ovrly and have complete control over your data and overlays.
 * **High Customizability:** Tailor every element to your needs. Change colors, fonts, sizes, and positions with an intuitive editor.
-* **Versatile Elements:** Create timers, countdowns, counters, titles, images, icons, live Twitch stats, and more. Combine them to build unique overlays.
+* **Versatile Elements:** Create timers, countdowns, counters, titles, images, icons, bingo cards and more, and bind their fields to live variables like Twitch stats. Combine them to build unique overlays.
 * **Real-time Collaboration:** Share your overlays with your broadcast team or moderators. Changes are reflected in real-time.
 * **Twitch Integration:** Secure login with your Twitch account. No extra passwords to remember.
 * **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. Every overlay has its own canvas size (1920x1080 by default), set in the editor.
@@ -26,12 +26,18 @@ All Elements are editable to change their content.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
 * **Timer:** Count up for speedruns, events, or breaks.
 * **Countdown:** Count down from a set time, or to a date and time (e.g. your stream start).
-* **Twitch Stat:** Followers, viewers, subscribers or sub points of any Twitch channel, updated live (about every 30 seconds while the overlay is open). Followers and viewers work for every channel; subscriber numbers are private on Twitch, so the channel has to be connected once under Settings → Twitch by someone who can sign in as it. They are then shown in the overlays of whoever connected it and of their team.
-* **Variable:** A value another app sends through the [public API](docs/public-api.md), such as the score of a team from a game server or a counter on a Stream Deck button. Create an API key under Settings → API, let the app send variables (texts, numbers, yes/no values, colors), and pick one; it updates live.
 * **Image:** Add player photos, logos, or more.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
 * **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.
+
+## 🧩 Variables
+
+Like in Figma, fields of elements can be bound to **variables**: a title's text, a counter's value, a colour, a size, an image. Change the variable and everything bound to it follows, live. Hover a field and click the variable button next to its label to bind it; the **Variables** tab next to the editor lists, creates and changes them. Variables come from:
+
+* **You:** create texts, numbers, yes/no values, colors and images in the Variables tab.
+* **Twitch:** add any channel to get its followers, viewers, live state, title, category, name and avatar, updated about every 30 seconds while the overlay is open. Subscriber numbers are private on Twitch, so the channel has to be connected once under Settings → Twitch by someone who can sign in as it; they are then available to whoever connected it and their team.
+* **Other apps:** a game server, a Stream Deck or a bot can send variables through the [public API](docs/public-api.md) with a key from Settings → API.
 
 ## 📺 Usage in OBS
 
@@ -119,7 +125,7 @@ You need to set the following environment variables in a `.env` file in the root
 | `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
 
 > [!NOTE]
-> Twitch stats use the same Twitch application as the sign-in. For subscriber stats, add
+> Twitch variables use the same Twitch application as the sign-in. For subscriber numbers, add
 > `<APP_BASE_URL>/api/twitch/callback` to the application's **OAuth Redirect URLs** in the
 > [Twitch developer console](https://dev.twitch.tv/console/apps), next to the sign-in callback
 > `<APP_BASE_URL>/api/auth/callback/twitch`.
@@ -193,7 +199,7 @@ This will create an optimized production build in the `dist` directory.
 
 * [Bingo element](docs/bingo.md) — data model, API and rendering behaviour.
 * [Public API](docs/public-api.md) — for apps sending variables to overlays: keys, endpoints, examples.
-* [Variables](docs/variables.md) — how the public API and the Variable element are built.
+* [Variables](docs/variables.md) — how variables, bindings, providers and the public API are built.
 
 ## ❤️ Contributing
 

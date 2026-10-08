@@ -11,12 +11,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { VariableValuePreview } from "@/components/variables/VariableBits";
 import {
-  formatVariableValue,
+  sourceLabel,
   VARIABLE_TYPE_LABELS,
   variablesApi,
   type ApiKey,
   type Variable,
+  type VariablesResponse,
 } from "@/lib/variables";
 
 const formatDate = (date: string) =>
@@ -50,10 +52,10 @@ const CopyButton: React.FC<{ text: string; label: string }> = ({ text, label }) 
 };
 
 // API keys let other applications (a game server, a Stream Deck, a bot) send variables to this
-// account, which variable elements then show. The API is documented in docs/public-api.md.
+// account, which fields of overlays then show once they are bound to them. The API is documented in docs/public-api.md.
 export const ApiSettings: React.FC = () => {
   const [apiKeys, setApiKeys] = useState<ApiKey[] | null>(null);
-  const [variables, setVariables] = useState<Variable[] | null>(null);
+  const [list, setList] = useState<VariablesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -64,7 +66,7 @@ export const ApiSettings: React.FC = () => {
   const loadVariables = useCallback(() => {
     variablesApi
       .variables()
-      .then(({ variables }) => setVariables(variables))
+      .then(setList)
       .catch((err: Error) => setError(err.message));
   }, []);
 
@@ -107,9 +109,7 @@ export const ApiSettings: React.FC = () => {
   };
 
   const deleteVariable = (variable: Variable) =>
-    run(variable.id, async () =>
-      setVariables((await variablesApi.deleteVariable(variable.id)).variables)
-    );
+    run(variable.id, async () => setList(await variablesApi.deleteVariable(variable.id)));
 
   const baseUrl = `${window.location.origin}/api/v1`;
   const example = `curl -X PUT ${baseUrl}/sources/my-app/variables/score \\
@@ -117,6 +117,8 @@ export const ApiSettings: React.FC = () => {
   -H "Content-Type: application/json" \\
   -d '{ "type": "integer", "value": 42 }'`;
 
+  const variables = list?.variables;
+  const sources = list?.sources;
   const bySource = new Map<string, Variable[]>();
   for (const variable of variables ?? []) {
     bySource.set(variable.source, [...(bySource.get(variable.source) ?? []), variable]);
@@ -135,9 +137,10 @@ export const ApiSettings: React.FC = () => {
           <h2 className="font-medium">Send variables from other apps</h2>
           <p className="text-sm text-muted-foreground">
             With an API key, other apps (a game server, a Stream Deck, a bot) can send variables
-            to your account: texts, numbers, yes/no values and colors. Add a Variable element to
-            an overlay and pick one; it updates live whenever the app sends a new value. People
-            on your team see your variables in your overlays.
+            to your account: texts, numbers, yes/no values, colors and images. Bind a field of
+            an element to one (the variable button next to its label) and it updates live
+            whenever the app sends a new value. People on your team see your variables in your
+            overlays.
           </p>
         </div>
         <div className="space-y-3 px-5 pb-5">
@@ -210,7 +213,8 @@ export const ApiSettings: React.FC = () => {
           <div className="flex-1">
             <h2 className="font-medium">Variables</h2>
             <p className="text-sm text-muted-foreground">
-              What your apps sent, by app. Deleted ones come back when the app sends them again.
+              Everything your account has, by app or provider. Deleted ones come back when they
+              are sent again.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={loadVariables}>
@@ -225,12 +229,15 @@ export const ApiSettings: React.FC = () => {
             </div>
           ) : variables.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-              No variables yet. They show up here once an app sends them.
+              No variables yet. They show up here once an app sends them or you create one in an
+              overlay's Variables tab.
             </p>
           ) : (
             [...bySource].map(([source, items]) => (
               <div key={source} className="border-b last:border-b-0">
-                <h3 className="bg-secondary/50 px-4 py-2 text-xs font-medium sm:px-5">{source}</h3>
+                <h3 className="bg-secondary/50 px-4 py-2 text-xs font-medium sm:px-5">
+                  {sourceLabel(source, sources)}
+                </h3>
                 <ul className="divide-y">
                   {items.map((variable) => (
                     <li key={variable.id} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
@@ -239,15 +246,11 @@ export const ApiSettings: React.FC = () => {
                         {VARIABLE_TYPE_LABELS[variable.type]}
                       </span>
                       <span className="flex w-40 shrink-0 items-center gap-2 truncate text-sm">
-                        {variable.type === "COLOR" && (
-                          <span
-                            className="size-4 shrink-0 rounded border"
-                            style={{ backgroundColor: String(variable.value) }}
-                          />
-                        )}
-                        <span className="truncate">
-                          {formatVariableValue(variable.type, variable.value)}
-                        </span>
+                        <VariableValuePreview
+                          type={variable.type}
+                          value={variable.value}
+                          className="text-sm"
+                        />
                       </span>
                       <span className="hidden w-28 shrink-0 text-xs text-muted-foreground sm:block">
                         {formatDateTime(variable.updatedAt)}

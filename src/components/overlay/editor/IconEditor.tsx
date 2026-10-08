@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ColorField } from "@/components/ui/color-picker";
-import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
+import { BindableField } from "@/components/variables/BindableField";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import type { IconStyle, PrismaElement } from "@/lib/types";
 
@@ -27,8 +27,7 @@ export const IconStyleEditor: React.FC<{
 
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor={id("size")}>Size</Label>
+      <BindableField property="style.size" label="Size" htmlFor={id("size")}>
         <NumberField
           id={id("size")}
           className="h-10"
@@ -37,16 +36,15 @@ export const IconStyleEditor: React.FC<{
           unit="px"
           onChange={(size) => handleStyleChange({ size })}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("color")}>Color</Label>
+      </BindableField>
+      <BindableField property="style.color" label="Color" htmlFor={id("color")}>
         <ColorField
           id={id("color")}
           value={style.color || "#ffffff"}
           onChange={(color) => handleStyleChange({ color })}
           onOpenChange={setIsPickingColor}
         />
-      </div>
+      </BindableField>
     </div>
   );
 };

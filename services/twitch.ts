@@ -2,7 +2,7 @@
 // that users sign in with.
 //
 // Most of what overlays show is public and read with an app access token: a channel's follower
-// total, its stream and the user lookup. Subscriptions are private to the channel, so they are
+// total, its stream, its title and category, and the user lookup. Subscriptions are private to the channel, so they are
 // read with a token of the channel itself, which its owner grants by connecting the channel
 // (routes/twitch.ts, stored as a TwitchConnection).
 
@@ -19,6 +19,13 @@ export const twitchConfigured = () => !!clientId() && !!clientSecret();
 
 // Twitch login names: 4 to 25 letters, digits and underscores (some old ones are shorter).
 export const isTwitchLogin = (value: string) => /^[a-zA-Z0-9_]{1,25}$/.test(value);
+
+// What someone typed to pick a channel: its name, "@name" or a link to it.
+export const channelLoginFrom = (input: string) => {
+  const value = input.trim();
+  const link = value.match(/^(?:https?:\/\/)?(?:www\.|m\.)?twitch\.tv\/([^/?#\s]+)/i);
+  return (link ? link[1] : value.replace(/^@/, "")).toLowerCase();
+};
 
 export class TwitchError extends Error {
   readonly status: number;
@@ -95,18 +102,60 @@ export interface TwitchChannel {
 // The channel with this login name, or null when there is none.
 export const findChannel = async (login: string): Promise<TwitchChannel | null> => {
   if (!isTwitchLogin(login)) return null;
-  const { data } = await helix<{
-    data: { id: string; login: string; display_name: string; profile_image_url: string }[];
-  }>(`/users?login=${encodeURIComponent(login.toLowerCase())}`);
-  const user = data[0];
-  return user
-    ? {
-        id: user.id,
-        login: user.login,
-        displayName: user.display_name,
-        profileImageUrl: user.profile_image_url,
-      }
-    : null;
+  const { data } = await helix<{ data: HelixUser[] }>(
+    `/users?login=${encodeURIComponent(login.toLowerCase())}`
+  );
+  return data[0] ? toChannel(data[0]) : null;
+};
+
+interface HelixUser {
+  id: string;
+  login: string;
+  display_name: string;
+  profile_image_url: string;
+}
+
+const toChannel = (user: HelixUser): TwitchChannel => ({
+  id: user.id,
+  login: user.login,
+  displayName: user.display_name,
+  profileImageUrl: user.profile_image_url,
+});
+
+// Helix takes up to 100 ids per request: this asks for `path?<param>=<id>&...` a hundred ids at a
+// time and joins the results.
+const inHundreds = async <T>(path: string, param: string, ids: string[]) => {
+  const results: T[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const query = ids
+      .slice(i, i + 100)
+      .map((id) => `${param}=${encodeURIComponent(id)}`)
+      .join("&");
+    const { data } = await helix<{ data: T[] }>(`${path}?${query}`);
+    results.push(...data);
+  }
+  return results;
+};
+
+// The channels with these ids, by id. Ids of channels that don't exist (anymore) are missing.
+export const getChannelsById = async (channelIds: string[]) => {
+  const users = await inHundreds<HelixUser>("/users", "id", channelIds);
+  return new Map(users.map((user) => [user.id, toChannel(user)]));
+};
+
+// The title and category of each channel, live or not, by channel id.
+export const getChannelInformation = async (channelIds: string[]) => {
+  const channels = await inHundreds<{ broadcaster_id: string; title: string; game_name: string }>(
+    "/channels",
+    "broadcaster_id",
+    channelIds
+  );
+  return new Map(
+    channels.map((channel) => [
+      channel.broadcaster_id,
+      { title: channel.title, category: channel.game_name },
+    ])
+  );
 };
 
 export const getFollowerTotal = async (channelId: string) => {

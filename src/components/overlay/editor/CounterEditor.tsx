@@ -1,6 +1,7 @@
 import { ColorField } from "@/components/ui/color-picker";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
+import { BindableField } from "@/components/variables/BindableField";
 import { type CounterStyle, type PrismaElement } from "@/lib/types";
 import { fontWeightOf } from "@/lib/fonts";
 import React, { useMemo, useState } from "react";
@@ -41,8 +42,7 @@ export const CounterStyleEditor: React.FC<{
             className="w-full h-10"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("font-size")}>Font Size</Label>
+        <BindableField property="style.fontSize" label="Font Size" htmlFor={id("font-size")}>
           <NumberField
             id={id("font-size")}
             className="h-10"
@@ -51,7 +51,7 @@ export const CounterStyleEditor: React.FC<{
             unit="px"
             onChange={(fontSize) => handleStyleChange({ fontSize })}
           />
-        </div>
+        </BindableField>
         <div className="space-y-2">
           <Label htmlFor={id("font-weight")}>Font Weight</Label>
           <FontWeightPicker
@@ -60,26 +60,23 @@ export const CounterStyleEditor: React.FC<{
             onChange={(fontWeight) => handleStyleChange({ fontWeight })}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("color")}>Color</Label>
+        <BindableField property="style.color" label="Color" htmlFor={id("color")}>
           <ColorField
             id={id("color")}
             value={style.color || "#ffffff"}
             onChange={(color) => handleStyleChange({ color })}
             onOpenChange={setIsPickingColor}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("background")}>Background</Label>
+        </BindableField>
+        <BindableField property="style.backgroundColor" label="Background" htmlFor={id("background")}>
           <ColorField
             id={id("background")}
             value={style.backgroundColor || "#333333"}
             onChange={(backgroundColor) => handleStyleChange({ backgroundColor })}
             onOpenChange={setIsPickingColor}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("padding")}>Padding</Label>
+        </BindableField>
+        <BindableField property="style.padding" label="Padding" htmlFor={id("padding")}>
           <NumberField
             id={id("padding")}
             value={(style.padding as number) || 0}
@@ -87,9 +84,8 @@ export const CounterStyleEditor: React.FC<{
             unit="px"
             onChange={(padding) => handleStyleChange({ padding })}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("radius")}>Corner Radius</Label>
+        </BindableField>
+        <BindableField property="style.radius" label="Corner Radius" htmlFor={id("radius")}>
           <NumberField
             id={id("radius")}
             value={(style.radius as number) || 0}
@@ -97,7 +93,7 @@ export const CounterStyleEditor: React.FC<{
             unit="px"
             onChange={(radius) => handleStyleChange({ radius })}
           />
-        </div>
+        </BindableField>
       </div>
     </div>
   );

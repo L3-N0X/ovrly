@@ -1,169 +1,258 @@
-# Variables and the Public API
+# Variables
 
-How external applications feed values into overlays. The API itself, as
-integrators see it, is documented in [public-api.md](public-api.md); this file
-covers the data model, the request flow and the reasoning behind it.
+Variables are named values of an account (a text, a number, a yes/no value, a
+colour, an image) that fields of elements can be **bound** to, like Figma
+variables: a counter's value, a title's text, a colour, a width. Whoever
+changes a variable changes everything bound to it, in every overlay, live.
+
+Variables come from three places:
+
+- **The editor:** the Variables tab of an overlay creates them and changes their
+  values.
+- **Applications**, through the public API with an API key
+  ([public-api.md](public-api.md)): a game server, a Stream Deck, a bot.
+- **Providers**, which ovrly keeps up to date itself. Twitch is the first: each
+  channel a user adds gets its followers, viewers, title and so on as
+  variables. Spotify (track, artist, cover) is the obvious next one.
+
+This file covers the data model, the request flow and the reasoning behind it.
 
 ## Overview
 
 ```
- game server / Stream Deck / bot
-            │  PUT /api/v1/sources/minecraft-tournament/variables
-            │  Authorization: Bearer ovrly_...
+ editor (Variables tab)    application (/api/v1)    provider (Twitch poller)
+            │                       │                         │
+            └───────────────┬───────┴─────────────────────────┘
+                            ▼
+ services/variables.ts ── writes Variable rows of the account (only changed ones),
+            │             finds the overlays with elements bound to them
             ▼
- routes/publicApi.ts ── authenticates the key, rate limits, validates
-            │
+ WebSocket overlay-<id>    ── each bound overlay is published again; its payload
+            │                 carries the values of the variables it is bound to
+ WebSocket variables-<user> ── `{ "type": "variables" }` for open Variables tabs
             ▼
- services/variables.ts ── writes Variable rows of the key's account,
-            │             copies changed values into VariableBinding rows,
-            │             publishes every overlay containing such a binding
-            ▼
- WebSocket overlay-<id> ── editor, control view and OBS re-render
+ OverlayCanvas ── resolveOverlay() puts the values into the bound properties
+                  before anything is drawn (editor, control view, OBS)
 ```
-
-The user side:
-
-1. **Settings → API** (`src/components/settings/ApiSettings.tsx`) creates and
-   revokes API keys, and lists and deletes the variables apps sent.
-2. A **Variable** element (`ElementType.VARIABLE`) is added like any other
-   element. Its content control (`VariableControl.tsx`) lists the overlay
-   owner's variables, grouped by source, and binds the element to one.
-3. The canvas (`src/components/overlay/Variable.tsx`) draws the value as text,
-   styled like a title, or as a swatch for colours.
 
 ## Data model
 
-All in `prisma/schema.prisma`; migrations
-`20261007170000_add_variable_element_type` and
-`20261007170100_public_api_variables`.
-
-### `ApiKey`
-
-| Field        | Notes                                                              |
-| ------------ | ------------------------------------------------------------------ |
-| `userId`     | The account everything sent with the key is stored on.             |
-| `name`       | Given by the user ("Minecraft server").                            |
-| `prefix`     | First 12 characters (`ovrly_abc123`), to tell keys apart in the UI.|
-| `hash`       | SHA-256 of the key, hex. Unique; requests are looked up by it.     |
-| `lastUsedAt` | Written at most once a minute per key.                             |
-
-Keys are `ovrly_` + 32 random bytes (base64url). Because they are random and
-long, a plain SHA-256 is enough (no salt, no slow hash), and it allows the
-lookup by hash. The key itself is only returned once, by `POST /api/api-keys`.
+All in `prisma/schema.prisma`, migration `20261008120000_variables_foundation`.
 
 ### `Variable`
 
 One value of one account: `userId` + `source` + `key` (unique together),
-`type` (`VariableType` enum: `STRING`, `INTEGER`, `DOUBLE`, `BOOLEAN`,
-`COLOR`) and `value` (`Json`, a bare JSON string, number or boolean).
+`type` (`VariableType`: `STRING`, `INTEGER`, `DOUBLE`, `BOOLEAN`, `COLOR`,
+`IMAGE`) and `value` (`Json`, a bare JSON string, number or boolean).
 
-`Json` keeps the column generic across types; validation happens in
-`lib/variables.ts` (`parseVariableValue`), the single gate for every write.
+`Json` keeps the column generic across types; `parseVariableValue` in
+`lib/variables.ts` is the single gate for every write. Images are URLs: http(s)
+anywhere, or `/uploads/...` on this server; empty means no image.
+
+**Sources** group variables. Names the API and the editor accept
+(`isVariableName`: letters, digits, `.`, `_`, `-`) never contain a `:`, so
+`"<provider>:<name>"` (`twitch:shroud`) is reserved for providers
+(`isProviderSource`). That is what makes provider variables read only: the
+public API answers `409 read_only` for writes to them, and the editor shows
+them without an input.
+
+### `VariableSource`
+
+A provider instance a user added: `provider` (`VariableProvider`: `TWITCH`),
+`name` (the source of its variables, `twitch:<login>`), `externalId` (the
+Twitch user id), `config` (`{ displayName }`) and `problem`, why some of its
+variables are missing (`NOT_CONNECTED`, `NOT_ALLOWED`; see below). Unique per
+user by `name`. Removing it deletes its variables.
+
+Sources that are just a name (`variables`, `minecraft-tournament`) have no
+row; they exist as long as variables use them.
 
 ### `VariableBinding`
 
-The companion row of a `VARIABLE` element, like `TwitchStat` is for
-`TWITCH_STAT`:
+One bound property of one element: `elementId`, `property`, and the
+`source` + `key` of the variable. Unique by `[elementId, property]`.
 
-| Field       | Notes                                                                |
-| ----------- | -------------------------------------------------------------------- |
-| `source`    | Which variable it shows; empty until one is picked.                  |
-| `key`       |                                                                      |
-| `type`      | Copy of the variable's type; null while the owner has no such one.   |
-| `value`     | Copy of the variable's value; null likewise.                         |
-| `updatedAt` | When the copy was last written.                                      |
+**Properties** are named as in `lib/bindings.ts` (`BINDABLE_PROPERTIES`, the
+same catalogue as `src/lib/bindings.ts`): `text` (title), `value` (counter),
+`src` (image), and `style.<key>` for any style key the element's type lets be
+bound (`style.color`, `style.width`, `style.x`, ...). Each has a **kind** that
+decides which variable types fit:
 
-**Bound by name, not by id.** An element can point at a variable before the
-application ever sent it, and keeps working when the application deletes its
-variables and sends them again (a new tournament). Copies of overlays (presets,
-imports, duplicates, also into another account) carry only `source`/`key` and
-pick up the values of their new owner (`fillOverlayBindings`).
+| Kind      | Variable types                 | Examples                                   |
+| --------- | ------------------------------ | ------------------------------------------ |
+| `text`    | string, integer, double        | title text                                 |
+| `number`  | integer, double                | counter value, font size, width, x/y       |
+| `color`   | color                          | text colour, background, stroke            |
+| `image`   | image                          | image source, bingo background image       |
+| `boolean` | boolean                        | group clipping, bingo grid lines           |
 
-**The value is copied onto the element** instead of being joined at read time.
-That way every existing overlay payload (`overlayElementsInclude`, HTTP and
-WebSocket) carries it with no changes to the clients' data flow, the revision
-mechanism in `publishOverlay` keeps working, and a change reaches OBS the same
-way as a counter click. The cost is one `updateMany` per changed variable,
-which is cheap with the `[source, key]` index.
+**Bound by name, not by id.** A binding can point at a variable that doesn't
+exist (yet, or anymore): the field then shows its own value, and the editor
+marks the binding. Applications can delete their variables and send them again
+(a new tournament) without breaking anything, and copies of overlays (presets,
+imports, duplicates, also into another account) carry only the names and pick
+up the variables of their new owner.
+
+**The element keeps its own value.** Binding doesn't touch the stored title
+text or counter value; detaching shows it again.
 
 **Whose variables:** always those of the overlay's **owner**
-(`Overlay.userId`), whoever is looking at or editing it. Team members thereby
-see and can pick the owner's variables, but never expose their own.
+(`Overlay.userId`), whoever is looking at or editing it. Team members see and
+bind the owner's variables, never their own.
 
-## Request flow
+## Reading: what overlays carry
 
-### Writes (`services/variables.ts`)
+`overlayElementsInclude` (`services/overlay-query.ts`) includes each element's
+`bindings`, and `withVariables` adds `variables` to the overlay: the owner's
+variables its elements are bound to, and only those, because the OBS URL is
+public. Every overlay payload goes through it (HTTP, WebSocket,
+`publishOverlay`), so a variable change reaches OBS the same way a counter
+click does, including the revision mechanism.
+
+The client resolves the bindings in one place: `OverlayCanvas` renders
+`resolveOverlay(overlay)` (`src/lib/bindings.ts`), which puts each fitting
+variable's value into the bound property. Renderers never know whether a value
+was bound. Edits still go to the stored overlay, so the inspector keeps
+showing the element's own values while the canvas shows the variables'.
+
+A `text` property shows numbers formatted for the viewer's locale
+(`formatVariableValue`). A variable whose type stopped fitting (an application
+changed it) is skipped, and the property shows its own value.
+
+## Writing
+
+### `services/variables.ts`
 
 `setVariables(server, userId, source, writes)`:
 
 1. In one transaction: lock the existing rows of the written keys
    (`SELECT … FOR UPDATE`, sorted by key so two batches can't deadlock), read
    them, and enforce the per-account limit for new ones.
-2. Skip writes whose type and value are unchanged. Applications may send their
-   whole state on every tick without causing database writes or broadcasts.
-3. Upsert the rest, and copy each into the bindings of the owner's overlays.
-4. After commit, `publishOverlay` each affected overlay once.
+2. Skip writes whose type and value are unchanged. Applications and providers
+   may send their whole state every time without causing writes or broadcasts.
+3. Upsert the rest and collect the overlays bound to them.
+4. After commit, `publishOverlay` each of those overlays once, and publish
+   `{ "type": "variables" }` on `variables-<userId>`.
 
-`incrementVariable` does read-add-write under the same row lock, so concurrent
-Stream Deck presses all count. `deleteVariables` removes rows and nulls the
-bindings' copies (the binding itself stays).
+`setVariableValue` (the editor; refuses provider sources), `incrementVariable`
+(read-add-write under the same row lock, so concurrent Stream Deck presses all
+count) and `deleteVariables` build on the same steps.
 
-### Binding an element (`routes/elements.ts`)
+### Binding a field (`routes/elements.ts`)
 
-`PATCH /api/elements/:id` with `data: { source, key }` (empty strings clear it).
-Needs the `CONTROLLER` role, like picking a Twitch stat's channel: it changes
-what the element shows, not how it looks. `bindingState` reads the owner's
-variable in the same transaction and stores the copy right away.
+`PATCH /api/elements/:id` with
+`bindings: { "<property>": { source, key } | null }` creates, replaces or
+removes bindings (null removes). Properties are checked against the element's
+type. Content properties (`text`, `value`, `src`) need the `CONTROLLER` role,
+style properties `EDITOR`, like editing them directly.
 
 ### Routes
 
-| Route                                   | Auth    | Purpose                                       |
-| --------------------------------------- | ------- | --------------------------------------------- |
-| `/api/v1/*`                             | API key | Public API (`routes/publicApi.ts`)            |
-| `GET/POST /api/api-keys`                | session | List / create keys (`routes/variables.ts`)    |
-| `DELETE /api/api-keys/:id`              | session | Revoke a key                                  |
-| `GET /api/variables`                    | session | The user's own variables                      |
-| `DELETE /api/variables/:id`             | session | Delete one (and blank elements showing it)    |
-| `GET /api/overlays/:id/variables`       | session, `CONTROLLER` | The owner's variables, for the picker |
+| Route                                                  | Auth                  | Purpose                                         |
+| ------------------------------------------------------ | --------------------- | ----------------------------------------------- |
+| `/api/v1/*`                                            | API key               | Public API (`routes/publicApi.ts`)              |
+| `GET/POST /api/api-keys`, `DELETE /api/api-keys/:id`   | session               | API keys (`routes/variables.ts`)                |
+| `GET /api/variables`                                   | session               | The user's own variables and sources            |
+| `DELETE /api/variables/:id`                            | session               | Delete one of them                              |
+| `GET /api/overlays/:id/variables`                      | `CONTROLLER`          | The owner's variables and sources               |
+| `POST /api/overlays/:id/variables`                     | `EDITOR`              | Create one: `{ source, key, type, value }`      |
+| `PATCH /api/overlays/:id/variables/:variableId`        | `CONTROLLER`          | Change its value: `{ value }`                   |
+| `DELETE /api/overlays/:id/variables/:variableId`       | `EDITOR`              | Delete it                                       |
+| `POST /api/overlays/:id/variable-sources`              | `EDITOR`              | Add a provider: `{ provider: "twitch", channel }` |
+| `DELETE /api/overlays/:id/variable-sources/:sourceId`  | `EDITOR`              | Remove it with its variables                    |
+
+The overlay routes act on the **owner's** variables, so team members manage
+them from the overlay they share. Controllers run the show (change values,
+bind content); editors shape it (create and delete variables, add providers,
+bind style). Every list response is `{ variables, sources }`.
 
 `/api/v1` is routed in `server.ts` **before** the app's CORS handling: it
 answers its own preflights with `Access-Control-Allow-Origin: *`, which is safe
 because it authenticates with a header, never with cookies.
 
-### Rate limiting
+### Live updates
 
-`services/api-keys.ts` keeps an in-memory token bucket per key (burst 30,
-10/s). ovrly runs as a single process, so in-memory is enough; with several
-instances it would have to move to shared storage (Redis, Postgres).
+Sockets of an overlay subscribe to `overlay-<id>`, and, when the user has
+access to the overlay (editor and control view, not the public OBS page), to
+`variables-<ownerId>` as well (`middleware/wsAuth.ts`, `server.ts`). A
+`variables` message bumps `variablesVersion` in `useOverlayData`, and
+`VariablesProvider` fetches the list again.
+
+## Twitch (`services/twitch-variables.ts`)
+
+Each channel a user adds (Variables tab → New → Twitch channel) becomes a
+`VariableSource` `twitch:<login>` with these variables:
+
+| Key          | Type    | Notes                                                    |
+| ------------ | ------- | -------------------------------------------------------- |
+| `name`       | string  | Display name                                             |
+| `avatar`     | image   | Profile picture                                          |
+| `followers`  | integer |                                                          |
+| `live`       | boolean |                                                          |
+| `viewers`    | integer | 0 while offline                                          |
+| `title`      | string  | Stream title                                             |
+| `category`   | string  | Game or category                                         |
+| `subscribers`| integer | Only while the channel is connected (see below)          |
+| `sub-points` | integer | Tier 1 counts 1, tier 2 counts 2, tier 3 counts 6        |
+
+Twitch only pushes events (EventSub) to channels that authorized the app, so
+every channel is **polled**: every 30 s for the owners of overlays that are
+open somewhere (any socket), and right away when an overlay is opened (with a
+15 s cooldown) or a channel is added, connected or disconnected. Public data
+uses the app token, batched 100 channels per request.
+
+**Subscriber numbers** are private on Twitch. They need a `TwitchConnection`
+(Settings → Twitch, own OAuth flow in `routes/twitch.ts`), and are only written
+for the connecting user and their account-share team. Otherwise the source's
+`problem` says why (`NOT_CONNECTED`, `NOT_ALLOWED`) and the Variables tab
+explains it; the two variables are removed.
+
+**Presets** bind to `twitch:@me` (`OWN_TWITCH_SOURCE`), which overlay creation
+replaces with the creator's own channel, adding it as a source if needed
+(`ownTwitchSource`).
+
+### Adding a provider
+
+1. Add it to `VariableProvider` and pick a source prefix (`spotify:<name>`).
+2. Write its variables with `setVariables` under that source; never let it
+   write sources of other providers.
+3. Add it to the "New" menu of `VariablesPanel` and to `sourceLabel`
+   (`src/lib/variables.ts`).
 
 ## Shared modules
 
-- `lib/variables.ts` (server): type list, name rules, `parseVariableValue`,
-  limits, `variableBindingSeed` for presets/imports.
-- `src/lib/variables.ts` (client): labels, `formatVariableValue`, API calls.
+- `lib/variables.ts` (server): types, name rules, `parseVariableValue`, limits.
+- `lib/bindings.ts` (server): bindable properties, `bindingSeeds` for
+  presets and imports, `OWN_TWITCH_SOURCE`.
+- `src/lib/variables.ts` (client): labels, `formatVariableValue`,
+  `sourceLabel`, API calls.
+- `src/lib/bindings.ts` (client): the same property catalogue, `resolveOverlay`.
+- `src/lib/variablesContext.ts`, `src/components/variables/`: the Variables tab
+  (`VariablesPanel`), `VariablesProvider`, and `BindableField`, which turns a
+  labelled field into one that can be bound.
 
-## What's there and what's next
+### Making a field bindable
 
-Working end to end for every type: API keys, all `/api/v1` endpoints, the
-Variable element (text for strings, numbers and booleans; a swatch for
-colours), the picker, live updates, export/import/duplicate, and the settings
-page.
+1. Add the property and its kind to `BINDABLE_PROPERTIES` in both
+   `lib/bindings.ts` and `src/lib/bindings.ts`.
+2. Wrap the field in `<BindableField property="style.foo" label="Foo">`
+   (`PixelInput` and `ColorInput` in `editor/appearance.tsx` take a `property`
+   prop). The field needs `BindingElementContext`, which the inspector and the
+   control view provide.
+3. For a content property, teach `resolveElement` where the value goes.
 
-Ideas for building on it:
+## What's next
 
-- **Variables in existing elements.** Bind a Counter's value, a Title's text
-  (`"{{minecraft-tournament/red.name}}"` placeholders), an Image's URL or any
-  colour style property to a variable. `VariableBinding` could grow an
-  optional `target` (e.g. `"style.color"`) or titles could store a template
-  that the server resolves when copying values.
-- **Formatting options** for the Variable element: prefix/suffix, number of
-  decimals, labels for `true`/`false`, compact numbers like Twitch stats.
+- **Visibility:** bind whether an element is shown to a boolean variable.
+- **Text templates:** titles mixing text and variables
+  (`"{{red.name}}: {{red.points}}"`).
+- **Writable bindings:** counter +/- on a bound counter increments the
+  variable instead of being hidden.
+- **Formatting:** compact numbers (12.4K), decimals, prefix/suffix.
+- **Renaming** variables and sources, updating the bindings with them.
+- **Imports into another account** could add the Twitch channels the overlay
+  is bound to.
+- **More providers:** Spotify, StreamElements, a timer as a variable.
 - **Scoped keys:** limit a key to one source, or to read-only access.
-- **Webhooks the other way:** let ovrly notify applications (a controller
-  pressed a button), turning variables into two-way state.
 - **Coalescing broadcasts:** a source changing many times a second publishes an
-  overlay per change. Debouncing `publishOverlay` per overlay (e.g. 100 ms)
-  would bound that if it ever matters.
-- **Typed declarations:** let an application register its variables (name,
-  type, description, default) up front, so users can pick them before the
-  first value arrives.
+  overlay per change; debouncing `publishOverlay` per overlay would bound that.

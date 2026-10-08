@@ -15,15 +15,15 @@ import {
   overlayElementsInclude,
   publishOverlay,
   revisionHeaders,
+  withVariables,
   writeIdOf,
 } from "../services/overlay-query";
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
 import { iconSeed } from "../lib/icons";
-import { twitchStatSeed } from "../lib/twitchStats";
-import { variableBindingSeed } from "../lib/variables";
-import { fillOverlayBindings } from "../services/variables";
+import { bindingSeeds, OWN_TWITCH_SOURCE } from "../lib/bindings";
+import { ownTwitchSource } from "../services/twitch-variables";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
 
 // The canvas size bounds, shared with the editor so both clamp the same values.
@@ -46,7 +46,13 @@ interface OverlayMember {
 
 // Builds the nested create input for a sibling list. Children are created through Prisma's
 // nested writes, so each root element and its whole subtree go in with a single statement.
-function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
+// `ownTwitch` is the source of the creator's own Twitch channel, which presets bind to as
+// OWN_TWITCH_SOURCE; bindings to it are dropped when there is none.
+function buildElementCreates(
+  overlayId: string,
+  elements: ElementSeed[],
+  ownTwitch: string | null
+): Prisma.ElementUncheckedCreateWithoutParentInput[] {
   let position = 0;
   return elements.map((element): Prisma.ElementUncheckedCreateWithoutParentInput => {
     const data: Prisma.ElementUncheckedCreateWithoutParentInput = {
@@ -70,13 +76,16 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
     if (element.type === "COUNTDOWN") {
       data.countdown = { create: countdownSeed(element.countdown) };
     }
-    // The value is fetched again for the copy, once it is opened.
-    if (element.type === "TWITCH_STAT") {
-      data.twitchStat = { create: twitchStatSeed(element.twitchStat) };
-    }
-    // Only which variable it shows; the value is the new owner's (filled in below).
-    if (element.type === "VARIABLE") {
-      data.variable = { create: variableBindingSeed(element.variable) };
+    // Bound by name: in another account they show that account's variables of the same name.
+    const bindings = bindingSeeds(element.type, element.bindings).flatMap((binding) =>
+      binding.source !== OWN_TWITCH_SOURCE
+        ? [binding]
+        : ownTwitch
+          ? [{ ...binding, source: ownTwitch }]
+          : []
+    );
+    if (bindings.length > 0) {
+      data.bindings = { create: bindings };
     }
     if (element.type === "ICON") {
       data.icon = { create: iconSeed(element.icon) };
@@ -90,7 +99,7 @@ function buildElementCreates(overlayId: string, elements: ElementSeed[]) {
       data.bingo = { create: normalizeBingoState(element.bingo) };
     }
     if (element.children && element.children.length > 0) {
-      data.children = { create: buildElementCreates(overlayId, element.children) };
+      data.children = { create: buildElementCreates(overlayId, element.children, ownTwitch) };
     }
     return data;
   });
@@ -102,15 +111,24 @@ async function createOverlayWithElements(
   data: Prisma.OverlayUncheckedCreateInput,
   elements: ElementSeed[]
 ) {
+  // Looked up (and added) before the transaction, which shouldn't wait on Twitch.
+  const ownTwitch = usesOwnTwitch(elements) ? (await ownTwitchSource(data.userId))?.name ?? null : null;
   return prisma.$transaction(async (tx) => {
     const overlay = await tx.overlay.create({ data });
-    for (const element of buildElementCreates(overlay.id, elements)) {
+    for (const element of buildElementCreates(overlay.id, elements, ownTwitch)) {
       await tx.element.create({ data: element });
     }
-    await fillOverlayBindings(tx, overlay.id, overlay.userId);
     return overlay;
   });
 }
+
+const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
+  elements.some(
+    (element) =>
+      (Array.isArray(element.bindings) &&
+        element.bindings.some((b: { source?: unknown }) => b?.source === OWN_TWITCH_SOURCE)) ||
+      (Array.isArray(element.children) && usesOwnTwitch(element.children))
+  );
 
 // Turns the flat element list of an overlay back into a tree of seeds, whatever its depth.
 function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
@@ -355,18 +373,21 @@ export const handleOverlaysRoutes = async (
 
     if (req.method === "GET") {
       const sharedRoles = await getSharedOverlayRoles(session.user);
-      const overlays = await prisma.overlay.findMany({
-        where: {
-          OR: [{ userId: session.user.id }, { id: { in: [...sharedRoles.keys()] } }],
-        },
-        include: {
-          ...overlayElementsInclude,
-          user: { select: { name: true, image: true } },
-          shares: {
-            select: { twitchName: true, role: true, user: { select: { name: true, image: true } } },
+      const overlays = await withVariables(
+        prisma,
+        await prisma.overlay.findMany({
+          where: {
+            OR: [{ userId: session.user.id }, { id: { in: [...sharedRoles.keys()] } }],
           },
-        },
-      });
+          include: {
+            ...overlayElementsInclude,
+            user: { select: { name: true, image: true } },
+            shares: {
+              select: { twitchName: true, role: true, user: { select: { name: true, image: true } } },
+            },
+          },
+        })
+      );
 
       // Account shares reach every overlay of their owner, so they belong to each one's list
       // of people with access.

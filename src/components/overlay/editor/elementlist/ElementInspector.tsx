@@ -14,7 +14,6 @@ import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
-import { TwitchStatStyleEditor } from "../TwitchStatEditor";
 
 // Updates the selected element's style. onOverlayChange persists it itself (debounced per
 // element).
@@ -70,11 +69,6 @@ export const ElementStyleEditor = ({
     case ElementTypeEnum.TIMER:
     case ElementTypeEnum.COUNTDOWN:
       return <TimerStyleEditor {...editorProps} />;
-    case ElementTypeEnum.TWITCH_STAT:
-      return <TwitchStatStyleEditor {...editorProps} />;
-    // Shown as text, styled like a title.
-    case ElementTypeEnum.VARIABLE:
-      return <TitleStyleEditor {...editorProps} />;
     case ElementTypeEnum.ICON:
       return <IconStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:

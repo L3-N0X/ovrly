@@ -8,6 +8,8 @@ import {
   type VariableWrite,
 } from "../services/variables";
 import {
+  isProviderSource,
+  isSourceName,
   isVariableName,
   MAX_VARIABLES_PER_REQUEST,
   parseVariableType,
@@ -71,7 +73,11 @@ const parseWrite = (key: string, body: unknown): Parsed<VariableWrite> => {
   if (!type) {
     return {
       ok: false,
-      response: fail(400, "invalid_type", `“${key}”: type must be string, integer, double, boolean or color`),
+      response: fail(
+        400,
+        "invalid_type",
+        `“${key}”: type must be string, integer, double, boolean, color or image`
+      ),
     };
   }
   const value = parseVariableValue(type, input.value);
@@ -103,16 +109,22 @@ const handle = async (
 
   if (path === "/variables" && method === "GET") {
     const source = new URL(req.url).searchParams.get("source") ?? undefined;
-    if (source !== undefined && !isVariableName(source)) return invalidName("source");
+    if (source !== undefined && !isSourceName(source)) return invalidName("source");
     const variables = await listVariables(userId, { source });
     return send({ variables: variables.map(present) });
   }
 
   const sourceMatch = path.match(/^\/sources\/([^/]+)(\/variables(?:\/([^/]+)(\/increment)?)?)?$/);
   if (!sourceMatch) return fail(404, "not_found", "No such endpoint");
-  const [, source, variablesPath, key, increment] = sourceMatch;
-  if (!isVariableName(source)) return invalidName("source");
+  const [, rawSource, variablesPath, key, increment] = sourceMatch;
+  // Provider sources contain a ":", which clients may send encoded.
+  const source = rawSource.replace(/%3a/gi, ":");
+  if (!isSourceName(source)) return invalidName("source");
   if (key !== undefined && !isVariableName(key)) return invalidName("key");
+  // Providers (Twitch) keep their variables up to date themselves: they can be read, not written.
+  if (method !== "GET" && isProviderSource(source)) {
+    return fail(409, "read_only", `The variables of ${source} are kept up to date by ovrly and can't be changed`);
+  }
 
   // /sources/:source
   if (!variablesPath) {

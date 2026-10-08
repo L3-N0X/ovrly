@@ -5,6 +5,7 @@ import {
   type PrismaElement,
   type PrismaOverlay,
 } from "@/lib/types";
+import { resolveOverlay } from "@/lib/bindings";
 import ElementDisplay from "./ElementDisplay";
 import { CanvasEditingContext, type CanvasEditing } from "./canvasEditing";
 import { CanvasSelectionContext, type CanvasSelection } from "./canvasSelection";
@@ -29,11 +30,14 @@ interface OverlayCanvasProps {
 // The overlay as OBS renders it: the canvas, which is the overlay's own root group, and
 // everything on it.
 const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
-  overlay,
+  overlay: storedOverlay,
   editing = null,
   selection = null,
   clip = true,
 }) => {
+  // Properties bound to variables show the variables' values, for drawing and for measuring
+  // alike. Edits still go to the stored overlay: the editing callbacks only pass ids and numbers.
+  const overlay = useMemo(() => resolveOverlay(storedOverlay), [storedOverlay]);
   const { globalStyle, elements } = overlay;
   const { width, height } = canvasSize(overlay);
   const rootRef = useRef<HTMLDivElement>(null);

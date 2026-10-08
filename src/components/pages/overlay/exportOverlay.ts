@@ -1,4 +1,4 @@
-import type { PrismaOverlay, PrismaElement, BaseElementStyle } from "@/lib/types";
+import type { PrismaOverlay, PrismaElement, BaseElementStyle, VariableBinding } from "@/lib/types";
 
 // Downloads the overlay (layout, styles and content) as a JSON file.
 export const exportOverlay = (overlay: PrismaOverlay) => {
@@ -11,13 +11,7 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     image?: { src: string } | null;
     icon?: { library: string; name: string } | null;
     countdown?: { mode: string; duration: number; targetAt: string | null } | null;
-    twitchStat?: {
-      stat: string;
-      channelLogin: string;
-      channelId: string | null;
-      channelName: string | null;
-    } | null;
-    variable?: { source: string; key: string } | null;
+    bindings?: VariableBinding[];
     children?: ExportElement[];
   };
 
@@ -53,18 +47,13 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
         targetAt: element.countdown.targetAt,
       };
     }
-    // Which stat of which channel; the value is fetched again wherever it is imported.
-    if (element.twitchStat) {
-      newElement.twitchStat = {
-        stat: element.twitchStat.stat,
-        channelLogin: element.twitchStat.channelLogin,
-        channelId: element.twitchStat.channelId,
-        channelName: element.twitchStat.channelName,
-      };
-    }
-    // Which variable; wherever it is imported, it shows that account's variable of that name.
-    if (element.variable) {
-      newElement.variable = { source: element.variable.source, key: element.variable.key };
+    // Which variables; wherever it is imported, it shows that account's variables of those names.
+    if (element.bindings?.length) {
+      newElement.bindings = element.bindings.map(({ property, source, key }) => ({
+        property,
+        source,
+        key,
+      }));
     }
     if (children.length > 0) {
       newElement.children = children;

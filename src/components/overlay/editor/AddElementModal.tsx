@@ -13,8 +13,6 @@ import { ElementTypeEnum, type ElementType, type PrismaOverlay, type OnOverlayCh
 import { GRID_ITEM_ATTRIBUTE, handleGridKeyDown } from "@/lib/gridNavigation";
 import {
   AlertCircle,
-  Braces,
-  ChartNoAxesColumn,
   Frame,
   Grid3x3,
   Hash,
@@ -116,28 +114,6 @@ const CONTENT_OPTIONS: ElementOption[] = [
     preview: (
       <Stage>
         <span className="text-2xl font-bold tabular-nums">00:04:59</span>
-      </Stage>
-    ),
-  },
-  {
-    type: ElementTypeEnum.TWITCH_STAT,
-    label: "Twitch Stat",
-    description: "Followers, viewers or subs of any Twitch channel, kept up to date live.",
-    icon: ChartNoAxesColumn,
-    preview: (
-      <Stage>
-        <span className="text-4xl font-bold tabular-nums">12.4K</span>
-      </Stage>
-    ),
-  },
-  {
-    type: ElementTypeEnum.VARIABLE,
-    label: "Variable",
-    description: "A value another app sends through the API, like a score from a game server.",
-    icon: Braces,
-    preview: (
-      <Stage>
-        <span className="text-3xl font-bold">Team Red</span>
       </Stage>
     ),
   },

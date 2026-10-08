@@ -19,11 +19,7 @@ import {
 } from "../lib/countdown";
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { isIconLibrary, isIconName } from "../lib/icons";
-import { channelLoginFrom, isTwitchStatType } from "../lib/twitchStats";
-import { findChannel, isTwitchLogin, twitchConfigured, type TwitchChannel } from "../services/twitch";
-import { refreshOverlayNow } from "../services/twitch-stats";
-import { isVariableName } from "../lib/variables";
-import { bindingState } from "../services/variables";
+import { isBindableProperty, isContentProperty, parseBindingTarget } from "../lib/bindings";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = [
@@ -35,19 +31,25 @@ const ELEMENT_TYPES = [
   "BINGO",
   "CONTAINER",
   "GROUP",
-  "TWITCH_STAT",
-  "VARIABLE",
   "ICON",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
 const BINGO_CONTENT_KEYS = ["fields", "checked"];
 
-// Controllers run an overlay: they change what elements show (`data`), not how they look or
-// where they are. Anything beyond that needs an editor.
+// Controllers run an overlay: they change what elements show (`data`, and which variables their
+// content is bound to), not how they look or where they are. Anything beyond that needs an editor.
 const requiredRoleForPatch = (body: Record<string, unknown>, elementType: string) => {
   const designKeys = ["name", "style", "position", "parentId"];
   if (designKeys.some((key) => body[key] !== undefined)) return "EDITOR" as const;
+  const bindings = body.bindings;
+  if (
+    bindings &&
+    typeof bindings === "object" &&
+    Object.keys(bindings).some((property) => !isContentProperty(property))
+  ) {
+    return "EDITOR" as const;
+  }
   const data = body.data;
   if (
     elementType === "BINGO" &&
@@ -131,10 +133,6 @@ export const handleElementsRoutes = async (
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "COUNTDOWN") {
         elementCreateData.countdown = { create: {} };
-      } else if (type === "TWITCH_STAT") {
-        elementCreateData.twitchStat = { create: {} };
-      } else if (type === "VARIABLE") {
-        elementCreateData.variable = { create: {} };
       } else if (type === "ICON") {
         elementCreateData.icon = { create: {} };
       } else if (type === "IMAGE") {
@@ -351,7 +349,7 @@ export const handleElementsRoutes = async (
         if (!hasRole(access.role, required)) {
           return json({ error: forbiddenMessage(required), requiredRole: required }, 403);
         }
-        const { name, style, data, position, parentId } = body as {
+        const { name, style, data, position, parentId, bindings } = body as {
           name?: string;
           style?: unknown;
           data?: {
@@ -362,41 +360,14 @@ export const handleElementsRoutes = async (
             startedAt?: string | null;
             pausedAt?: string | null;
             actions?: unknown;
-            channel?: unknown;
-            stat?: unknown;
-            source?: unknown;
-            key?: unknown;
             [key: string]: unknown;
           };
           position?: unknown;
           parentId?: string | null;
+          // Property → the variable it shows ({ source, key }), or null to show its own value
+          // again. Properties left out keep their binding.
+          bindings?: unknown;
         };
-
-        // The channel of a Twitch stat is looked up before the transaction, which shouldn't be
-        // held open while waiting on Twitch. Null clears it; undefined leaves it as it is.
-        let twitchChannel: TwitchChannel | null | undefined;
-        if (element.type === "TWITCH_STAT" && typeof data?.channel === "string") {
-          const login = channelLoginFrom(data.channel);
-          if (login) {
-            if (!twitchConfigured()) {
-              return json({ error: "Twitch is not set up on this server" }, 503);
-            }
-            if (!isTwitchLogin(login)) {
-              return json({ error: `“${login}” is not a Twitch channel name` }, 400);
-            }
-            try {
-              twitchChannel = await findChannel(login);
-            } catch (error) {
-              console.error("[TWITCH] Channel lookup failed:", error);
-              return json({ error: "Could not reach Twitch, try again in a moment" }, 502);
-            }
-            if (!twitchChannel) {
-              return json({ error: `There is no Twitch channel called “${login}”` }, 400);
-            }
-          } else {
-            twitchChannel = null;
-          }
-        }
 
         // Everything that builds on the stored state (style merge, counter, timer, countdown,
         // bingo) is read and written under the element's row lock, so concurrent changes to the
@@ -410,7 +381,7 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true, countdown: true, twitchStat: true },
+            include: { bingo: true, timer: true, countdown: true },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -517,49 +488,6 @@ export const handleElementsRoutes = async (
                 update: { mode, duration, remaining, endsAt, targetAt },
               };
             }
-            if (element.type === "TWITCH_STAT") {
-              if (!current.twitchStat) {
-                return { error: json({ error: "Twitch stat not found" }, 404) };
-              }
-              if (data.stat !== undefined && !isTwitchStatType(data.stat)) {
-                return { error: json({ error: "Invalid Twitch stat" }, 400) };
-              }
-              const stat = data.stat ?? current.twitchStat.stat;
-              const channel =
-                twitchChannel === undefined
-                  ? {
-                      channelLogin: current.twitchStat.channelLogin,
-                      channelId: current.twitchStat.channelId,
-                      channelName: current.twitchStat.channelName,
-                    }
-                  : {
-                      channelLogin: twitchChannel?.login ?? "",
-                      channelId: twitchChannel?.id ?? null,
-                      channelName: twitchChannel?.displayName ?? null,
-                    };
-              const changed =
-                stat !== current.twitchStat.stat ||
-                channel.channelId !== current.twitchStat.channelId;
-              // The value of the old stat or channel is dropped; the new one is fetched right
-              // after (see below).
-              elementUpdateData.twitchStat = {
-                update: changed
-                  ? { stat, ...channel, value: null, status: "PENDING", fetchedAt: null }
-                  : { channelName: channel.channelName },
-              };
-            }
-            // Picks the variable it shows, by source and key, from the overlay owner's
-            // variables. Empty strings clear it.
-            if (element.type === "VARIABLE" && (data.source !== undefined || data.key !== undefined)) {
-              const cleared = data.source === "" && data.key === "";
-              if (!cleared && (!isVariableName(data.source) || !isVariableName(data.key))) {
-                return { error: json({ error: "Invalid variable" }, 400) };
-              }
-              const binding = cleared
-                ? await bindingState(tx, access.overlay.userId, "", "")
-                : await bindingState(tx, access.overlay.userId, data.source as string, data.key as string);
-              elementUpdateData.variable = { upsert: { create: binding, update: binding } };
-            }
             if (element.type === "BINGO") {
               if (!current.bingo) {
                 return { error: json({ error: "Bingo data not found" }, 404) };
@@ -585,6 +513,30 @@ export const handleElementsRoutes = async (
             }
           }
 
+          if (bindings !== undefined) {
+            if (!isStyleObject(bindings)) {
+              return { error: json({ error: "Invalid bindings" }, 400) };
+            }
+            for (const [property, target] of Object.entries(bindings)) {
+              if (!isBindableProperty(element.type, property)) {
+                return { error: json({ error: `“${property}” can't be bound to a variable` }, 400) };
+              }
+              if (target === null) {
+                await tx.variableBinding.deleteMany({ where: { elementId, property } });
+                continue;
+              }
+              // Any name is fine, also of a variable that doesn't exist (yet): the element shows
+              // its own value until it does.
+              const variable = parseBindingTarget(target);
+              if (!variable) return { error: json({ error: "Invalid variable" }, 400) };
+              await tx.variableBinding.upsert({
+                where: { elementId_property: { elementId, property } },
+                create: { elementId, property, ...variable },
+                update: variable,
+              });
+            }
+          }
+
           await tx.element.update({ where: { id: elementId }, data: elementUpdateData });
           return { ok: true };
         });
@@ -592,7 +544,6 @@ export const handleElementsRoutes = async (
 
         const overlay = await publishOverlay(server, element.overlayId, writeIdOf(req));
         const updatedElement = overlay?.elements.find((el) => el.id === elementId) ?? null;
-        if (element.type === "TWITCH_STAT" && data) refreshOverlayNow(element.overlayId);
 
         return new Response(JSON.stringify(updatedElement), {
           headers: {

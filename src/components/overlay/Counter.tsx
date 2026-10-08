@@ -3,8 +3,7 @@ import type { CounterStyle } from "@/lib/types";
 import { textStyle } from "./textStyle";
 
 interface CounterProps {
-  // Already formatted when it isn't a plain number (Twitch stats).
-  value: number | string;
+  value: number;
   style: CounterStyle;
 }
 

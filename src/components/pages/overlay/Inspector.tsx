@@ -20,6 +20,7 @@ import {
   type PrismaElement,
   type PrismaOverlay,
 } from "@/lib/types";
+import { BindingElementContext } from "@/lib/variablesContext";
 import { ElementContentControl, type ContentHandlers } from "./controls/ElementContentControl";
 import { OVERLAY_SELECTION, type EditorSelection } from "./editorSelection";
 
@@ -98,7 +99,7 @@ const Inspector: React.FC<InspectorProps> = ({
       </PanelHeader>
       {contentElements.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No elements with content yet. Add a title, counter, timer, Twitch stat, variable, image, icon or bingo card in the
+          No elements with content yet. Add a title, counter, timer, image, icon or bingo card in the
           layers panel.
         </p>
       ) : (
@@ -113,7 +114,9 @@ const Inspector: React.FC<InspectorProps> = ({
               <ElementTypeIcon element={element} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate">{element.name}</span>
             </button>
-            <ElementContentControl element={element} handlers={content} />
+            <BindingElementContext.Provider value={element}>
+              <ElementContentControl element={element} handlers={content} />
+            </BindingElementContext.Provider>
           </section>
         ))
       )}
@@ -136,7 +139,7 @@ const ElementPanel = ({
   const isRenaming = renamingId === element.id;
 
   return (
-    <>
+    <BindingElementContext.Provider value={element}>
       <PanelHeader>
         <ElementTypeIcon element={element} className="h-4 w-4 shrink-0 text-muted-foreground" />
         {isRenaming ? (
@@ -207,7 +210,7 @@ const ElementPanel = ({
           onBingoDataChange={content.onBingoDataChange}
         />
       </PanelSection>
-    </>
+    </BindingElementContext.Provider>
   );
 };
 

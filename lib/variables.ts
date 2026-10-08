@@ -1,7 +1,9 @@
-// Variables are values other applications send to an account through the public API
-// (docs/public-api.md), and variable elements show. Mirrored by src/lib/variables.ts.
+// Variables are named values of an account that element properties can be bound to
+// (lib/bindings.ts). They are created in the editor, sent by applications through the public API
+// (docs/public-api.md), or kept up to date by a provider like Twitch. Mirrored by
+// src/lib/variables.ts; the design is in docs/variables.md.
 
-export const VARIABLE_TYPES = ["STRING", "INTEGER", "DOUBLE", "BOOLEAN", "COLOR"] as const;
+export const VARIABLE_TYPES = ["STRING", "INTEGER", "DOUBLE", "BOOLEAN", "COLOR", "IMAGE"] as const;
 export type VariableType = (typeof VARIABLE_TYPES)[number];
 export type VariableValue = string | number | boolean;
 
@@ -16,6 +18,7 @@ export const parseVariableType = (value: unknown): VariableType | null => {
 };
 
 export const MAX_STRING_LENGTH = 1000;
+export const MAX_IMAGE_URL_LENGTH = 2048;
 // Per account, so a runaway integration can't fill the database.
 export const MAX_VARIABLES_PER_USER = 1000;
 // Per request of the batch endpoint.
@@ -27,7 +30,31 @@ const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 export const isVariableName = (value: unknown): value is string =>
   typeof value === "string" && NAME_PATTERN.test(value);
 
+// Sources of providers are "<provider>:<name>" ("twitch:shroud"). A name the API accepts never
+// contains a ":", so applications and users can read these variables but never write them.
+const PROVIDER_SOURCE_PATTERN = /^[a-z]+:[A-Za-z0-9._@-]{1,64}$/;
+export const isProviderSource = (value: unknown): value is string =>
+  typeof value === "string" && PROVIDER_SOURCE_PATTERN.test(value);
+
+// Any source a variable can have, written by anyone or by a provider.
+export const isSourceName = (value: unknown): value is string =>
+  isVariableName(value) || isProviderSource(value);
+
 const COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+// Images are shown by URL: from anywhere on the web, or uploaded to this server. Empty for none
+// (nothing playing, no avatar).
+const isImageUrl = (value: string) => {
+  if (value === "") return true;
+  if (value.length > MAX_IMAGE_URL_LENGTH) return false;
+  if (/^\/uploads\/[A-Za-z0-9._-]+$/.test(value)) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
 
 export type ParsedValue = { ok: true; value: VariableValue } | { ok: false; error: string };
 
@@ -58,17 +85,12 @@ export const parseVariableValue = (type: VariableType, value: unknown): ParsedVa
         return { ok: false, error: 'A color variable needs a hex color like "#ff8800"' };
       }
       return { ok: true, value: value.toLowerCase() };
+    case "IMAGE":
+      if (typeof value !== "string" || !isImageUrl(value)) {
+        return { ok: false, error: "An image variable needs an http(s) URL of an image" };
+      }
+      return { ok: true, value };
   }
 };
 
 export const isNumericType = (type: VariableType) => type === "INTEGER" || type === "DOUBLE";
-
-// The binding of a variable element copied from presets, imports and duplicates, which may be
-// user supplied: only valid names are taken over. The value is filled in from the new owner's
-// variables.
-export const variableBindingSeed = (value: unknown) => {
-  const seed = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  return isVariableName(seed.source) && isVariableName(seed.key)
-    ? { source: seed.source, key: seed.key }
-    : { source: "", key: "" };
-};

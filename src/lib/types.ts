@@ -9,8 +9,6 @@ export const ElementTypeEnum = {
   IMAGE: "IMAGE",
   BINGO: "BINGO",
   GROUP: "GROUP",
-  TWITCH_STAT: "TWITCH_STAT",
-  VARIABLE: "VARIABLE",
   ICON: "ICON",
 } as const;
 
@@ -27,28 +25,39 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.COUNTDOWN ||
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.ICON ||
-  type === ElementTypeEnum.BINGO ||
-  type === ElementTypeEnum.TWITCH_STAT ||
-  type === ElementTypeEnum.VARIABLE;
+  type === ElementTypeEnum.BINGO;
 
 export type ElementType =
   (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
 
 export type CountdownMode = "DURATION" | "TARGET";
 
-export type TwitchStatType =
-  "FOLLOWERS" | "VIEWERS" | "SUBSCRIBERS" | "SUB_POINTS";
-// Why a Twitch stat has no value: PENDING until it is fetched, NOT_CONNECTED and NOT_ALLOWED for
-// subscriber stats ovrly can't read for this overlay (see src/lib/twitchStats.ts).
-export type TwitchStatStatus =
-  "PENDING" | "OK" | "NOT_CONNECTED" | "NOT_ALLOWED";
-
 // The icon libraries an icon element can use (see src/lib/icons.ts).
 export type IconLibrary = "lucide" | "phosphor" | "pixelarticons" | "tabler";
 
-// The types of values other applications send through the public API (see src/lib/variables.ts).
+// The types variables can have (see src/lib/variables.ts). IMAGE values are image URLs.
 export type VariableType =
-  "STRING" | "INTEGER" | "DOUBLE" | "BOOLEAN" | "COLOR";
+  "STRING" | "INTEGER" | "DOUBLE" | "BOOLEAN" | "COLOR" | "IMAGE";
+
+export type VariableValue = string | number | boolean;
+
+// A variable of the overlay's owner, as overlays carry the ones their elements are bound to.
+export interface OverlayVariable {
+  // "scores", or "<provider>:<name>" for a provider's ("twitch:shroud").
+  source: string;
+  key: string;
+  type: VariableType;
+  value: VariableValue;
+}
+
+// A property of an element that shows a variable instead of its own value (see
+// src/lib/bindings.ts).
+export interface VariableBinding {
+  // "text", "value", "src", or "style.<key>".
+  property: string;
+  source: string;
+  key: string;
+}
 
 // How the elements that sit directly on the canvas are placed. The canvas itself is the
 // overlay's root group: in AUTO mode its children are laid out by the global arrangement (a
@@ -117,12 +126,6 @@ export interface TimerStyle extends BaseElementStyle {
   padding?: number;
   radius?: number;
   format?: string;
-}
-
-// Specific style for a Twitch stat element
-export interface TwitchStatStyle extends CounterStyle {
-  // "full" shows 12,345; "compact" shows 12.3K.
-  numberFormat?: "full" | "compact";
 }
 
 // Specific style for an Image element
@@ -259,7 +262,6 @@ export type ElementStyle =
   | CounterStyle
   | ContainerStyle
   | TimerStyle
-  | TwitchStatStyle
   | ImageStyle
   | IconStyle
   | BingoStyle
@@ -292,29 +294,6 @@ export interface PrismaElement {
     endsAt: string | null;
     targetAt: string | null;
   } | null;
-  twitchStat?: {
-    id: string;
-    stat: TwitchStatType;
-    // Lowercased login name; empty until a channel is picked.
-    channelLogin: string;
-    channelId: string | null;
-    channelName: string | null;
-    // The latest value; null until fetched, or while it can't be (see `status`).
-    value: number | null;
-    status: TwitchStatStatus;
-    fetchedAt: string | null;
-  } | null;
-  // Which variable of the overlay owner a variable element shows, and its current value.
-  variable?: {
-    id: string;
-    // Empty until a variable is picked.
-    source: string;
-    key: string;
-    // Null while the owner has no such variable (not sent yet, or deleted).
-    type: VariableType | null;
-    value: string | number | boolean | null;
-    updatedAt: string | null;
-  } | null;
   image?: { id: string; src: string } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;
   bingo?: {
@@ -325,6 +304,8 @@ export interface PrismaElement {
     fields: string[];
     checked: boolean[];
   } | null;
+  // Properties driven by variables; missing on elements built on the client (preset previews).
+  bindings?: VariableBinding[];
   parentId?: string | null;
   children?: PrismaElement[];
 }
@@ -349,6 +330,8 @@ export interface PrismaOverlay {
   canvasMode: CanvasMode;
   // Increases with every broadcast of the overlay; a lower one is older state.
   revision: number;
+  // The owner's variables its elements are bound to (and only those).
+  variables?: OverlayVariable[];
 }
 
 // What onOverlayChange accepts: the next overlay, or a function that derives it from the

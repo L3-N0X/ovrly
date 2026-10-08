@@ -2,6 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   Select,
   SelectContent,
@@ -89,6 +90,7 @@ export const ContainerEditor: React.FC<{
             <PixelInput
               id={id("width")}
               label="Width"
+              property="style.width"
               min={1}
               value={style.width ?? DEFAULT_CONTAINER_WIDTH}
               onChange={(width) => updateStyle({ width })}
@@ -108,6 +110,7 @@ export const ContainerEditor: React.FC<{
             <PixelInput
               id={id("height")}
               label="Height"
+              property="style.height"
               min={1}
               value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
               onChange={(height) => updateStyle({ height })}
@@ -135,8 +138,7 @@ export const ContainerEditor: React.FC<{
         </Select>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor={id("gap")}>Gap</Label>
+        <BindableField property="style.gap" label="Gap" htmlFor={id("gap")}>
           <NumberField
             id={id("gap")}
             value={pixels("gap")}
@@ -144,9 +146,8 @@ export const ContainerEditor: React.FC<{
             unit="px"
             onChange={(v) => updateStyle({ gap: v })}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("padding-x")}>Padding X</Label>
+        </BindableField>
+        <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
           <NumberField
             id={id("padding-x")}
             value={pixels("paddingX")}
@@ -154,9 +155,8 @@ export const ContainerEditor: React.FC<{
             unit="px"
             onChange={(v) => updateStyle({ paddingX: v })}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("padding-y")}>Padding Y</Label>
+        </BindableField>
+        <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
           <NumberField
             id={id("padding-y")}
             value={pixels("paddingY")}
@@ -164,7 +164,7 @@ export const ContainerEditor: React.FC<{
             unit="px"
             onChange={(v) => updateStyle({ paddingY: v })}
           />
-        </div>
+        </BindableField>
       </div>
       <div className="space-y-2">
         <Label htmlFor={id("align")}>Align Items</Label>
@@ -196,6 +196,7 @@ export const ContainerEditor: React.FC<{
         <ColorInput
           id={id("background")}
           label="Background"
+          property="style.backgroundColor"
           value={style.backgroundColor || ""}
           defaultColor="#000000"
           onChange={(backgroundColor) => updateStyle({ backgroundColor })}
@@ -205,6 +206,7 @@ export const ContainerEditor: React.FC<{
         <PixelInput
           id={id("border-radius")}
           label="Corner Radius"
+          property="style.borderRadius"
           min={BORDER_RADIUS_RANGE.min}
           max={BORDER_RADIUS_RANGE.max}
           value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
@@ -213,6 +215,7 @@ export const ContainerEditor: React.FC<{
         <ColorInput
           id={id("border-color")}
           label="Stroke"
+          property="style.borderColor"
           value={style.borderColor || DEFAULT_BORDER_COLOR}
           defaultColor={DEFAULT_BORDER_COLOR}
           onChange={(borderColor) => updateStyle({ borderColor })}
@@ -221,6 +224,7 @@ export const ContainerEditor: React.FC<{
         <PixelInput
           id={id("border-width")}
           label="Stroke Width"
+          property="style.borderWidth"
           min={BORDER_WIDTH_RANGE.min}
           max={BORDER_WIDTH_RANGE.max}
           value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}

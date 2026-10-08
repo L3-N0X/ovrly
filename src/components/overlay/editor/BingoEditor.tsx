@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { BindableField } from "@/components/variables/BindableField";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import {
   BINGO_BORDER_RADIUS_RANGE,
@@ -44,14 +45,15 @@ import {
 const NumberControl: React.FC<{
   id: string;
   label: string;
+  // The style property, so it can be bound to a variable.
+  property: string;
   min: number;
   max: number;
   value: number;
   unit?: string;
   onChange: (value: number) => void;
-}> = ({ id, label, min, max, value, unit = "px", onChange }) => (
-  <div className="space-y-2">
-    <Label htmlFor={id}>{label}</Label>
+}> = ({ id, label, property, min, max, value, unit = "px", onChange }) => (
+  <BindableField property={property} label={label} htmlFor={id}>
     <NumberField
       id={id}
       value={value}
@@ -63,20 +65,20 @@ const NumberControl: React.FC<{
         if (next !== value) onChange(next);
       }}
     />
-  </div>
+  </BindableField>
 );
 
 const ColorControl: React.FC<{
   id: string;
   label: string;
+  property: string;
   value: string;
   onChange: (color: string) => void;
   onOpenChange: (open: boolean) => void;
-}> = ({ id, label, ...props }) => (
-  <div className="space-y-2">
-    <Label htmlFor={id}>{label}</Label>
+}> = ({ id, label, property, ...props }) => (
+  <BindableField property={property} label={label} htmlFor={id}>
     <ColorField id={id} {...props} />
-  </div>
+  </BindableField>
 );
 
 /** A titled group of controls. */
@@ -153,46 +155,47 @@ const BackgroundImageControl: React.FC<{
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>Background Image</Label>
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-secondary">
-          {value ? (
-            <img src={value} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <ImageIcon className="h-5 w-5 text-muted-foreground" />
-          )}
-        </div>
-        <Button
-          id={id}
-          type="button"
-          variant="secondary"
-          className="flex-1"
-          disabled={isUploading}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isUploading ? "Uploading..." : value ? "Replace Image" : "Upload Image"}
-        </Button>
-        {value && (
+      <BindableField property="style.backgroundImage" label="Background Image" htmlFor={id}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-secondary">
+            {value ? (
+              <img src={value} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
           <Button
+            id={id}
             type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Remove background image"
-            title="Remove background image"
-            onClick={() => onChange(undefined)}
+            variant="secondary"
+            className="flex-1"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
           >
-            <Trash2 className="h-4 w-4" />
+            {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isUploading ? "Uploading..." : value ? "Replace Image" : "Upload Image"}
           </Button>
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFile}
-        />
-      </div>
+          {value && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Remove background image"
+              title="Remove background image"
+              onClick={() => onChange(undefined)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFile}
+          />
+        </div>
+      </BindableField>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -212,9 +215,10 @@ export const BingoEditor: React.FC<{
   // against: it stays in front of the server's value until that state is replaced, which is how
   // it stops being an override. Derived rather than cleared in an effect, so a stale override
   // can't outlive the state it was based on.
-  const [pendingFreeMiddle, setPendingFreeMiddle] = useState<{ bingo: unknown; value: boolean } | null>(
-    null
-  );
+  const [pendingFreeMiddle, setPendingFreeMiddle] = useState<{
+    bingo: unknown;
+    value: boolean;
+  } | null>(null);
 
   const bingoStyle = useMemo(
     () => resolveBingoStyle(element.style as BingoStyle | null),
@@ -278,15 +282,18 @@ export const BingoEditor: React.FC<{
             <Label htmlFor={id("free-middle")}>Free Middle</Label>
           </div>
           {!canUseFreeMiddle && (
-            <p className="text-xs text-muted-foreground">Needs an odd number of rows and columns.</p>
+            <p className="text-xs text-muted-foreground">
+              Needs an odd number of rows and columns.
+            </p>
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          Resizing keeps every field in its row and column. Field labels are edited in the
-          Content section, and are limited to {BINGO_MAX_FIELD_LENGTH} characters.
+          Resizing keeps every field in its row and column. Field labels are edited in the Content
+          section, and are limited to {BINGO_MAX_FIELD_LENGTH} characters.
         </p>
         <NumberControl
           id={id("width")}
+          property="style.width"
           label="Width"
           min={BINGO_SIZE_RANGE.min}
           max={BINGO_SIZE_RANGE.max}
@@ -310,6 +317,7 @@ export const BingoEditor: React.FC<{
         </div>
         <NumberControl
           id={id("font-size")}
+          property="style.fontSize"
           label="Max Font Size"
           min={BINGO_FONT_SIZE_RANGE.min}
           max={BINGO_FONT_SIZE_RANGE.max}
@@ -329,6 +337,7 @@ export const BingoEditor: React.FC<{
         </div>
         <ColorControl
           id={id("color")}
+          property="style.color"
           label="Text Color"
           value={style.color}
           onChange={(color) => handleStyleChange({ color })}
@@ -339,6 +348,7 @@ export const BingoEditor: React.FC<{
       <Section title="Background">
         <ColorControl
           id={id("background")}
+          property="style.backgroundColor"
           label="Background Color"
           value={style.backgroundColor}
           onChange={(backgroundColor) => handleStyleChange({ backgroundColor })}
@@ -373,6 +383,7 @@ export const BingoEditor: React.FC<{
             </div>
             <NumberControl
               id={id("background-image-opacity")}
+              property="style.backgroundImageOpacity"
               label="Image Opacity"
               unit="%"
               min={BINGO_PERCENT_RANGE.min}
@@ -387,6 +398,7 @@ export const BingoEditor: React.FC<{
       <Section title="Borders">
         <ColorControl
           id={id("border-color")}
+          property="style.borderColor"
           label="Outline Color"
           value={style.borderColor}
           onChange={(borderColor) => handleStyleChange({ borderColor })}
@@ -394,6 +406,7 @@ export const BingoEditor: React.FC<{
         />
         <NumberControl
           id={id("border-width")}
+          property="style.borderWidth"
           label="Outline Width"
           min={BINGO_BORDER_WIDTH_RANGE.min}
           max={BINGO_BORDER_WIDTH_RANGE.max}
@@ -402,24 +415,30 @@ export const BingoEditor: React.FC<{
         />
         <NumberControl
           id={id("border-radius")}
+          property="style.borderRadius"
           label="Corner Radius"
           min={BINGO_BORDER_RADIUS_RANGE.min}
           max={BINGO_BORDER_RADIUS_RANGE.max}
           value={style.borderRadius}
           onChange={(borderRadius) => handleStyleChange({ borderRadius })}
         />
-        <div className="flex items-center space-x-2">
+        <BindableField
+          property="style.gridLines"
+          label="Grid Lines"
+          htmlFor={id("grid-lines")}
+          inline
+        >
           <Switch
             id={id("grid-lines")}
             checked={style.gridLines}
             onCheckedChange={(gridLines) => handleStyleChange({ gridLines })}
           />
-          <Label htmlFor={id("grid-lines")}>Grid Lines</Label>
-        </div>
+        </BindableField>
         {style.gridLines ? (
           <>
             <ColorControl
               id={id("grid-line-color")}
+              property="style.gridLineColor"
               label="Grid Line Color"
               value={style.gridLineColor}
               onChange={(gridLineColor) => handleStyleChange({ gridLineColor })}
@@ -427,6 +446,7 @@ export const BingoEditor: React.FC<{
             />
             <NumberControl
               id={id("grid-line-width")}
+              property="style.gridLineWidth"
               label="Grid Line Width"
               min={BINGO_GRID_LINE_WIDTH_RANGE.min}
               max={BINGO_GRID_LINE_WIDTH_RANGE.max}
@@ -434,14 +454,15 @@ export const BingoEditor: React.FC<{
               onChange={(gridLineWidth) => handleStyleChange({ gridLineWidth })}
             />
             <p className="text-xs text-muted-foreground">
-              Lines run between all fields and meet the outline, like a table. Give the outline
-              the same width and color for a uniform grid.
+              Lines run between all fields and meet the outline, like a table. Give the outline the
+              same width and color for a uniform grid.
             </p>
           </>
         ) : (
           <>
             <NumberControl
               id={id("gap")}
+              property="style.gap"
               label="Gap"
               min={BINGO_GAP_RANGE.min}
               max={BINGO_GAP_RANGE.max}
@@ -450,6 +471,7 @@ export const BingoEditor: React.FC<{
             />
             <NumberControl
               id={id("padding")}
+              property="style.padding"
               label="Padding"
               min={BINGO_PADDING_RANGE.min}
               max={BINGO_PADDING_RANGE.max}
@@ -475,6 +497,7 @@ export const BingoEditor: React.FC<{
         </div>
         <ColorControl
           id={id("cross-color")}
+          property="style.checkedCrossColor"
           label="Cross Color"
           value={style.checkedCrossColor}
           onChange={(checkedCrossColor) => handleStyleChange({ checkedCrossColor })}
@@ -482,6 +505,7 @@ export const BingoEditor: React.FC<{
         />
         <NumberControl
           id={id("cross-thickness")}
+          property="style.crossThickness"
           label="Cross Thickness"
           unit="%"
           min={BINGO_CROSS_THICKNESS_RANGE.min}
@@ -491,6 +515,7 @@ export const BingoEditor: React.FC<{
         />
         <NumberControl
           id={id("cross-opacity")}
+          property="style.crossOpacity"
           label="Cross Opacity"
           unit="%"
           min={BINGO_PERCENT_RANGE.min}

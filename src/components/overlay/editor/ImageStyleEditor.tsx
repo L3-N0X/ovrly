@@ -3,6 +3,7 @@ import type { PrismaElement, ImageStyle } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   Select,
   SelectContent,
@@ -41,8 +42,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor={id("width")}>Width</Label>
+        <BindableField property="style.width" label="Width" htmlFor={id("width")}>
           <NumberField
             id={id("width")}
             value={style.width || 100}
@@ -50,9 +50,8 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
             unit="px"
             onChange={(width) => handleImmediateValueChange("width", width)}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("height")}>Height</Label>
+        </BindableField>
+        <BindableField property="style.height" label="Height" htmlFor={id("height")}>
           <NumberField
             id={id("height")}
             value={style.height || 100}
@@ -60,9 +59,8 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
             unit="px"
             onChange={(height) => handleImmediateValueChange("height", height)}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={id("radius")}>Border Radius</Label>
+        </BindableField>
+        <BindableField property="style.borderRadius" label="Border Radius" htmlFor={id("radius")}>
           <NumberField
             id={id("radius")}
             value={style.borderRadius || 0}
@@ -70,7 +68,7 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
             unit="px"
             onChange={(borderRadius) => handleImmediateValueChange("borderRadius", borderRadius)}
           />
-        </div>
+        </BindableField>
         <div className="space-y-2">
           <Label htmlFor={id("fit")}>Object Fit</Label>
           <SegmentedControl

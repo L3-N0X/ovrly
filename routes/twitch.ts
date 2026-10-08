@@ -1,7 +1,7 @@
 import { prisma } from "../auth";
 import { authenticate } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
-import { refreshOverlayNow } from "../services/twitch-stats";
+import { refreshTwitchChannel } from "../services/twitch-variables";
 import {
   authorizeUrl,
   CONNECTION_SCOPES,
@@ -59,16 +59,6 @@ const listConnections = async (userId: string) => ({
   }),
 });
 
-// Open overlays showing this channel get its new state right away instead of with the next poll.
-const refreshChannel = async (twitchId: string) => {
-  const elements = await prisma.element.findMany({
-    where: { twitchStat: { channelId: twitchId } },
-    select: { overlayId: true },
-    distinct: ["overlayId"],
-  });
-  elements.forEach(({ overlayId }) => refreshOverlayNow(overlayId));
-};
-
 export const handleTwitchRoutes = async (req: Request, path: string) => {
   if (path === "/api/twitch/connect" && req.method === "GET") {
     const session = await authenticate(req);
@@ -122,7 +112,8 @@ export const handleTwitchRoutes = async (req: Request, path: string) => {
         update: data,
       });
       if (previous) await revokeUserToken(previous.accessToken);
-      await refreshChannel(owner.id);
+      // Everyone who added the channel gets its subscriber stats (or loses them) right away.
+      await refreshTwitchChannel(owner.id);
       return backToSettings({ connected: data.displayName });
     } catch (error) {
       console.error("[TWITCH] Connecting a channel failed:", error);
@@ -146,7 +137,7 @@ export const handleTwitchRoutes = async (req: Request, path: string) => {
     if (!connection) return json({ error: "Connection not found" }, 404);
     await prisma.twitchConnection.deleteMany({ where: { id: connection.id } });
     await revokeUserToken(connection.accessToken);
-    await refreshChannel(connection.twitchId);
+    await refreshTwitchChannel(connection.twitchId);
     return json(await listConnections(session.user.id));
   }
 
