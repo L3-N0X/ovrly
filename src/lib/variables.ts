@@ -121,7 +121,7 @@ export const SPOTIFY_VARIABLE_DESCRIPTIONS: Record<string, string> = {
   cover: "The album cover.",
   accent: "The most vivid colour of the cover.",
   "accent-dark": "The cover's colour, dark enough for a background behind white text.",
-  "accent-darker": "The cover's colour, nearly black.",
+  "accent-darker": "Nearly black and muted, with only a trace of the cover's colour.",
   "accent-light": "Nearly white with a hint of the cover's colour, for text on the dark shades.",
   "accent-contrast": "Black or white, whichever reads better on the accent.",
   playing: "Whether it is playing right now, not paused.",

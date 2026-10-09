@@ -233,7 +233,7 @@ rewrite.
 | `cover`            | image   | Largest cover                                            |
 | `accent`           | color   | Most vivid colour of the cover, kept off black and white |
 | `accent-dark`      | color   | Its hue, dark enough for a background behind white text  |
-| `accent-darker`    | color   | Its hue, nearly black                                    |
+| `accent-darker`    | color   | Muted near-black with a trace of its hue (OKLCH)         |
 | `accent-light`     | color   | Nearly white with a hint of its hue, for text on dark    |
 | `accent-contrast`  | color   | `#000000` or `#ffffff`, whichever reads better on accent |
 | `playing`          | boolean | Playing, not paused                                      |

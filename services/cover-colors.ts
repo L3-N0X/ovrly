@@ -9,7 +9,8 @@ export interface CoverColors {
   accent: string;
   // The accent's hue, dark enough for a background behind white text.
   dark: string;
-  // Darker still, close to black, for a background that should barely show the colour.
+  // Close to black and muted, with only a trace of the accent's hue, for a background that should
+  // barely show the colour.
   darker: string;
   // Nearly white with a hint of the accent's hue, for text on the dark shades.
   light: string;
@@ -20,6 +21,9 @@ export interface CoverColors {
 const MAX_IMAGE_BYTES = 1024 * 1024;
 const FETCH_TIMEOUT_MS = 5000;
 const CACHE_SIZE = 500;
+// The OKLCH lightness and the most chroma of the darker shade.
+const DARKER_LIGHTNESS = 0.2;
+const DARKER_MAX_CHROMA = 0.02;
 
 // Covers repeat (every poll of the same track, a whole album), so their colours are kept.
 const cache = new Map<string, CoverColors>();
@@ -71,6 +75,41 @@ const luminance = (rgb: Rgb) => {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+// OKLCH: perceived lightness (0 to 1), chroma and hue (radians). Unlike HSL, the same lightness looks
+// equally bright for every hue, and chroma can be cut without the colour going grey too early.
+type Oklch = [number, number, number];
+
+const toLinear = (c: number) => {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+
+const fromLinear = (v: number) => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.max(0, v) ** (1 / 2.4) - 0.055);
+
+const toOklch = (rgb: Rgb): Oklch => {
+  const [r, g, b] = rgb.map(toLinear);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, Math.hypot(a, bb), Math.atan2(bb, a)];
+};
+
+// Out of gamut channels are clamped by toHex.
+const fromOklch = ([lightness, chroma, hue]: Oklch): Rgb => {
+  const a = chroma * Math.cos(hue);
+  const b = chroma * Math.sin(hue);
+  const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  return [
+    fromLinear(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    fromLinear(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    fromLinear(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+  ];
+};
+
 /** The colours of an image's RGBA pixels. Exported for trying it out on images directly. */
 export const colorsOfPixels = (data: Uint8Array, pixelCount: number): CoverColors => {
   // Pixels are put in buckets of similar colour (8 levels per channel), and each bucket remembers
@@ -114,7 +153,10 @@ export const colorsOfPixels = (data: Uint8Array, pixelCount: number): CoverColor
   // extremes.
   const accent = toRgb([h, s, clamp(l, 0.3, 0.75)]);
   const dark = toRgb([h, Math.min(s, 0.55), 0.14]);
-  const darker = toRgb([h, Math.min(s, 0.5), 0.07]);
+  // Darkened in OKLCH, so every hue ends up equally dark, and muted along with it: a deep colour
+  // that dark looks garish, a tinted near-black doesn't.
+  const [, chroma, hue] = toOklch(accent);
+  const darker = fromOklch([DARKER_LIGHTNESS, Math.min(chroma * 0.15, DARKER_MAX_CHROMA), hue]);
   const light = toRgb([h, Math.min(s, 0.6), 0.9]);
   const contrast = luminance(accent) > 0.179 ? "#000000" : "#ffffff";
   return { accent: toHex(accent), dark: toHex(dark), darker: toHex(darker), light: toHex(light), contrast };
