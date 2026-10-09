@@ -248,7 +248,7 @@ export interface ScrollerStyle extends BaseElementStyle {
   /** The size of the box; the side it scrolls along is a maximum when `fitContent` is on. */
   width?: number;
   height?: number;
-  /** On by default: while the children fit, the side it scrolls along shrinks to them. */
+  /** Off by default; while it's on, the side it scrolls along shrinks to the children. */
   fitContent?: boolean;
   /** Pixels per second. */
   speed?: number;

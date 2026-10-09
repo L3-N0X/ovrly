@@ -135,7 +135,7 @@ export const ScrollerEditor: React.FC<{
       <div className="flex items-center space-x-2">
         <Switch
           id={id("fit-content")}
-          checked={style.fitContent !== false}
+          checked={style.fitContent === true}
           onCheckedChange={(fitContent) => updateStyle({ fitContent })}
         />
         <Label htmlFor={id("fit-content")}>

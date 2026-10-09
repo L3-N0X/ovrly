@@ -7,7 +7,13 @@ import {
 } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
 import { hasRole } from "../lib/sharing";
-import { publishOverlay, revisionHeaders, writeIdOf } from "../services/overlay-query";
+import {
+  overlayElementsInclude,
+  publishOverlay,
+  revisionHeaders,
+  writeIdOf,
+} from "../services/overlay-query";
+import { buildElementCreates, toElementTree, type ElementSeed } from "./overlays";
 import { lockElement, lockOverlay } from "../services/locks";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import { isStyleObject, mergeStyle } from "../lib/style";
@@ -30,7 +36,7 @@ import {
 } from "../lib/subathon";
 import { syncSubathonListeners } from "../services/twitch-events";
 import { isBindableProperty, isContentProperty, parseBindingTarget } from "../lib/bindings";
-import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
+import type { ElementType, Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = [
   "TITLE",
@@ -47,6 +53,10 @@ const ELEMENT_TYPES = [
   "SUBATHON",
   "SCROLLER",
 ];
+const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER"];
+// Copies are shifted by this much (when they are placed by x/y), so a pasted element doesn't
+// hide the one it was copied from.
+const PASTE_OFFSET = 16;
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
 const BINGO_CONTENT_KEYS = ["fields", "checked"];
@@ -235,6 +245,109 @@ export const handleElementsRoutes = async (
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+  }
+
+  const pasteMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/elements\/paste$/);
+  if (pasteMatch && req.method === "POST") {
+    const session = await authenticate(req);
+    if (!session) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const overlayId = pasteMatch[1];
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
+
+    try {
+      const { ids, parentId = null } = (await req.json()) as { ids?: unknown; parentId?: unknown };
+      if (
+        !Array.isArray(ids) ||
+        ids.length === 0 ||
+        ids.length > 1000 ||
+        !ids.every((id) => typeof id === "string") ||
+        (parentId !== null && typeof parentId !== "string")
+      ) {
+        return json({ error: "Element IDs are required" }, 400);
+      }
+
+      // The copied elements may belong to another overlay (also one of someone else's that is
+      // shared with the user). Copying takes the design along, so that needs an editor too.
+      const copied = await prisma.element.findMany({
+        where: { id: { in: ids } },
+        select: { overlayId: true },
+      });
+      if (copied.length === 0) return json({ error: "The copied elements no longer exist" }, 404);
+      const sourceOverlayId = copied[0].overlayId;
+      if (copied.some((el) => el.overlayId !== sourceOverlayId)) {
+        return json({ error: "Cannot copy elements from different overlays" }, 400);
+      }
+      if (sourceOverlayId !== overlayId) {
+        const sourceCheck = await requireOverlayRole(session.user, sourceOverlayId, "EDITOR");
+        if (sourceCheck.error) return sourceCheck.error;
+      }
+      const source = await prisma.overlay.findUnique({
+        where: { id: sourceOverlayId },
+        include: overlayElementsInclude,
+      });
+      if (!source) return json({ error: "The copied elements no longer exist" }, 404);
+
+      // Each copied element comes with everything nested in it; one that sits inside another
+      // copied element is already part of that one.
+      const picked: ElementSeed[] = [];
+      const collect = (nodes: ElementSeed[], inside: boolean) => {
+        for (const node of nodes) {
+          const isCopied = ids.includes(node.id);
+          if (isCopied && !inside) picked.push(node);
+          collect(node.children, inside || isCopied);
+        }
+      };
+      collect(toElementTree(source.elements), false);
+
+      const result = await prisma.$transaction(async (tx): Promise<{ error: Response } | { pasted: string[] }> => {
+        await lockOverlay(tx, overlayId);
+        const idsOf = async () =>
+          (await tx.element.findMany({ where: { overlayId }, select: { id: true } })).map((el) => el.id);
+        const before = new Set(await idsOf());
+        if (parentId !== null) {
+          const parent = await tx.element.findFirst({
+            where: { id: parentId as string, overlayId, type: { in: PARENT_TYPES } },
+            select: { id: true },
+          });
+          if (!parent) return { error: json({ error: "Invalid parent element" }, 400) };
+        }
+        const last = await tx.element.aggregate({
+          where: { overlayId, parentId: parentId as string | null },
+          _max: { position: true },
+        });
+        const first = (last._max.position ?? -1) + 1;
+        const seeds = picked.map((node, index) => {
+          const style = isStyleObject(node.style) ? node.style : {};
+          const shifted = (key: string) =>
+            typeof style[key] === "number" ? { [key]: (style[key] as number) + PASTE_OFFSET } : {};
+          return { ...node, position: first + index, style: { ...style, ...shifted("x"), ...shifted("y") } };
+        });
+        // Bindings point at variables by name, so they follow the copy to another account.
+        for (const data of buildElementCreates(overlayId, seeds, null)) {
+          await tx.element.create({ data: { ...data, parentId: parentId as string | null } });
+        }
+        return { pasted: (await idsOf()).filter((id) => !before.has(id)) };
+      });
+      if ("error" in result) return result.error;
+
+      const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
+      // `pasted` tells the client which of the elements are the new ones.
+      return new Response(JSON.stringify({ ...updatedOverlay, pasted: result.pasted }), {
+        status: 201,
+        headers: {
+          ...corsHeaders,
+          ...revisionHeaders(updatedOverlay),
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      return json({ error: "Invalid request body" }, 400);
     }
   }
 
@@ -440,7 +553,7 @@ export const handleElementsRoutes = async (
                     where: {
                       id: parentId,
                       overlayId: element.overlayId,
-                      type: { in: ["CONTAINER", "GROUP", "SCROLLER"] },
+                      type: { in: PARENT_TYPES },
                     },
                     select: { id: true },
                   })

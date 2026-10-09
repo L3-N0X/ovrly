@@ -20,6 +20,7 @@ import { VariablesProvider } from "@/components/variables/VariablesProvider";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { hasRole } from "@/lib/sharing";
+import { useCopyPaste } from "@/components/pages/overlay/useCopyPaste";
 import { DeleteElementDialog, UndoDeleteToast } from "@/components/pages/overlay/ElementDeletion";
 
 const OverlayPage: React.FC = () => {
@@ -70,6 +71,15 @@ const OverlayPage: React.FC = () => {
   const [lastDeletion, setLastDeletion] = useState<NonNullable<
     ReturnType<typeof handleDeleteElements>
   > | null>(null);
+
+  // Ctrl+C / Ctrl+V on the canvas and the layers panel, and the layers context menu.
+  const { copy, paste, canPaste } = useCopyPaste({
+    overlay,
+    selectedId,
+    enabled: !!role && hasRole(role, "EDITOR"),
+    onOverlayChange: handleOverlayChange,
+    onSelect: select,
+  });
 
   const content = useMemo<ContentHandlers>(
     () => ({
@@ -215,6 +225,10 @@ const OverlayPage: React.FC = () => {
                 onStructureChange={handleStructureChange}
                 selectedId={selectedId}
                 onSelect={select}
+                canPaste={canPaste}
+                onCopy={copy}
+                onPaste={paste}
+                onRequestDelete={setDeleteRequestId}
               />
             </aside>
             <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">

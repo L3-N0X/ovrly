@@ -35,7 +35,7 @@ const MAX_CANVAS_SIZE = 7680;
 type CanvasMode = "AUTO" | "FREE";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ElementSeed = any;
+export type ElementSeed = any;
 
 // Someone who can open an overlay, as listed on the home page.
 interface OverlayMember {
@@ -50,7 +50,7 @@ interface OverlayMember {
 // nested writes, so each root element and its whole subtree go in with a single statement.
 // `ownTwitch` is the source of the creator's own Twitch channel, which presets bind to as
 // OWN_TWITCH_SOURCE; bindings to it are dropped when there is none.
-function buildElementCreates(
+export function buildElementCreates(
   overlayId: string,
   elements: ElementSeed[],
   ownTwitch: string | null
@@ -139,7 +139,7 @@ const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
   );
 
 // Turns the flat element list of an overlay back into a tree of seeds, whatever its depth.
-function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
+export function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
   elements: T[]
 ): ElementSeed[] {
   const ids = new Set(elements.map((e) => e.id));

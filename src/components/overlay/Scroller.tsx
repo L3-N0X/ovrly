@@ -74,7 +74,7 @@ const Scroller: React.FC<ScrollerProps> = ({ element, children }) => {
   const style = (element.style || {}) as ScrollerStyle;
   const vertical = style.direction !== "horizontal";
   const mode = style.mode === "loop" ? "loop" : "bounce";
-  const fitContent = style.fitContent !== false;
+  const fitContent = style.fitContent === true;
   const speed = Math.max(1, toNumber(style.speed, DEFAULT_SCROLLER_SPEED));
   const pause = Math.max(0, toNumber(style.pause, DEFAULT_SCROLLER_PAUSE));
   const gap = Math.max(0, toNumber(style.gap, 0));
