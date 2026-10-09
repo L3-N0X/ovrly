@@ -13,6 +13,7 @@ import { ElementTypeEnum, type ElementType, type PrismaOverlay, type OnOverlayCh
 import { GRID_ITEM_ATTRIBUTE, handleGridKeyDown } from "@/lib/gridNavigation";
 import {
   AlertCircle,
+  ChartNoAxesGantt,
   Frame,
   Grid3x3,
   Hash,
@@ -144,6 +145,25 @@ const CONTENT_OPTIONS: ElementOption[] = [
           <Heart className="size-9 text-rose-400" />
           <Star className="size-9 text-amber-300" />
           <Zap className="size-9 text-sky-300" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.PROGRESS,
+    label: "Progress Bar",
+    description: "A bar filled to a percentage or a value of a maximum, like a song's progress.",
+    icon: ChartNoAxesGantt,
+    preview: (
+      <Stage>
+        <div className="w-32 space-y-1.5">
+          <div className="h-2 overflow-hidden rounded-full bg-white/20">
+            <div className="h-full w-3/5 rounded-full bg-emerald-400" />
+          </div>
+          <div className="flex justify-between text-[10px] text-white/60 tabular-nums">
+            <span>1:52</span>
+            <span>3:20</span>
+          </div>
         </div>
       </Stage>
     ),

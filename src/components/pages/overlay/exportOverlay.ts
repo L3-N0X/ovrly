@@ -10,6 +10,7 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     title?: { text: string } | null;
     image?: { src: string } | null;
     icon?: { library: string; name: string } | null;
+    progress?: { value: number; max: number; running: boolean } | null;
     countdown?: { mode: string; duration: number; targetAt: string | null } | null;
     bindings?: VariableBinding[];
     children?: ExportElement[];
@@ -38,6 +39,10 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     }
     if (element.icon) {
       newElement.icon = { library: element.icon.library, name: element.icon.name };
+    }
+    if (element.progress) {
+      const { value, max, running } = element.progress;
+      newElement.progress = { value, max, running };
     }
     // Timers are exported without their state; they start out stopped.
     if (element.countdown) {

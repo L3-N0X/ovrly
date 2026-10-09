@@ -140,7 +140,7 @@ export const handleVariablesRoutes = async (req: Request, server: Publisher, pat
     }
 
     if (collection === "variable-sources") {
-      // A provider. Twitch is the only one so far.
+      // A provider that is added by name. Spotify is added by connecting it (routes/spotify.ts).
       if (!itemId && method === "POST") {
         const body = await readBody(req);
         if (body.provider !== "twitch" || typeof body.channel !== "string") {
@@ -151,6 +151,18 @@ export const handleVariablesRoutes = async (req: Request, server: Publisher, pat
       }
 
       if (itemId && method === "DELETE") {
+        // Spotify is removed by disconnecting it, which only its owner can do; a source whose
+        // access was revoked is just left over and can go.
+        const source = await prisma.variableSource.findFirst({
+          where: { id: itemId, userId: ownerId },
+          select: { provider: true },
+        });
+        if (
+          source?.provider === "SPOTIFY" &&
+          (await prisma.spotifyConnection.count({ where: { userId: ownerId } })) > 0
+        ) {
+          return json({ error: "Disconnect Spotify under Settings → Spotify to remove it" }, 409);
+        }
         await deleteVariableSource(server, ownerId, itemId);
         return json(await listAll(ownerId));
       }

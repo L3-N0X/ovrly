@@ -65,7 +65,7 @@ export interface Variable {
   updatedAt: string;
 }
 
-export type VariableProvider = "TWITCH";
+export type VariableProvider = "TWITCH" | "SPOTIFY";
 
 // A provider keeping variables of the account up to date.
 export interface VariableSource {
@@ -74,7 +74,7 @@ export interface VariableSource {
   // The source its variables carry ("twitch:shroud").
   name: string;
   config: { displayName?: string } | null;
-  // Why some of its variables are missing (see TWITCH_PROBLEMS).
+  // Why some of its variables are missing (see twitchProblem and spotifyProblem).
   problem: string | null;
   createdAt: string;
 }
@@ -84,11 +84,18 @@ export interface VariablesResponse {
   sources: VariableSource[];
 }
 
+// The source of the Spotify account the overlay's owner connected (services/spotify-variables.ts).
+// It is called the same for everyone, so overlays bound to it show their owner's Spotify.
+export const SPOTIFY_SOURCE = "spotify:player";
+
 // How a source is called in the editor: "Twitch · Shroud" for a provider, the name otherwise.
 export const sourceLabel = (source: string, sources: VariableSource[] = []) => {
   const provider = sources.find((s) => s.name === source);
   if (provider?.provider === "TWITCH" || source.startsWith("twitch:")) {
     return `Twitch · ${provider?.config?.displayName ?? source.slice("twitch:".length)}`;
+  }
+  if (provider?.provider === "SPOTIFY" || source === SPOTIFY_SOURCE) {
+    return provider?.config?.displayName ? `Spotify · ${provider.config.displayName}` : "Spotify";
   }
   return source;
 };
@@ -105,6 +112,44 @@ export const TWITCH_VARIABLE_DESCRIPTIONS: Record<string, string> = {
   subscribers: "Active subscriptions, the broadcaster's own included.",
   "sub-points": "Tier 1 counts 1, tier 2 counts 2, tier 3 counts 6.",
 };
+
+// What each variable of the Spotify source holds (services/spotify-variables.ts).
+export const SPOTIFY_VARIABLE_DESCRIPTIONS: Record<string, string> = {
+  track: "The title of the song or episode playing.",
+  artist: "Its artists, or the show of an episode.",
+  album: "Its album, or the publisher of an episode.",
+  cover: "The album cover.",
+  accent: "The most vivid colour of the cover.",
+  "accent-dark": "The cover's colour, dark enough for a background behind white text.",
+  "accent-contrast": "Black or white, whichever reads better on the accent.",
+  playing: "Whether it is playing right now, not paused.",
+  active: "Whether anything is loaded in a Spotify player.",
+  progress: "How far into the track, in seconds.",
+  duration: "The length of the track, in seconds.",
+  "progress-percent": "How far into the track, from 0 to 100.",
+  "progress-text": "How far into the track, like 1:23.",
+  "duration-text": "The length of the track, like 3:45.",
+  "remaining-text": "The time left, like 2:22.",
+  volume: "The volume of the device, from 0 to 100.",
+  device: "The name of the device playing.",
+  shuffle: "Whether shuffle is on.",
+  repeat: "off, context (the album or playlist) or track.",
+  explicit: "Whether the track is marked explicit.",
+};
+
+// What each provider's variables hold, by provider.
+export const providerVariableDescription = (source: VariableSource | undefined, key: string) =>
+  source?.provider === "SPOTIFY"
+    ? SPOTIFY_VARIABLE_DESCRIPTIONS[key]
+    : source?.provider === "TWITCH"
+      ? TWITCH_VARIABLE_DESCRIPTIONS[key]
+      : undefined;
+
+// Why the Spotify source isn't updating.
+export const spotifyProblem = (source: VariableSource) =>
+  source.problem === "REVOKED"
+    ? "ovrly's access to this Spotify account was removed, so these values no longer update. Connect it again under Settings → Spotify."
+    : null;
 
 // Why a Twitch source has no subscriber variables.
 export const twitchProblem = (source: VariableSource) => {

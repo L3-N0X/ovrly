@@ -31,6 +31,8 @@ model User {
   overlaySharesWithMe   OverlayShare[]
   // Twitch channels this user connected, so their subscriber stats can be shown.
   twitchConnections     TwitchConnection[]
+  // The Spotify account whose playback this user's overlays can show.
+  spotifyConnection     SpotifyConnection?
   // Keys for the public API (docs/public-api.md), and the variables sent with them.
   apiKeys               ApiKey[]
   variables             Variable[]
@@ -145,6 +147,7 @@ model Element {
   image     ImageElement?
   bingo     Bingo?
   icon      Icon?
+  progress  Progress?
   // Properties of the element driven by variables instead of their own value.
   bindings  VariableBinding[]
 
@@ -168,6 +171,7 @@ enum ElementType {
   COUNTDOWN
   ICON
   RECTANGLE
+  PROGRESS
 }
 
 model Title {
@@ -234,6 +238,19 @@ model Icon {
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
+// A bar filled to `value` out of `max`: a song's progress, a donation goal. In percent mode (its
+// style) `max` is ignored and `value` is a percentage.
+model Progress {
+  id        String  @id @default(cuid())
+  value     Float   @default(50)
+  max       Float   @default(100)
+  // Moves the bar on by one per second between updates, for values in seconds that a provider
+  // only sends every few seconds (a Spotify track's progress, bound to whether it is playing).
+  running   Boolean @default(false)
+  elementId String  @unique
+  element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
 model Bingo {
   id         String  @id @default(cuid())
   rows       Int     @default(5)
@@ -264,6 +281,24 @@ model TwitchConnection {
   updatedAt    DateTime @updatedAt
 
   @@index([userId])
+}
+
+// The Spotify account of `user`, whose playback (track, artist, cover, progress) becomes the
+// variables of their "spotify:player" source (services/spotify-variables.ts). One per user.
+model SpotifyConnection {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spotifyId    String
+  displayName  String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  scope        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([spotifyId])
 }
 
 // A key other applications use to call the public API (routes/publicApi.ts) on behalf of
@@ -316,6 +351,7 @@ model Variable {
 
 enum VariableProvider {
   TWITCH
+  SPOTIFY
 }
 
 // Something outside ovrly that keeps a set of variables of `user` up to date while one of
@@ -328,7 +364,7 @@ model VariableSource {
   provider   VariableProvider
   // The source its variables carry, "<provider>:<name>" ("twitch:shroud").
   name       String
-  // What the provider knows it by: the channel id for Twitch.
+  // What the provider knows it by: the channel id for Twitch, the account id for Spotify.
   externalId String
   // Provider settings, e.g. the channel's display name.
   config     Json

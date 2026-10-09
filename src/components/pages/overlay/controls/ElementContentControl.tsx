@@ -9,6 +9,7 @@ import TitleControl from "./TitleControl";
 import IconControl from "./IconControl";
 import ImageControl from "./ImageControl";
 import BingoControl from "./BingoControl";
+import ProgressControl, { type ProgressChange } from "./ProgressControl";
 
 // Everything that changes what an element shows (as opposed to how it looks).
 export interface ContentHandlers {
@@ -18,6 +19,7 @@ export interface ContentHandlers {
   onImageChange: (elementId: string, src: string) => void;
   onIconChange: (elementId: string, icon: { library: IconLibrary; name: string }) => void;
   onBingoDataChange: (elementId: string, data: BingoDataUpdate) => void;
+  onProgressChange: (elementId: string, change: ProgressChange) => void;
   onTimerToggle: (elementId: string) => void;
   onTimerReset: (elementId: string) => void;
   onTimerAddTime: (elementId: string, timeToAdd: number) => void;
@@ -54,6 +56,8 @@ export const ElementContentControl: React.FC<{
       return <ImageControl element={element} handleImageChange={handlers.onImageChange} />;
     case ElementTypeEnum.ICON:
       return <IconControl element={element} onIconChange={handlers.onIconChange} />;
+    case ElementTypeEnum.PROGRESS:
+      return <ProgressControl element={element} onProgressChange={handlers.onProgressChange} />;
     case ElementTypeEnum.BINGO:
       return <BingoControl element={element} onDataChange={handlers.onBingoDataChange} />;
     default:

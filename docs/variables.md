@@ -13,7 +13,7 @@ Variables come from three places:
   ([public-api.md](public-api.md)): a game server, a Stream Deck, a bot.
 - **Providers**, which ovrly keeps up to date itself. Twitch is the first: each
   channel a user adds gets its followers, viewers, title and so on as
-  variables. Spotify (track, artist, cover) is the obvious next one.
+  variables; Spotify gives what the owner is listening to.
 
 This file covers the data model, the request flow and the reasoning behind it.
 
@@ -58,10 +58,11 @@ them without an input.
 
 ### `VariableSource`
 
-A provider instance a user added: `provider` (`VariableProvider`: `TWITCH`),
-`name` (the source of its variables, `twitch:<login>`), `externalId` (the
-Twitch user id), `config` (`{ displayName }`) and `problem`, why some of its
-variables are missing (`NOT_CONNECTED`, `NOT_ALLOWED`; see below). Unique per
+A provider instance a user added: `provider` (`VariableProvider`: `TWITCH`,
+`SPOTIFY`), `name` (the source of its variables, `twitch:<login>` or
+`spotify:player`), `externalId` (the Twitch user id, the Spotify account id),
+`config` (`{ displayName }`) and `problem`, why some of its variables are
+missing or stale (`NOT_CONNECTED`, `NOT_ALLOWED`, `REVOKED`; see below). Unique per
 user by `name`. Removing it deletes its variables.
 
 Sources that are just a name (`variables`, `minecraft-tournament`) have no
@@ -73,8 +74,8 @@ One bound property of one element: `elementId`, `property`, and the
 `source` + `key` of the variable. Unique by `[elementId, property]`.
 
 **Properties** are named as in `lib/bindings.ts` (`BINDABLE_PROPERTIES`, the
-same catalogue as `src/lib/bindings.ts`): `text` (title), `value` (counter),
-`src` (image), and `style.<key>` for any style key the element's type lets be
+same catalogue as `src/lib/bindings.ts`): `text` (title), `value` (counter,
+progress bar), `max` and `running` (progress bar), `src` (image), and `style.<key>` for any style key the element's type lets be
 bound (`style.color`, `style.width`, `style.x`, ...). Each has a **kind** that
 decides which variable types fit:
 
@@ -159,6 +160,8 @@ style properties `EDITOR`, like editing them directly.
 | `PATCH /api/overlays/:id/variables/:variableId`        | `CONTROLLER`          | Change its value: `{ value }`                   |
 | `DELETE /api/overlays/:id/variables/:variableId`       | `EDITOR`              | Delete it                                       |
 | `POST /api/overlays/:id/variable-sources`              | `EDITOR`              | Add a provider: `{ provider: "twitch", channel }` |
+| `GET/DELETE /api/spotify/connection`                   | session               | The user's Spotify account; DELETE disconnects  |
+| `GET /api/spotify/connect`, `/api/spotify/callback`    | session               | Connecting Spotify (OAuth redirect flow)        |
 | `DELETE /api/overlays/:id/variable-sources/:sourceId`  | `EDITOR`              | Remove it with its variables                    |
 
 The overlay routes act on the **owner's** variables, so team members manage
@@ -211,9 +214,66 @@ explains it; the two variables are removed.
 replaces with the creator's own channel, adding it as a source if needed
 (`ownTwitchSource`).
 
+## Spotify (`services/spotify-variables.ts`)
+
+A user connects their Spotify account under Settings → Spotify (own OAuth flow
+in `routes/spotify.ts`, scopes `user-read-playback-state` and
+`user-read-currently-playing`, stored as a `SpotifyConnection`, one per user).
+That adds the `VariableSource` **`spotify:player`**. The name is the same for
+every user on purpose: an overlay bound to it shows the Spotify of whoever owns
+it, also after it was duplicated or created from a preset, with nothing to
+rewrite.
+
+| Key                | Type    | Notes                                                    |
+| ------------------ | ------- | -------------------------------------------------------- |
+| `track`            | string  | Title of the song or episode                             |
+| `artist`           | string  | Artists joined with ", "; the show of an episode         |
+| `album`            | string  | The album; the publisher of an episode                   |
+| `cover`            | image   | Largest cover                                            |
+| `accent`           | color   | Most vivid colour of the cover, kept off black and white |
+| `accent-dark`      | color   | Its hue, dark enough for a background behind white text  |
+| `accent-contrast`  | color   | `#000000` or `#ffffff`, whichever reads better on accent |
+| `playing`          | boolean | Playing, not paused                                      |
+| `active`           | boolean | Anything loaded in a player                              |
+| `progress`         | integer | Seconds into the track                                   |
+| `duration`         | integer | Length in seconds                                        |
+| `progress-percent` | double  | 0 to 100, one decimal                                    |
+| `progress-text`    | string  | `1:23` (`1:02:05` past an hour)                          |
+| `duration-text`    | string  | `3:45`                                                   |
+| `remaining-text`   | string  | `2:22`                                                   |
+| `volume`           | integer | Device volume 0-100; kept when the device doesn't say    |
+| `device`           | string  | Device name                                              |
+| `shuffle`          | boolean |                                                          |
+| `repeat`           | string  | `off`, `context` or `track`                              |
+| `explicit`         | boolean |                                                          |
+
+Spotify has no push API for playback, so it is **polled**: every 5 s for the
+owners of open overlays, right away when one is opened (3 s cooldown) or the
+account is connected, and once more just after the playing track should end,
+so the next one shows up without waiting. A `429` pauses every poll for its
+`Retry-After`. When nothing plays (`204`), the texts and the cover are emptied
+and `playing`/`active` turn false; the accent keeps its last colour.
+
+**Accent colours** (`services/cover-colors.ts`): the smallest cover (64 px) is
+decoded with `jpeg-js`, its pixels bucketed by colour, and the bucket scoring
+highest on saturation × coverage × mid lightness wins (the most common colour
+for black and white covers). Results are cached by URL.
+
+**Progress bars** move smoothly between polls: bind `value` to `progress`,
+`max` to `duration` and `running` to `playing`, and the bar advances one unit
+per second from the last value it got.
+
+**Revoked access:** when the refresh token stops working, the connection is
+deleted and the source gets `problem: "REVOKED"`; its variables keep their
+last values and the Variables tab says to connect again, which clears it.
+Disconnecting in the settings deletes the source and its variables; bindings
+stay and pick them up again after reconnecting. A connected Spotify source
+can't be removed from the Variables tab (`409`), only disconnected by its
+owner.
+
 ### Adding a provider
 
-1. Add it to `VariableProvider` and pick a source prefix (`spotify:<name>`).
+1. Add it to `VariableProvider` and pick a source prefix (`<provider>:<name>`).
 2. Write its variables with `setVariables` under that source; never let it
    write sources of other providers.
 3. Add it to the "New" menu of `VariablesPanel` and to `sourceLabel`
@@ -252,7 +312,7 @@ replaces with the creator's own channel, adding it as a source if needed
 - **Renaming** variables and sources, updating the bindings with them.
 - **Imports into another account** could add the Twitch channels the overlay
   is bound to.
-- **More providers:** Spotify, StreamElements, a timer as a variable.
+- **More providers:** StreamElements, a timer as a variable.
 - **Scoped keys:** limit a key to one source, or to read-only access.
 - **Coalescing broadcasts:** a source changing many times a second publishes an
   overlay per change; debouncing `publishOverlay` per overlay would bound that.

@@ -19,6 +19,7 @@ import {
 } from "../lib/countdown";
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { isIconLibrary, isIconName } from "../lib/icons";
+import { parseProgressPatch } from "../lib/progress";
 import { isBindableProperty, isContentProperty, parseBindingTarget } from "../lib/bindings";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
@@ -33,6 +34,7 @@ const ELEMENT_TYPES = [
   "GROUP",
   "ICON",
   "RECTANGLE",
+  "PROGRESS",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -136,6 +138,8 @@ export const handleElementsRoutes = async (
         elementCreateData.countdown = { create: {} };
       } else if (type === "ICON") {
         elementCreateData.icon = { create: {} };
+      } else if (type === "PROGRESS") {
+        elementCreateData.progress = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "BINGO") {
@@ -441,6 +445,14 @@ export const handleElementsRoutes = async (
             }
             if (element.type === "IMAGE" && typeof data.src === "string") {
               elementUpdateData.image = { update: { src: data.src } };
+            }
+            if (
+              element.type === "PROGRESS" &&
+              (data.value !== undefined || data.max !== undefined || data.running !== undefined)
+            ) {
+              const patch = parseProgressPatch(data);
+              if (!patch) return { error: json({ error: "Invalid progress" }, 400) };
+              elementUpdateData.progress = { update: patch };
             }
             if (element.type === "ICON" && (data.library !== undefined || data.name !== undefined)) {
               if (!isIconLibrary(data.library) || !isIconName(data.name)) {

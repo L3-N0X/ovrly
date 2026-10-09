@@ -15,6 +15,7 @@ export const overlayElementsInclude = {
       image: true,
       bingo: true,
       icon: true,
+      progress: true,
       bindings: { select: { property: true, source: true, key: true } },
     },
   },

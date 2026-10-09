@@ -39,6 +39,7 @@ const OverlayPage: React.FC = () => {
     handleTitleChange,
     handleImageChange,
     handleIconChange,
+    handleProgressChange,
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
@@ -75,6 +76,7 @@ const OverlayPage: React.FC = () => {
       onTitleChange: handleTitleChange,
       onImageChange: handleImageChange,
       onIconChange: handleIconChange,
+      onProgressChange: handleProgressChange,
       onBingoDataChange: handleBingoDataChange,
       onTimerToggle: handleTimerToggle,
       onTimerReset: handleTimerReset,
@@ -87,6 +89,7 @@ const OverlayPage: React.FC = () => {
       handleTitleChange,
       handleImageChange,
       handleIconChange,
+      handleProgressChange,
       handleBingoDataChange,
       handleTimerToggle,
       handleTimerReset,
@@ -235,7 +238,7 @@ const OverlayPage: React.FC = () => {
                     content={content}
                   />
                 ) : (
-                  <VariablesPanel overlay={overlay} />
+                  <VariablesPanel overlay={overlay} isOwner={role === "OWNER"} />
                 )}
               </div>
             </aside>

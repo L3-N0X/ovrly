@@ -14,6 +14,7 @@ import Timer from "./Timer";
 import Countdown from "./Countdown";
 import Icon from "./Icon";
 import Rectangle from "./Rectangle";
+import ProgressBar from "./ProgressBar";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
@@ -66,6 +67,8 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         ) : null;
       case "RECTANGLE":
         return <Rectangle element={element} />;
+      case "PROGRESS":
+        return <ProgressBar element={element} />;
       case "IMAGE":
         return <Image element={element} />;
       case "BINGO":

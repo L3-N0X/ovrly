@@ -115,6 +115,19 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
   },
+  PROGRESS: {
+    value: "number",
+    max: "number",
+    running: "boolean",
+    "style.width": "number",
+    "style.height": "number",
+    "style.fillColor": "color",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+  },
 };
 
 export const bindingKind = (type: ElementType, property: string): BindingKind | undefined =>
@@ -153,6 +166,11 @@ export const resolveElement = (
       resolved.title = { ...resolved.title, text: String(value) };
     } else if (binding.property === "value" && resolved.counter) {
       resolved.counter = { ...resolved.counter, value: Number(value) };
+    } else if (
+      (binding.property === "value" || binding.property === "max" || binding.property === "running") &&
+      resolved.progress
+    ) {
+      resolved.progress = { ...resolved.progress, [binding.property]: value };
     } else if (binding.property === "src" && resolved.image) {
       resolved.image = { ...resolved.image, src: String(value) };
     }

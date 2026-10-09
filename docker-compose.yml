@@ -91,6 +91,10 @@ services:
       - AUTH_TWITCH_ID=${OVRLY_TWITCH_CLIENT_ID}
       - AUTH_TWITCH_SECRET=${OVRLY_TWITCH_CLIENT_SECRET}
 
+      # Spotify app credentials (optional), for the Spotify variables
+      - SPOTIFY_CLIENT_ID=${OVRLY_SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${OVRLY_SPOTIFY_CLIENT_SECRET:-}
+
       # S3-compatible storage for uploaded images. The defaults match the bundled `s3` service.
       - S3_ENDPOINT=http://s3:9000
       - S3_BUCKET=${OVRLY_S3_BUCKET:-ovrly}

@@ -22,6 +22,7 @@ import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
 import { iconSeed } from "../lib/icons";
+import { progressSeed } from "../lib/progress";
 import { bindingSeeds, OWN_TWITCH_SOURCE } from "../lib/bindings";
 import { ownTwitchSource } from "../services/twitch-variables";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
@@ -89,6 +90,9 @@ function buildElementCreates(
     }
     if (element.type === "ICON") {
       data.icon = { create: iconSeed(element.icon) };
+    }
+    if (element.type === "PROGRESS") {
+      data.progress = { create: progressSeed(element.progress) };
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };

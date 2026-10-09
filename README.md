@@ -30,6 +30,7 @@ All Elements are editable to change their content.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
 * **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.
+* **Progress Bar:** A bar filled to a percentage, or to a value out of a maximum (a song's progress out of its length). Switched to *running*, it moves on by one per second between updates.
 
 ## 🧩 Variables
 
@@ -37,6 +38,7 @@ Like in Figma, fields of elements can be bound to **variables**: a title's text,
 
 * **You:** create texts, numbers, yes/no values, colors and images in the Variables tab.
 * **Twitch:** add any channel to get its followers, viewers, live state, title, category, name and avatar, updated about every 30 seconds while the overlay is open. Subscriber numbers are private on Twitch, so the channel has to be connected once under Settings → Twitch by someone who can sign in as it; they are then available to whoever connected it and their team.
+* **Spotify:** connect your account under Settings → Spotify and what you listen to becomes variables: track, artist, album, cover, playing or paused, progress and length (in seconds and as text like `1:23`), volume, device, shuffle and repeat, plus an **accent colour** picked from the cover (with a dark variant and a readable text colour). Updated every 5 seconds while an overlay is open. Build a now playing overlay from titles, an image, a progress bar and colours bound to them.
 * **Other apps:** a game server, a Stream Deck or a bot can send variables through the [public API](docs/public-api.md) with a key from Settings → API.
 
 ## 📺 Usage in OBS
@@ -115,6 +117,8 @@ You need to set the following environment variables in a `.env` file in the root
 | `AUTH_SECRET`          | A secret key for signing authentication tokens.                             | `a-very-secret-key`                   |
 | `AUTH_TWITCH_ID`       | Your Twitch application's Client ID.                                        | `your-twitch-client-id`               |
 | `AUTH_TWITCH_SECRET`   | Your Twitch application's Client Secret.                                    | `your-twitch-client-secret`           |
+| `SPOTIFY_CLIENT_ID`    | Optional. Client ID of your Spotify app, for the Spotify variables.         | `your-spotify-client-id`              |
+| `SPOTIFY_CLIENT_SECRET` | Optional. Client Secret of your Spotify app.                               | `your-spotify-client-secret`          |
 | `S3_ENDPOINT`          | Endpoint of your S3-compatible storage (path-style addressing is used).     | `http://s3:9000`                      |
 | `S3_BUCKET`            | Bucket for uploaded images. It must already exist.                          | `ovrly`                               |
 | `S3_ACCESS_KEY_ID`     | Access key for the bucket.                                                  | `ovrly`                               |
@@ -129,6 +133,13 @@ You need to set the following environment variables in a `.env` file in the root
 > `<APP_BASE_URL>/api/twitch/callback` to the application's **OAuth Redirect URLs** in the
 > [Twitch developer console](https://dev.twitch.tv/console/apps), next to the sign-in callback
 > `<APP_BASE_URL>/api/auth/callback/twitch`.
+
+> [!NOTE]
+> Spotify variables need an app from the [Spotify developer dashboard](https://developer.spotify.com/dashboard)
+> with the Web API enabled and `<APP_BASE_URL>/api/spotify/callback` as a **Redirect URI**.
+> Spotify doesn't accept `localhost` there: locally, open the app at `http://127.0.0.1:<port>`
+> and set `APP_BASE_URL` to match. While the app is in development mode, only the Spotify
+> accounts added to its user list can connect.
 
 > [!NOTE]
 > The Google Fonts API key is compiled into the frontend bundle at build time.

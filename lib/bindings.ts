@@ -4,7 +4,8 @@ import { isSourceName, isVariableName } from "./variables";
 // what kind of value each one takes. Mirrored, with labels, by src/lib/bindings.ts.
 //
 // Properties are named the way the element stores them: "text" (a title's), "value" (a
-// counter's) and "src" (an image's) are content, anything under "style." is design.
+// counter's or progress bar's), "max" and "running" (a progress bar's) and "src" (an image's)
+// are content, anything under "style." is design.
 
 export type BindingKind = "text" | "number" | "color" | "image" | "boolean";
 
@@ -81,6 +82,19 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
   RECTANGLE: {
     "style.width": "number",
     "style.height": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+  },
+  PROGRESS: {
+    value: "number",
+    max: "number",
+    running: "boolean",
+    "style.width": "number",
+    "style.height": "number",
+    "style.fillColor": "color",
     "style.backgroundColor": "color",
     "style.borderColor": "color",
     "style.borderWidth": "number",

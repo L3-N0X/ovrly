@@ -1,5 +1,6 @@
 import { ElementTypeEnum, type ContainerStyle, type PrismaElement } from "@/lib/types";
 import {
+  ChartNoAxesGantt,
   Columns3,
   Frame,
   Grid3x3,
@@ -39,6 +40,8 @@ export const ElementTypeIcon = ({
       return <Frame className={className} />;
     case ElementTypeEnum.RECTANGLE:
       return <Square className={className} />;
+    case ElementTypeEnum.PROGRESS:
+      return <ChartNoAxesGantt className={className} />;
     case ElementTypeEnum.CONTAINER: {
       // Mirrors the container's layout direction
       const direction = (element.style as ContainerStyle | null)?.flexDirection ?? "column";

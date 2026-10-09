@@ -1,5 +1,6 @@
 import { normalizeBingoData } from "./bingo";
 import { DEFAULT_ICON } from "./icons";
+import { DEFAULT_PROGRESS } from "./progress";
 import {
   CanvasModeEnum,
   DEFAULT_CANVAS_HEIGHT,
@@ -27,6 +28,7 @@ export interface PresetElement {
   bindings?: VariableBinding[];
   image?: { src: string };
   icon?: { library: IconLibrary; name: string };
+  progress?: { value?: number; max?: number; running?: boolean };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
   children?: PresetElement[];
 }
@@ -87,6 +89,10 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
         icon:
           seed.type === ElementTypeEnum.ICON
             ? { id, ...(seed.icon ?? DEFAULT_ICON) }
+            : null,
+        progress:
+          seed.type === ElementTypeEnum.PROGRESS
+            ? { id, ...DEFAULT_PROGRESS, ...seed.progress }
             : null,
         image: seed.image ? { id, ...seed.image } : null,
         bingo: seed.bingo

@@ -11,6 +11,7 @@ export const ElementTypeEnum = {
   GROUP: "GROUP",
   ICON: "ICON",
   RECTANGLE: "RECTANGLE",
+  PROGRESS: "PROGRESS",
 } as const;
 
 // Element types that hold other elements.
@@ -26,6 +27,7 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.COUNTDOWN ||
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.ICON ||
+  type === ElementTypeEnum.PROGRESS ||
   type === ElementTypeEnum.BINGO;
 
 export type ElementType =
@@ -245,6 +247,32 @@ export interface RectangleStyle extends BaseElementStyle {
   borderRadius?: number;
 }
 
+// How a progress bar reads its value: as a percentage, or as a value out of a maximum (a song's
+// progress out of its length).
+export type ProgressMode = "percent" | "values";
+
+// Specific style for a Progress element: a track, filled from the left to how far along it is.
+export interface ProgressStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  /** "percent" by default. */
+  mode?: ProgressMode;
+  /** The filled part; white by default. */
+  fillColor?: string;
+  /** The empty part, a translucent white by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+}
+
+export const DEFAULT_PROGRESS_WIDTH = 480;
+export const DEFAULT_PROGRESS_HEIGHT = 12;
+export const DEFAULT_PROGRESS_FILL = "#ffffff";
+export const DEFAULT_PROGRESS_BACKGROUND = "#ffffff33";
+export const DEFAULT_PROGRESS_RADIUS = 6;
+
 // Specific style for a Bingo element
 export interface BingoStyle extends BaseElementStyle {
   /** Card width in pixels. The height follows from it, so that every cell is square. */
@@ -285,6 +313,7 @@ export type ElementStyle =
   | ImageStyle
   | IconStyle
   | RectangleStyle
+  | ProgressStyle
   | BingoStyle
   | GroupStyle;
 
@@ -317,6 +346,9 @@ export interface PrismaElement {
   } | null;
   image?: { id: string; src: string } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;
+  // `value` out of `max` (100 in percent mode); `running` moves it on by one per second between
+  // updates.
+  progress?: { id: string; value: number; max: number; running: boolean } | null;
   bingo?: {
     id: string;
     rows: number;

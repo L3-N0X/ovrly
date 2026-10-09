@@ -690,6 +690,24 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Typing a value: the last one typed wins. Value, maximum and running are separate slots, so
+  // changing one doesn't cancel a pending change of another.
+  const handleProgressChange = useCallback(
+    (elementId: string, change: { value?: number; max?: number; running?: boolean }) => {
+      const slot = Object.keys(change).sort().join(",");
+      updateElement(
+        elementId,
+        `progress:${slot}`,
+        { data: change },
+        (el) => {
+          if (el.progress) Object.assign(el.progress, change);
+        },
+        { delay: change.running === undefined ? DEBOUNCE_MS : undefined }
+      );
+    },
+    [updateElement]
+  );
+
   // Single mutation path for bingo data: applied locally first so the editor and preview
   // stay in step, then persisted. Cells are sent as `{ index: value }` patches, so people
   // marking or editing different cells don't overwrite each other.
@@ -816,6 +834,7 @@ export const useOverlayData = () => {
     handleTitleChange,
     handleImageChange,
     handleIconChange,
+    handleProgressChange,
     handleBindingChange,
     handleBingoDataChange,
     handleTimerToggle,
