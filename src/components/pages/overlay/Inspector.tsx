@@ -8,6 +8,7 @@ import { InlineRename } from "@/components/ui/inline-rename";
 import {
   ElementPositionEditor,
   ElementStyleEditor,
+  ElementVisibilityEditor,
 } from "@/components/overlay/editor/elementlist/ElementInspector";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
 import { SubathonSettingsEditor } from "@/components/overlay/editor/SubathonEditor";
@@ -203,6 +204,13 @@ const ElementPanel = ({
           />
         </PanelSection>
       )}
+      <PanelSection title="Visibility">
+        <ElementVisibilityEditor
+          element={element}
+          overlay={overlay}
+          onOverlayChange={onOverlayChange}
+        />
+      </PanelSection>
       {isPlacedFreely(overlay, element) && (
         <PanelSection title="Position">
           <ElementPositionEditor

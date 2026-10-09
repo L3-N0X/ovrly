@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { isParentType, type PrismaElement } from "@/lib/types";
+import { isElementVisible, isParentType, type PrismaElement } from "@/lib/types";
 import {
   attachInstruction,
   extractInstruction,
@@ -12,7 +12,7 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, EyeOff } from "lucide-react";
 import { InlineRename } from "@/components/ui/inline-rename";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
@@ -150,6 +150,7 @@ export const ElementTreeItem = ({
   }, [element.id, isParent, hasChildren, getElements]);
 
   const indicatorLeft = depth * INDENT + 4;
+  const hidden = !isElementVisible(element);
 
   return (
     <div
@@ -209,7 +210,12 @@ export const ElementTreeItem = ({
         <InlineRename value={element.name} aria-label="Element name" onDone={onRenamed} />
       ) : (
         <>
-          <span className="truncate font-medium">{element.name}</span>
+          <span className={cn("truncate font-medium", hidden && "text-muted-foreground")}>
+            {element.name}
+          </span>
+          {hidden && (
+            <EyeOff aria-label="Hidden" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          )}
           <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground opacity-0 group-hover/row:opacity-100">
             {element.type}
           </span>

@@ -76,7 +76,8 @@ One bound property of one element: `elementId`, `property`, and the
 **Properties** are named as in `lib/bindings.ts` (`BINDABLE_PROPERTIES`, the
 same catalogue as `src/lib/bindings.ts`): `text` (title), `value` (counter,
 progress bar), `max` and `running` (progress bar), `src` (image), and `style.<key>` for any style key the element's type lets be
-bound (`style.color`, `style.width`, `style.x`, ...). Each has a **kind** that
+bound (`style.color`, `style.width`, `style.x`, ...). Every type has
+`style.visible`, which hides the element when it is `false`. Each has a **kind** that
 decides which variable types fit:
 
 | Kind      | Variable types                 | Examples                                   |
@@ -85,7 +86,7 @@ decides which variable types fit:
 | `number`  | integer, double                | counter value, font size, width, x/y       |
 | `color`   | color                          | text colour, background, stroke            |
 | `image`   | image                          | image source, bingo background image       |
-| `boolean` | boolean                        | group clipping, bingo grid lines           |
+| `boolean` | boolean                        | visibility, group clipping, bingo grid lines |
 
 **Bound by name, not by id.** A binding can point at a variable that doesn't
 exist (yet, or anymore): the field then shows its own value, and the editor

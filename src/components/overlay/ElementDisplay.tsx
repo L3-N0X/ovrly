@@ -8,6 +8,7 @@ import type {
   SubathonStyle,
   TimerStyle,
 } from "@/lib/types";
+import { isElementVisible } from "@/lib/types";
 import Title from "./Title";
 import Counter from "./Counter";
 import Container from "./Container";
@@ -92,6 +93,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         return null;
     }
   };
+
+  // A hidden element is not drawn at all, so it takes no space in a container either. It can still
+  // be selected from the element list.
+  if (!isElementVisible(element)) return null;
 
   const content = renderElement();
   if (!selection || !content) return content;

@@ -19,6 +19,10 @@ export const ElementTypeEnum = {
 export const isParentType = (type: ElementType) =>
   type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
 
+// Whether an element is drawn: only `style.visible: false` (stored or bound) hides it.
+export const isElementVisible = (element: { style: ElementStyle | null }) =>
+  (element.style as BaseElementStyle | null)?.visible !== false;
+
 // Element types with content of their own (text, a value, ...) that can be changed while
 // live. Containers and groups only arrange other elements.
 export const hasContent = (type: ElementType) =>
@@ -116,6 +120,8 @@ export interface BaseElementStyle {
   // Offset from the top left corner of the parent, used when the parent is a GROUP.
   x?: number;
   y?: number;
+  // Hidden elements (`false`) are not drawn; anything else, including nothing stored, shows them.
+  visible?: boolean;
 }
 
 // Specific style for a Counter element

@@ -1,5 +1,8 @@
+import { Switch } from "@/components/ui/switch";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   ElementTypeEnum,
+  isElementVisible,
   type ElementStyle,
   type PrismaElement,
   type PrismaOverlay,
@@ -46,6 +49,33 @@ export const ElementPositionEditor = ({
       element={element}
       onChange={(position) => updateStyle({ ...(element.style || {}), ...position })}
     />
+  );
+};
+
+// Whether the element is drawn. Bound to a yes/no variable, apps and providers can show and hide it.
+export const ElementVisibilityEditor = ({
+  element,
+  overlay,
+  onOverlayChange,
+}: {
+  element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: OnOverlayChange;
+}) => {
+  const updateStyle = styleUpdater(element, overlay, onOverlayChange);
+  return (
+    <BindableField
+      property="style.visible"
+      inline
+      htmlFor={`${element.id}-visible`}
+      label="Visible"
+    >
+      <Switch
+        id={`${element.id}-visible`}
+        checked={isElementVisible(element)}
+        onCheckedChange={(visible) => updateStyle({ ...(element.style || {}), visible })}
+      />
+    </BindableField>
   );
 };
 
