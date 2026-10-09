@@ -148,6 +148,7 @@ model Element {
   bingo     Bingo?
   icon      Icon?
   progress  Progress?
+  subathon  Subathon?
   // Properties of the element driven by variables instead of their own value.
   bindings  VariableBinding[]
 
@@ -172,6 +173,7 @@ enum ElementType {
   ICON
   RECTANGLE
   PROGRESS
+  SUBATHON
 }
 
 model Title {
@@ -249,6 +251,44 @@ model Progress {
   running   Boolean @default(false)
   elementId String  @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+// A countdown that Twitch subs and cheers of a channel add time to (lib/subathon.ts). Times are
+// milliseconds, stored as doubles because a subathon can run for longer than an Int holds.
+model Subathon {
+  id               String    @id @default(cuid())
+  // The length of time it starts from and resets to.
+  duration         Float     @default(3600000)
+  // The time left while it is paused.
+  remaining        Float     @default(3600000)
+  // When it reaches zero while it is running. Null while paused.
+  endsAt           DateTime?
+  // The Twitch channel (id) whose events add time. Null means the owner's own channel, the one
+  // they sign in with. Either way it has to be connected (TwitchConnection) for the owner's team.
+  channelId        String?
+  // Time added per sub (new, resub shared in chat, or gifted) of each tier. Prime counts as tier 1.
+  tier1Ms          Int       @default(300000)
+  tier2Ms          Int       @default(600000)
+  tier3Ms          Int       @default(1500000)
+  // Time added per 100 bits cheered, in proportion for any other amount.
+  bitsMs           Int       @default(60000)
+  // Multiplies what events add, for a happy hour.
+  multiplier       Float     @default(1)
+  // The most time left that events can add up to. Null for no limit.
+  maxRemaining     Float?
+  // Whether events add time while it is paused, e.g. before the stream starts.
+  countWhilePaused Boolean   @default(true)
+  // Totals since the last reset.
+  subs             Int       @default(0)
+  bits             Int       @default(0)
+  addedMs          Float     @default(0)
+  // The latest time an event added, so overlays can show it ("+5m") for a moment.
+  lastAddedMs      Float     @default(0)
+  lastAddedAt      DateTime?
+  elementId        String    @unique
+  element          Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
 }
 
 model Bingo {

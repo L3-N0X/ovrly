@@ -211,3 +211,36 @@
     transform: scaleX(0);
   }
 }
+
+/* What a Twitch event added to a subathon, floating above it for a moment. */
+.subathon-added {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  font-size: 0.45em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  animation-name: subathon-added;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes subathon-added {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0.4em);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -0.4em);
+  }
+}

@@ -2,8 +2,10 @@ import React from "react";
 import { ElementTypeEnum, type IconLibrary, type PrismaElement } from "@/lib/types";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import type { CountdownAction } from "@/lib/countdown";
+import type { SubathonAction, SubathonSettings } from "@/lib/subathon";
 import TimerControl from "./TimerControl";
 import CountdownControl from "./CountdownControl";
+import SubathonControl from "./SubathonControl";
 import CounterControl from "./CounterControl";
 import TitleControl from "./TitleControl";
 import IconControl from "./IconControl";
@@ -24,6 +26,9 @@ export interface ContentHandlers {
   onTimerReset: (elementId: string) => void;
   onTimerAddTime: (elementId: string, timeToAdd: number) => void;
   onCountdownAction: (elementId: string, action: CountdownAction) => void;
+  onSubathonAction: (elementId: string, action: SubathonAction) => void;
+  // Not content but design (editors only); here so the inspector gets it with the rest.
+  onSubathonSettings: (elementId: string, settings: SubathonSettings) => void;
 }
 
 export const ElementContentControl: React.FC<{
@@ -42,6 +47,8 @@ export const ElementContentControl: React.FC<{
       );
     case ElementTypeEnum.COUNTDOWN:
       return <CountdownControl element={element} onAction={handlers.onCountdownAction} />;
+    case ElementTypeEnum.SUBATHON:
+      return <SubathonControl element={element} onAction={handlers.onSubathonAction} />;
     case ElementTypeEnum.COUNTER:
       return (
         <CounterControl

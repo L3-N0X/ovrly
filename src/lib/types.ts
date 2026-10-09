@@ -12,6 +12,7 @@ export const ElementTypeEnum = {
   ICON: "ICON",
   RECTANGLE: "RECTANGLE",
   PROGRESS: "PROGRESS",
+  SUBATHON: "SUBATHON",
 } as const;
 
 // Element types that hold other elements.
@@ -25,6 +26,7 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.COUNTER ||
   type === ElementTypeEnum.TIMER ||
   type === ElementTypeEnum.COUNTDOWN ||
+  type === ElementTypeEnum.SUBATHON ||
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.ICON ||
   type === ElementTypeEnum.PROGRESS ||
@@ -129,6 +131,14 @@ export interface TimerStyle extends BaseElementStyle {
   padding?: number;
   radius?: number;
   format?: string;
+}
+
+// Specific style for a Subathon element: a countdown that shows what Twitch events add to it.
+export interface SubathonStyle extends TimerStyle {
+  /** Shows the time an event added ("+5m") above the countdown for a moment. On by default. */
+  showAdded?: boolean;
+  /** Shown instead of the time once it has run out; empty keeps showing zero. */
+  endedText?: string;
 }
 
 // Specific style for an Image element
@@ -310,6 +320,7 @@ export type ElementStyle =
   | CounterStyle
   | ContainerStyle
   | TimerStyle
+  | SubathonStyle
   | ImageStyle
   | IconStyle
   | RectangleStyle
@@ -343,6 +354,35 @@ export interface PrismaElement {
     remaining: number;
     endsAt: string | null;
     targetAt: string | null;
+  } | null;
+  // A countdown that Twitch subs and cheers add time to (lib/subathon.ts on the server). Times
+  // are milliseconds.
+  subathon?: {
+    id: string;
+    // What it starts from and resets to.
+    duration: number;
+    // The time left while paused; while running, it ends at `endsAt`.
+    remaining: number;
+    endsAt: string | null;
+    // The Twitch channel id whose events count; null for the owner's own channel.
+    channelId: string | null;
+    // Added per sub of each tier, and per 100 bits.
+    tier1Ms: number;
+    tier2Ms: number;
+    tier3Ms: number;
+    bitsMs: number;
+    // Multiplies what events add (a happy hour).
+    multiplier: number;
+    // Events never take the time left past this. Null for no limit.
+    maxRemaining: number | null;
+    countWhilePaused: boolean;
+    // Totals since the last reset.
+    subs: number;
+    bits: number;
+    addedMs: number;
+    // What the latest event added, and when.
+    lastAddedMs: number;
+    lastAddedAt: string | null;
   } | null;
   image?: { id: string; src: string } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;

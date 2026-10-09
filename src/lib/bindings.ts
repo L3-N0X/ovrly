@@ -56,6 +56,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
   COUNTER: { value: "number", ...BOX_STYLE, ...POSITION },
   TIMER: { ...BOX_STYLE, ...POSITION },
   COUNTDOWN: { ...BOX_STYLE, ...POSITION },
+  SUBATHON: { ...BOX_STYLE, ...POSITION },
   IMAGE: {
     src: "image",
     "style.width": "number",

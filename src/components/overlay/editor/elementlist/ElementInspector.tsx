@@ -14,6 +14,7 @@ import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { ProgressEditor } from "../ProgressEditor";
 import { RectangleEditor } from "../RectangleEditor";
+import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 
@@ -71,6 +72,8 @@ export const ElementStyleEditor = ({
     case ElementTypeEnum.TIMER:
     case ElementTypeEnum.COUNTDOWN:
       return <TimerStyleEditor {...editorProps} />;
+    case ElementTypeEnum.SUBATHON:
+      return <SubathonStyleEditor {...editorProps} />;
     case ElementTypeEnum.ICON:
       return <IconStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:

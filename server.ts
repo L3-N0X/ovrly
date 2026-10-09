@@ -17,6 +17,7 @@ import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
 import { refreshOpenedOverlay, startTwitchVariables } from "./services/twitch-variables";
 import { refreshOpenedSpotify, startSpotifyVariables } from "./services/spotify-variables";
+import { startTwitchEvents, syncSubathonListeners } from "./services/twitch-events";
 import { variablesChannel } from "./services/variables";
 import type { WebSocketData } from "./types";
 import path from "path";
@@ -211,6 +212,8 @@ const server = Bun.serve<WebSocketData>({
       // open, so they may be out of date.
       refreshOpenedOverlay(ownerId);
       refreshOpenedSpotify(ownerId);
+      // Paused subathons of the owner count Twitch events while one of their overlays is open.
+      syncSubathonListeners();
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
     message() {
@@ -233,6 +236,7 @@ setInterval(() => {
 const openOverlayOwners = () => [...sockets].map((ws) => ws.data.ownerId);
 startTwitchVariables(server, openOverlayOwners);
 startSpotifyVariables(server, openOverlayOwners);
+startTwitchEvents(server, openOverlayOwners);
 
 console.log(`Server running on port ${server.port}`);
 console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);

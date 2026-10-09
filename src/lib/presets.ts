@@ -24,6 +24,12 @@ export interface PresetElement {
   title?: { text: string };
   counter?: { value: number };
   countdown?: Partial<Pick<NonNullable<PrismaElement["countdown"]>, "mode" | "duration">>;
+  subathon?: Partial<
+    Pick<
+      NonNullable<PrismaElement["subathon"]>,
+      "duration" | "tier1Ms" | "tier2Ms" | "tier3Ms" | "bitsMs" | "maxRemaining" | "countWhilePaused"
+    >
+  >;
   // "twitch:@me" stands for the Twitch channel of whoever creates the overlay.
   bindings?: VariableBinding[];
   image?: { src: string };
@@ -47,6 +53,26 @@ export interface OverlayPreset {
 
 // What a new countdown counts down from, as on the server (prisma/schema.prisma).
 const DEFAULT_COUNTDOWN_MS = 5 * 60 * 1000;
+
+// A new subathon, as on the server (prisma/schema.prisma).
+const DEFAULT_SUBATHON: Omit<NonNullable<PrismaElement["subathon"]>, "id"> = {
+  duration: 60 * 60 * 1000,
+  remaining: 60 * 60 * 1000,
+  endsAt: null,
+  channelId: null,
+  tier1Ms: 5 * 60 * 1000,
+  tier2Ms: 10 * 60 * 1000,
+  tier3Ms: 25 * 60 * 1000,
+  bitsMs: 60 * 1000,
+  multiplier: 1,
+  maxRemaining: null,
+  countWhilePaused: true,
+  subs: 0,
+  bits: 0,
+  addedMs: 0,
+  lastAddedMs: 0,
+  lastAddedAt: null,
+};
 
 export const fetchPresets = async (): Promise<OverlayPreset[]> => {
   const response = await fetch("/presets/overlay-presets.json");
@@ -82,6 +108,15 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
                 remaining: seed.countdown?.duration ?? DEFAULT_COUNTDOWN_MS,
                 endsAt: null,
                 targetAt: null,
+              }
+            : null,
+        subathon:
+          seed.type === ElementTypeEnum.SUBATHON
+            ? {
+                id,
+                ...DEFAULT_SUBATHON,
+                ...seed.subathon,
+                remaining: seed.subathon?.duration ?? DEFAULT_SUBATHON.duration,
               }
             : null,
         // Previews have no variables, so bound fields show the template's own values.

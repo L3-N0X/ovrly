@@ -5,6 +5,12 @@ import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 import { applyTimerAction, type TimerAction } from "@/lib/timer";
 import { applyCountdownAction, type CountdownAction } from "@/lib/countdown";
+import {
+  applySubathonAction,
+  applySubathonSettings,
+  type SubathonAction,
+  type SubathonSettings,
+} from "@/lib/subathon";
 import { ApiError, sharingApi, type OverlayAccess } from "@/lib/sharing";
 
 const DEBOUNCE_MS = 500;
@@ -123,9 +129,9 @@ const combineCounter = (queued: object, next: object): object => {
   return { data: { value: (q.value ?? 0) + n.increment } };
 };
 
-type ActionsBody = { data: { actions: (TimerAction | CountdownAction)[] } };
+type ActionsBody = { data: { actions: (TimerAction | CountdownAction | SubathonAction)[] } };
 
-// Timer and countdown actions waiting to be sent go out together, in the order they were made.
+// Timer, countdown and subathon actions waiting to be sent go out together, in the order they were made.
 const combineActions = (queued: object, next: object): object => ({
   data: {
     actions: [...(queued as ActionsBody).data.actions, ...(next as ActionsBody).data.actions],
@@ -792,6 +798,49 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Subathons too, apart from their settings, which are sent as the changed keys.
+  const handleSubathonAction = useCallback(
+    (elementId: string, action: SubathonAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the subathon.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "subathon",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.subathon) el.subathon = applySubathonAction(el.subathon, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
+  const handleSubathonSettings = useCallback(
+    (elementId: string, settings: SubathonSettings) => {
+      updateElement(
+        elementId,
+        "subathonSettings",
+        { data: { settings } },
+        (el) => {
+          if (el.subathon) el.subathon = applySubathonSettings(el.subathon, settings);
+        },
+        {
+          delay: DEBOUNCE_MS,
+          combine: (queued, next) => ({
+            data: {
+              settings: {
+                ...(queued as { data: { settings: SubathonSettings } }).data.settings,
+                ...(next as { data: { settings: SubathonSettings } }).data.settings,
+              },
+            },
+          }),
+        }
+      );
+    },
+    [updateElement]
+  );
+
   const handleDeleteOverlay = async () => {
     deletingOverlay.current = true;
     try {
@@ -841,6 +890,8 @@ export const useOverlayData = () => {
     handleTimerReset,
     handleTimerAddTime,
     handleCountdownAction,
+    handleSubathonAction,
+    handleSubathonSettings,
     handleDeleteOverlay,
     variablesVersion,
   };

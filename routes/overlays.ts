@@ -21,6 +21,7 @@ import {
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
+import { subathonSeed } from "../lib/subathon";
 import { iconSeed } from "../lib/icons";
 import { progressSeed } from "../lib/progress";
 import { bindingSeeds, OWN_TWITCH_SOURCE } from "../lib/bindings";
@@ -70,12 +71,15 @@ function buildElementCreates(
     if (element.counter) {
       data.counter = { create: { value: element.counter.value } };
     }
-    // Timers and countdowns start out stopped; only a countdown's settings are copied.
+    // Timers, countdowns and subathons start out stopped; only their settings are copied.
     if (element.type === "TIMER") {
       data.timer = { create: {} };
     }
     if (element.type === "COUNTDOWN") {
       data.countdown = { create: countdownSeed(element.countdown) };
+    }
+    if (element.type === "SUBATHON") {
+      data.subathon = { create: subathonSeed(element.subathon) };
     }
     // Bound by name: in another account they show that account's variables of the same name.
     const bindings = bindingSeeds(element.type, element.bindings).flatMap((binding) =>

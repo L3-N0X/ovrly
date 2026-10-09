@@ -45,6 +45,8 @@ const OverlayPage: React.FC = () => {
     handleTimerReset,
     handleTimerAddTime,
     handleCountdownAction,
+    handleSubathonAction,
+    handleSubathonSettings,
     handleDeleteOverlay,
     handleBindingChange,
     variablesVersion,
@@ -82,6 +84,8 @@ const OverlayPage: React.FC = () => {
       onTimerReset: handleTimerReset,
       onTimerAddTime: handleTimerAddTime,
       onCountdownAction: handleCountdownAction,
+      onSubathonAction: handleSubathonAction,
+      onSubathonSettings: handleSubathonSettings,
     }),
     [
       handleCounterChange,
@@ -95,6 +99,8 @@ const OverlayPage: React.FC = () => {
       handleTimerReset,
       handleTimerAddTime,
       handleCountdownAction,
+      handleSubathonAction,
+      handleSubathonSettings,
     ]
   );
 

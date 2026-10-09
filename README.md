@@ -26,6 +26,7 @@ All Elements are editable to change their content.
 * **Counter:** Keep track of numbers (e.g., wins, deaths, donations).
 * **Timer:** Count up for speedruns, events, or breaks.
 * **Countdown:** Count down from a set time, or to a date and time (e.g. your stream start).
+* **Subathon:** A countdown that Twitch subs and cheers of your connected channel add time to, with per-tier rates, a happy hour multiplier and an optional cap.
 * **Image:** Add player photos, logos, or more.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.

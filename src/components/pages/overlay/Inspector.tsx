@@ -10,11 +10,13 @@ import {
   ElementStyleEditor,
 } from "@/components/overlay/editor/elementlist/ElementInspector";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
+import { SubathonSettingsEditor } from "@/components/overlay/editor/SubathonEditor";
 import { flattenTree, isPlacedFreely } from "@/components/overlay/editor/elementlist/tree";
 import { cn } from "@/lib/utils";
 import {
   canvasSize,
   CanvasModeEnum,
+  ElementTypeEnum,
   hasContent,
   type OnOverlayChange,
   type PrismaElement,
@@ -191,6 +193,14 @@ const ElementPanel = ({
       {hasContent(element.type) && (
         <PanelSection title="Content">
           <ElementContentControl element={element} handlers={content} />
+        </PanelSection>
+      )}
+      {element.type === ElementTypeEnum.SUBATHON && element.subathon && (
+        <PanelSection title="Subathon">
+          <SubathonSettingsEditor
+            element={element}
+            onChange={(settings) => content.onSubathonSettings(element.id, settings)}
+          />
         </PanelSection>
       )}
       {isPlacedFreely(overlay, element) && (

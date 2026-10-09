@@ -5,6 +5,7 @@ import type {
   PrismaElement,
   ContainerStyle,
   IconStyle,
+  SubathonStyle,
   TimerStyle,
 } from "@/lib/types";
 import Title from "./Title";
@@ -12,6 +13,7 @@ import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
 import Countdown from "./Countdown";
+import Subathon from "./Subathon";
 import Icon from "./Icon";
 import Rectangle from "./Rectangle";
 import ProgressBar from "./ProgressBar";
@@ -26,7 +28,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer, countdown, icon } = element;
+  const { type, style, title, counter, timer, countdown, subathon, icon } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -52,6 +54,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
       case "COUNTDOWN":
         return countdown ? (
           <Countdown countdown={countdown} style={(style || {}) as TimerStyle} />
+        ) : null;
+      case "SUBATHON":
+        return subathon ? (
+          <Subathon subathon={subathon} style={(style || {}) as SubathonStyle} />
         ) : null;
       case "CONTAINER":
         return (

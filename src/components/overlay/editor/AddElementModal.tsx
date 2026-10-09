@@ -18,6 +18,7 @@ import {
   Grid3x3,
   Hash,
   Heart,
+  HeartPulse,
   Hourglass,
   Image,
   Loader2,
@@ -116,6 +117,22 @@ const CONTENT_OPTIONS: ElementOption[] = [
     preview: (
       <Stage>
         <span className="text-2xl font-bold tabular-nums">00:04:59</span>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.SUBATHON,
+    label: "Subathon",
+    description: "A countdown that Twitch subs and cheers add time to.",
+    icon: HeartPulse,
+    preview: (
+      <Stage>
+        <div className="relative">
+          <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-xs font-semibold text-emerald-300">
+            +5m
+          </span>
+          <span className="text-2xl font-bold tabular-nums">12:34:56</span>
+        </div>
       </Stage>
     ),
   },

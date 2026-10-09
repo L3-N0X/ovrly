@@ -6,6 +6,7 @@ import {
   Grid3x3,
   Hash,
   Hourglass,
+  HeartPulse,
   Image,
   Rows3,
   Shapes,
@@ -30,6 +31,8 @@ export const ElementTypeIcon = ({
       return <Timer className={className} />;
     case ElementTypeEnum.COUNTDOWN:
       return <Hourglass className={className} />;
+    case ElementTypeEnum.SUBATHON:
+      return <HeartPulse className={className} />;
     case ElementTypeEnum.ICON:
       return <Shapes className={className} />;
     case ElementTypeEnum.IMAGE:

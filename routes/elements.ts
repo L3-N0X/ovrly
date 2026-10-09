@@ -20,6 +20,15 @@ import {
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { isIconLibrary, isIconName } from "../lib/icons";
 import { parseProgressPatch } from "../lib/progress";
+import {
+  applySubathonAction,
+  applySubathonSettings,
+  parseSubathonActions,
+  parseSubathonSettings,
+  subathonColumns,
+  type SubathonState,
+} from "../lib/subathon";
+import { syncSubathonListeners } from "../services/twitch-events";
 import { isBindableProperty, isContentProperty, parseBindingTarget } from "../lib/bindings";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
@@ -35,6 +44,7 @@ const ELEMENT_TYPES = [
   "ICON",
   "RECTANGLE",
   "PROGRESS",
+  "SUBATHON",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -54,6 +64,11 @@ const requiredRoleForPatch = (body: Record<string, unknown>, elementType: string
     return "EDITOR" as const;
   }
   const data = body.data;
+  // A subathon's settings (its channel, what events are worth) are part of its design; running
+  // it, including a happy hour multiplier, is content.
+  if (elementType === "SUBATHON" && data && typeof data === "object" && "settings" in data) {
+    return "EDITOR" as const;
+  }
   if (
     elementType === "BINGO" &&
     data &&
@@ -136,6 +151,9 @@ export const handleElementsRoutes = async (
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "COUNTDOWN") {
         elementCreateData.countdown = { create: {} };
+      } else if (type === "SUBATHON") {
+        // Listens to the owner's own channel until another one is picked.
+        elementCreateData.subathon = { create: {} };
       } else if (type === "ICON") {
         elementCreateData.icon = { create: {} };
       } else if (type === "PROGRESS") {
@@ -389,7 +407,7 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true, countdown: true },
+            include: { bingo: true, timer: true, countdown: true, subathon: true },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -504,6 +522,25 @@ export const handleElementsRoutes = async (
                 update: { mode, duration, remaining, endsAt, targetAt },
               };
             }
+            if (element.type === "SUBATHON" && (data.actions !== undefined || data.settings !== undefined)) {
+              if (!current.subathon) {
+                return { error: json({ error: "Subathon not found" }, 404) };
+              }
+              let next = current.subathon as SubathonState;
+              if (data.settings !== undefined) {
+                const settings = parseSubathonSettings(data.settings);
+                if (!settings) return { error: json({ error: "Invalid subathon settings" }, 400) };
+                next = applySubathonSettings(next, settings);
+              }
+              if (data.actions !== undefined) {
+                const parsed = parseSubathonActions(data.actions);
+                if (!parsed) return { error: json({ error: "Invalid subathon actions" }, 400) };
+                // Applied with the server's clock, so it doesn't matter whose clock is off.
+                const now = Date.now();
+                next = parsed.reduce((subathon, action) => applySubathonAction(subathon, action, now), next);
+              }
+              elementUpdateData.subathon = { update: subathonColumns(next) };
+            }
             if (element.type === "BINGO") {
               if (!current.bingo) {
                 return { error: json({ error: "Bingo data not found" }, 404) };
@@ -557,6 +594,8 @@ export const handleElementsRoutes = async (
           return { ok: true };
         });
         if ("error" in result) return result.error;
+        // Started, paused or moved to another channel: the channels listened to may change.
+        if (element.type === "SUBATHON" && data) syncSubathonListeners();
 
         const overlay = await publishOverlay(server, element.overlayId, writeIdOf(req));
         const updatedElement = overlay?.elements.find((el) => el.id === elementId) ?? null;
