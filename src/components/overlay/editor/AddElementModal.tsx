@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import { ElementTypeEnum, type ElementType, type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 import { GRID_ITEM_ATTRIBUTE, handleGridKeyDown } from "@/lib/gridNavigation";
+import { focusSearchOnType } from "@/lib/typeToSearch";
+import { Input } from "@/components/ui/input";
 import { insertComponent, type OverlayComponent } from "@/lib/components";
 import { ComponentPicker, type Notice } from "@/components/library/ComponentPicker";
 import { PanelTabs } from "@/components/pages/overlay/PanelTabs";
@@ -29,6 +31,7 @@ import {
   Plus,
   Rows3,
   ScrollText,
+  Search,
   Shapes,
   Square,
   Star,
@@ -302,11 +305,17 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
   // The type or component being added, while its request is on the way.
   const [adding, setAdding] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const setOpen = (next: boolean) => {
     // Held open while adding, so the new element doesn't show up out of the blue.
     if (!next && adding) return;
-    if (!next) setNotice(null);
+    if (!next) {
+      setNotice(null);
+      setSearch("");
+    }
     setInternalOpen(next);
     onOpenChange?.(next);
   };
@@ -327,6 +336,7 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
     const top = newElements.find((el) => !el.parentId || !addedIds.has(el.parentId));
     if (top) onAdded?.(top.id);
     setAdding(null);
+    setSearch("");
     setInternalOpen(false);
     onOpenChange?.(false);
   };
@@ -373,13 +383,34 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
     }
   };
 
-  const renderOptions = (title: string, options: ElementOption[], autoFocusFirst = false) => (
+  const term = search.trim().toLowerCase();
+  const matches = (options: ElementOption[]) =>
+    options.filter(
+      (option) =>
+        !term ||
+        option.label.toLowerCase().includes(term) ||
+        option.description.toLowerCase().includes(term)
+    );
+  const contentOptions = matches(CONTENT_OPTIONS);
+  const layoutOptions = matches(LAYOUT_OPTIONS);
+
+  // Enter in the search field adds the first match, the arrow keys move on to the cards.
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" && e.key !== "ArrowDown") return;
+    const first = listRef.current?.querySelector<HTMLElement>(`[${GRID_ITEM_ATTRIBUTE}]`);
+    if (!first) return;
+    e.preventDefault();
+    if (e.key === "Enter") first.click();
+    else first.focus();
+  };
+
+  const renderOptions = (title: string, options: ElementOption[]) => (
     <section className="space-y-3">
       <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         {title}
       </h3>
       <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 md:grid-cols-3">
-        {options.map((option, index) => {
+        {options.map((option) => {
           const Icon = option.icon;
           const isAdding = adding === option.type;
           return (
@@ -387,8 +418,6 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
               key={option.type}
               type="button"
               {...{ [GRID_ITEM_ATTRIBUTE]: "" }}
-              // Enter adds the first option straight away.
-              autoFocus={autoFocusFirst && index === 0}
               onClick={() => handleAddElement(option.type)}
               aria-disabled={!!adding}
               className={cn(
@@ -436,7 +465,11 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="flex max-h-[min(90dvh,860px)] flex-col gap-0 p-0 sm:max-w-4xl">
+      <DialogContent
+        className="flex max-h-[min(90dvh,860px)] flex-col gap-0 p-0 sm:max-w-4xl"
+        // Typing anywhere in the dialog searches.
+        onKeyDown={(e) => focusSearchOnType(e.nativeEvent, searchRef.current)}
+      >
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Add an element</DialogTitle>
           <DialogDescription>
@@ -445,7 +478,22 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
         </DialogHeader>
         <PanelTabs label="Add" tabs={ADD_TABS} value={tab} onValueChange={setTab} />
 
+        <div className="relative px-6 pt-4">
+          <Search className="pointer-events-none absolute top-1/2 left-9 mt-2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder={tab === "elements" ? "Search elements…" : "Search components…"}
+            aria-label={tab === "elements" ? "Search elements" : "Search components"}
+            className="pl-9"
+          />
+        </div>
+
         <div
+          ref={listRef}
           className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5"
           onKeyDown={handleGridKeyDown}
         >
@@ -469,11 +517,17 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
           )}
           {tab === "elements" ? (
             <>
-              {renderOptions("Content", CONTENT_OPTIONS, true)}
-              {renderOptions("Layout", LAYOUT_OPTIONS)}
+              {contentOptions.length > 0 && renderOptions("Content", contentOptions)}
+              {layoutOptions.length > 0 && renderOptions("Layout", layoutOptions)}
+              {contentOptions.length === 0 && layoutOptions.length === 0 && (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  No elements match “{search.trim()}”.
+                </p>
+              )}
             </>
           ) : (
             <ComponentPicker
+              search={search}
               variables={overlay.variables}
               adding={adding}
               disabled={!!adding}

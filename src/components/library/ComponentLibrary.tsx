@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -42,6 +42,7 @@ import {
   updateComponent,
   type OverlayComponent,
 } from "@/lib/components";
+import { focusSearchOnType } from "@/lib/typeToSearch";
 import { cn, timeAgo } from "@/lib/utils";
 import { ComponentDetailsForm } from "./ComponentDetailsForm";
 import ComponentPreview from "./ComponentPreview";
@@ -65,6 +66,18 @@ export const ComponentLibrary: React.FC = () => {
   if (editTarget && editTarget !== shownEditTarget) setShownEditTarget(editTarget);
   const [shownDeleteTarget, setShownDeleteTarget] = useState(deleteTarget);
   if (deleteTarget && deleteTarget !== shownDeleteTarget) setShownDeleteTarget(deleteTarget);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Typing anywhere on the page searches, unless a dialog or menu is open.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && e.target.closest("[role='dialog'], [role='menu']"))
+        return;
+      focusSearchOnType(e, searchRef.current);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const setComponents = (update: (current: OverlayComponent[]) => OverlayComponent[]) =>
     queryClient.setQueryData<OverlayComponent[]>(COMPONENTS_QUERY_KEY, (current) =>
@@ -152,6 +165,7 @@ export const ComponentLibrary: React.FC = () => {
             <div className="relative flex-1 sm:w-64 sm:flex-none">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search components…"

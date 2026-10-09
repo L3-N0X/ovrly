@@ -23,6 +23,8 @@ export interface Notice {
 // The "My components" tab of the add element dialog: the user's components, one click adds a
 // copy. Files can be imported right here too.
 export const ComponentPicker: React.FC<{
+  // Narrows the list to components whose name or description contains it.
+  search?: string;
   // The overlay's variables, so previews show what the component will show there.
   variables?: OverlayVariable[];
   // The component being added, while its request is on the way.
@@ -30,7 +32,7 @@ export const ComponentPicker: React.FC<{
   disabled: boolean;
   onPick: (component: OverlayComponent) => void;
   onNotice: (notice: Notice | null) => void;
-}> = ({ variables, adding, disabled, onPick, onNotice }) => {
+}> = ({ search = "", variables, adding, disabled, onPick, onNotice }) => {
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: COMPONENTS_QUERY_KEY, queryFn: fetchComponents });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -101,6 +103,11 @@ export const ComponentPicker: React.FC<{
   }
 
   const components = query.data;
+  const term = search.trim().toLowerCase();
+  const visible = components.filter(
+    (c) =>
+      !term || c.name.toLowerCase().includes(term) || c.description?.toLowerCase().includes(term)
+  );
   if (components.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-14 text-center">
@@ -127,8 +134,13 @@ export const ComponentPicker: React.FC<{
         </h3>
         {importButton}
       </div>
+      {visible.length === 0 && (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          No components match “{search.trim()}”.
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 md:grid-cols-3">
-        {components.map((component, index) => {
+        {visible.map((component) => {
           const isAdding = adding === component.id;
           const count = countComponentElements(component.elements);
           return (
@@ -136,7 +148,6 @@ export const ComponentPicker: React.FC<{
               key={component.id}
               type="button"
               {...{ [GRID_ITEM_ATTRIBUTE]: "" }}
-              autoFocus={index === 0}
               onClick={() => onPick(component)}
               aria-disabled={disabled}
               className={cn(
