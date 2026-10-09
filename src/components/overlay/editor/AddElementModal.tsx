@@ -24,6 +24,7 @@ import {
   Loader2,
   Plus,
   Rows3,
+  ScrollText,
   Shapes,
   Square,
   Star,
@@ -210,6 +211,28 @@ const LAYOUT_OPTIONS: ElementOption[] = [
           <div className="h-2.5 w-20 rounded-sm bg-white/80" />
           <div className="h-2.5 w-14 rounded-sm bg-white/50" />
           <div className="h-2.5 w-16 rounded-sm bg-white/50" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.SCROLLER,
+    label: "Scroller",
+    description:
+      "Lines up the elements inside it in a box of a set size and scrolls through them when they don't fit.",
+    icon: ScrollText,
+    preview: (
+      <Stage>
+        <div className="relative h-16 w-24 overflow-hidden rounded-md border border-dashed border-sky-400/70">
+          <div className="flex animate-[scroller-preview_6s_ease-in-out_infinite] flex-col gap-1 p-1.5">
+            {[20, 14, 16, 12, 18, 14, 20].map((width, index) => (
+              <div
+                key={index}
+                className="h-2.5 shrink-0 rounded-sm bg-white/60"
+                style={{ width: `${width * 4}px` }}
+              />
+            ))}
+          </div>
         </div>
       </Stage>
     ),

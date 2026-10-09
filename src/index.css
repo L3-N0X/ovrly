@@ -244,3 +244,18 @@
     transform: translate(-50%, -0.4em);
   }
 }
+
+/* The scroller's picture in the add element dialog: down to the end, wait, back up, wait. */
+@keyframes scroller-preview {
+  0%,
+  20% {
+    transform: translateY(0);
+  }
+  50%,
+  70% {
+    transform: translateY(-2.5rem);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}

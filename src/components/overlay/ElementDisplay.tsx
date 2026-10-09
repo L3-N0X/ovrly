@@ -21,6 +21,7 @@ import ProgressBar from "./ProgressBar";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
+import Scroller from "./Scroller";
 import { CANVAS_ELEMENT_ATTRIBUTE, useCanvasSelection } from "./canvasSelection";
 
 interface ElementDisplayProps {
@@ -67,6 +68,14 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
               <ElementDisplay key={child.id} element={child} elements={elements} />
             ))}
           </Container>
+        );
+      case "SCROLLER":
+        return (
+          <Scroller element={element}>
+            {children.map((child) => (
+              <ElementDisplay key={child.id} element={child} elements={elements} />
+            ))}
+          </Scroller>
         );
       case "ICON":
         return icon ? (

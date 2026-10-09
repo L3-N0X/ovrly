@@ -17,6 +17,7 @@ import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { ProgressEditor } from "../ProgressEditor";
 import { RectangleEditor } from "../RectangleEditor";
+import { ScrollerEditor } from "../ScrollerEditor";
 import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
@@ -116,6 +117,8 @@ export const ElementStyleEditor = ({
       return <GroupEditor {...editorProps} />;
     case ElementTypeEnum.RECTANGLE:
       return <RectangleEditor {...editorProps} />;
+    case ElementTypeEnum.SCROLLER:
+      return <ScrollerEditor {...editorProps} />;
     case ElementTypeEnum.PROGRESS:
       return <ProgressEditor {...editorProps} />;
   }

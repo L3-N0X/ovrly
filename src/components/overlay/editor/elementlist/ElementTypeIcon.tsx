@@ -9,6 +9,7 @@ import {
   HeartPulse,
   Image,
   Rows3,
+  ScrollText,
   Shapes,
   Square,
   Timer,
@@ -43,6 +44,8 @@ export const ElementTypeIcon = ({
       return <Frame className={className} />;
     case ElementTypeEnum.RECTANGLE:
       return <Square className={className} />;
+    case ElementTypeEnum.SCROLLER:
+      return <ScrollText className={className} />;
     case ElementTypeEnum.PROGRESS:
       return <ChartNoAxesGantt className={className} />;
     case ElementTypeEnum.CONTAINER: {

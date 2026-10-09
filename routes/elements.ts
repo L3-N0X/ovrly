@@ -45,6 +45,7 @@ const ELEMENT_TYPES = [
   "RECTANGLE",
   "PROGRESS",
   "SUBATHON",
+  "SCROLLER",
 ];
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
@@ -164,6 +165,8 @@ export const handleElementsRoutes = async (
         elementCreateData.bingo = { create: createBingoState() };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
+      } else if (type === "SCROLLER") {
+        // Lays its children out like a container; the size falls back to the defaults.
       } else if (type === "GROUP") {
         // Children are positioned freely inside it; it starts out covering the whole canvas,
         // whose size is filled in below, under the overlay's lock.
@@ -437,7 +440,7 @@ export const handleElementsRoutes = async (
                     where: {
                       id: parentId,
                       overlayId: element.overlayId,
-                      type: { in: ["CONTAINER", "GROUP"] },
+                      type: { in: ["CONTAINER", "GROUP", "SCROLLER"] },
                     },
                     select: { id: true },
                   })

@@ -13,11 +13,14 @@ export const ElementTypeEnum = {
   RECTANGLE: "RECTANGLE",
   PROGRESS: "PROGRESS",
   SUBATHON: "SUBATHON",
+  SCROLLER: "SCROLLER",
 } as const;
 
 // Element types that hold other elements.
 export const isParentType = (type: ElementType) =>
-  type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
+  type === ElementTypeEnum.CONTAINER ||
+  type === ElementTypeEnum.GROUP ||
+  type === ElementTypeEnum.SCROLLER;
 
 // Whether an element is drawn: only `style.visible: false` (stored or bound) hides it.
 export const isElementVisible = (element: { style: ElementStyle | null }) =>
@@ -231,6 +234,47 @@ export const BORDER_RADIUS_RANGE = { min: 0, max: 200 };
 export const DEFAULT_RECTANGLE_WIDTH = 320;
 export const DEFAULT_RECTANGLE_HEIGHT = 200;
 
+// How a scroller moves content that doesn't fit: `bounce` scrolls to the end, waits, scrolls back
+// and waits again; `loop` scrolls on forever, the first child following the last one again.
+export type ScrollerMode = "bounce" | "loop";
+
+// Specific style for a Scroller element: lays its children out like a container, in a box of at
+// most `width` by `height`, and scrolls them by itself when they are longer than that.
+export interface ScrollerStyle extends BaseElementStyle {
+  /** "vertical" by default: the children stack in a column and scroll up. */
+  direction?: "vertical" | "horizontal";
+  /** "bounce" by default. */
+  mode?: ScrollerMode;
+  /** The size of the box; the side it scrolls along is a maximum when `fitContent` is on. */
+  width?: number;
+  height?: number;
+  /** On by default: while the children fit, the side it scrolls along shrinks to them. */
+  fitContent?: boolean;
+  /** Pixels per second. */
+  speed?: number;
+  /** Seconds to wait at each end, in bounce mode. */
+  pause?: number;
+  gap?: number;
+  paddingX?: number;
+  paddingY?: number;
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
+  /** Transparent by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
+}
+
+export const DEFAULT_SCROLLER_WIDTH = 400;
+export const DEFAULT_SCROLLER_HEIGHT = 240;
+export const DEFAULT_SCROLLER_SPEED = 40;
+export const DEFAULT_SCROLLER_PAUSE = 2;
+export const SCROLLER_SPEED_RANGE = { min: 1, max: 2000 };
+export const SCROLLER_PAUSE_RANGE = { min: 0, max: 60 };
+
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
@@ -332,6 +376,7 @@ export type ElementStyle =
   | RectangleStyle
   | ProgressStyle
   | BingoStyle
+  | ScrollerStyle
   | GroupStyle;
 
 // The generic Element object from the backend
