@@ -23,8 +23,8 @@ interface ContainerProps {
 
 const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
   const safeStyle = style || {};
-  const fixedWidth = safeStyle.autoWidth === false;
-  const fixedHeight = safeStyle.autoHeight === false;
+  const fixedWidth = safeStyle.autoWidth !== true;
+  const fixedHeight = safeStyle.autoHeight !== true;
   const { dragSize, handle } = useElementResize(element, MIN_CONTAINER_SIZE, {
     width: fixedWidth,
     height: fixedHeight,
@@ -45,7 +45,7 @@ const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
     flexDirection: safeStyle.flexDirection || "column",
     gap: typeof safeStyle.gap === "number" ? `${safeStyle.gap}px` : undefined,
     justifyContent: safeStyle.justifyContent || "flex-start",
-    // Automatic: as wide as the parent allows and as tall as the children need.
+    // Automatic sizing fills the parent's width and grows to fit the children.
     position: "relative",
     width: fixedWidth ? `${width}px` : "100%",
     height: fixedHeight ? `${height}px` : "auto",

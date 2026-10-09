@@ -1,6 +1,6 @@
 import React from "react";
 import type {
-  BaseElementStyle,
+  TitleStyle,
   CounterStyle,
   PrismaElement,
   ContainerStyle,
@@ -40,7 +40,7 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
   const renderElement = () => {
     switch (type) {
       case "TITLE":
-        return title ? <Title text={title.text} style={(style || {}) as BaseElementStyle} /> : null;
+        return title ? <Title text={title.text} style={(style || {}) as TitleStyle} /> : null;
       case "COUNTER":
         return counter ? (
           <Counter value={counter.value} style={(style || {}) as CounterStyle} />

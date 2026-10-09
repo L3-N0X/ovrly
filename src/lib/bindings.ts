@@ -54,12 +54,25 @@ const BOX_STYLE = {
   "style.radius": "number",
 } as const;
 
+const TIMER_STYLE = {
+  ...BOX_STYLE,
+  "style.paddingX": "number",
+  "style.paddingY": "number",
+} as const;
+
 export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind>> = {
-  TITLE: { text: "text", ...TEXT_STYLE, ...POSITION, ...VISIBILITY },
+  TITLE: {
+    text: "text",
+    ...TEXT_STYLE,
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    ...POSITION,
+    ...VISIBILITY,
+  },
   COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...VISIBILITY },
-  TIMER: { ...BOX_STYLE, ...POSITION, ...VISIBILITY },
-  COUNTDOWN: { ...BOX_STYLE, ...POSITION, ...VISIBILITY },
-  SUBATHON: { ...BOX_STYLE, ...POSITION, ...VISIBILITY },
+  TIMER: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  COUNTDOWN: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  SUBATHON: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
   IMAGE: {
     src: "image",
     "style.width": "number",

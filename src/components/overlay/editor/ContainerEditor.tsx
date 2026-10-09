@@ -51,8 +51,8 @@ export const ContainerEditor: React.FC<{
     onChange(updatedStyle);
   };
 
-  const autoWidth = style.autoWidth !== false;
-  const autoHeight = style.autoHeight !== false;
+  const autoWidth = style.autoWidth === true;
+  const autoHeight = style.autoHeight === true;
 
   // Switching an automatic side off keeps the size the container has right now.
   const setAuto = (side: "width" | "height", auto: boolean) => {

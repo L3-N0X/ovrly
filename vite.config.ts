@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -16,6 +17,14 @@ export default defineConfig({
     ],
   },
   server: {
+    // Spotify requires the loopback IP literal in its OAuth redirect URI. Vite's
+    // default "localhost" bind resolves to IPv6 on this machine, so 127.0.0.1
+    // otherwise refuses the connection.
+    host: "127.0.0.1",
+    https: {
+      cert: fs.readFileSync(path.resolve(import.meta.dirname, ".certs/127.0.0.1.pem")),
+      key: fs.readFileSync(path.resolve(import.meta.dirname, ".certs/127.0.0.1-key.pem")),
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3000",

@@ -2,7 +2,7 @@ import { ColorField } from "@/components/ui/color-picker";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { BindableField } from "@/components/variables/BindableField";
-import { type BaseElementStyle, type PrismaElement } from "@/lib/types";
+import { type PrismaElement, type TitleStyle } from "@/lib/types";
 import { fontWeightOf } from "@/lib/fonts";
 import React, { useMemo, useState } from "react";
 import { FontPicker } from "../../FontPicker";
@@ -11,18 +11,18 @@ import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export const TitleStyleEditor: React.FC<{
   element: PrismaElement;
-  onChange: (newStyle: BaseElementStyle) => void;
+  onChange: (newStyle: TitleStyle) => void;
 }> = ({ element, onChange }) => {
   const [isPickingColor, setIsPickingColor] = useState(false);
 
   // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
   // new value to mean the server sent a new one.
-  const serverStyle = useMemo(() => (element.style as BaseElementStyle) || {}, [element.style]);
+  const serverStyle = useMemo(() => (element.style as TitleStyle) || {}, [element.style]);
   // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
   const { value: style, setValue: setStyle } = useLocalCopy(serverStyle, isPickingColor);
 
   // Shown on the canvas right away; saving is debounced by the overlay itself.
-  const handleStyleChange = (newStyle: Partial<BaseElementStyle>) => {
+  const handleStyleChange = (newStyle: Partial<TitleStyle>) => {
     const updatedStyle = { ...style, ...newStyle };
     setStyle(updatedStyle);
     onChange(updatedStyle);
@@ -66,6 +66,24 @@ export const TitleStyleEditor: React.FC<{
           value={style.color || "#ffffff"}
           onChange={(color) => handleStyleChange({ color })}
           onOpenChange={setIsPickingColor}
+        />
+      </BindableField>
+      <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
+        <NumberField
+          id={id("padding-x")}
+          value={typeof style?.paddingX === "number" ? style.paddingX : 0}
+          min={0}
+          unit="px"
+          onChange={(paddingX) => handleStyleChange({ paddingX })}
+        />
+      </BindableField>
+      <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
+        <NumberField
+          id={id("padding-y")}
+          value={typeof style?.paddingY === "number" ? style.paddingY : 0}
+          min={0}
+          unit="px"
+          onChange={(paddingY) => handleStyleChange({ paddingY })}
         />
       </BindableField>
     </div>

@@ -127,6 +127,12 @@ export interface BaseElementStyle {
   visible?: boolean;
 }
 
+// Specific style for a Title element
+export interface TitleStyle extends BaseElementStyle {
+  paddingX?: number;
+  paddingY?: number;
+}
+
 // Specific style for a Counter element
 export interface CounterStyle extends BaseElementStyle {
   backgroundColor?: string;
@@ -137,7 +143,10 @@ export interface CounterStyle extends BaseElementStyle {
 // Specific style for a Timer or Countdown element
 export interface TimerStyle extends BaseElementStyle {
   backgroundColor?: string;
+  /** Older timers may still store uniform padding; paddingX/paddingY take precedence per axis. */
   padding?: number;
+  paddingX?: number;
+  paddingY?: number;
   radius?: number;
   format?: string;
 }
@@ -166,7 +175,7 @@ export interface IconStyle extends BaseElementStyle {
 
 // Specific style for a Container element
 export interface ContainerStyle extends BaseElementStyle {
-  /** Both sizes are automatic unless switched off: the container fills its parent's width and grows with its children. */
+  /** Both sizes are fixed by default; automatic sizing can be enabled per side. */
   autoWidth?: boolean;
   autoHeight?: boolean;
   /** Used for the sides that are not automatic. */
@@ -367,6 +376,7 @@ export interface BingoStyle extends BaseElementStyle {
 // A union of all possible element style types
 export type ElementStyle =
   | BaseElementStyle
+  | TitleStyle
   | CounterStyle
   | ContainerStyle
   | TimerStyle

@@ -167,13 +167,25 @@ You need to set the following environment variables in a `.env` file in the root
     `postinstall` hook runs `prisma generate` for you.
 
 3. Create a `.env` file based on the environment variables below.
-4. Run the development server:
+4. Install [mkcert](https://github.com/FiloSottile/mkcert), trust its local CA, and create the Vite certificate:
+
+    ```bash
+    mkcert -install
+    mkdir -p .certs
+    mkcert -cert-file .certs/127.0.0.1.pem -key-file .certs/127.0.0.1-key.pem 127.0.0.1
+    ```
+
+    Set `APP_BASE_URL="https://127.0.0.1:5173"` in `.env`. Register
+    `https://127.0.0.1:5173/api/auth/callback/twitch` with Twitch and
+    `https://127.0.0.1:5173/api/spotify/callback` with Spotify.
+
+5. Run the development server:
 
     ```bash
     bun run dev
     ```
 
-    This will start the frontend at `http://localhost:5173` and the backend at
+    This will start the frontend at `https://127.0.0.1:5173` and the backend at
     `http://localhost:3000`. The backend hot reloads: save any backend file and it
     is restarted automatically, and a change to `prisma/schema.prisma` regenerates
     the Prisma client before the restart.
