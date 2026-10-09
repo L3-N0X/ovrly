@@ -13,6 +13,7 @@ import type { OverlaySummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
+  Blocks,
   Layers,
   Loader2,
   MonitorPlay,
@@ -26,9 +27,11 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import OverlayCard from "@/components/OverlayCard";
 import CreateOverlayModal from "@/components/CreateOverlayModal";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
+import { ComponentLibrary } from "@/components/library/ComponentLibrary";
 
 type Filter = "all" | "mine" | "shared";
 type Sort = "newest" | "oldest" | "name";
@@ -61,6 +64,9 @@ const HomePage: React.FC = () => {
   const [shownDeleteTarget, setShownDeleteTarget] = useState(deleteTarget);
   if (deleteTarget && deleteTarget !== shownDeleteTarget) setShownDeleteTarget(deleteTarget);
   const [shareOverlayId, setShareOverlayId] = useState<string | null>(null);
+  // Overlays, or the user's components; in the URL so the tab survives a reload.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get("view") === "components" ? "components" : "overlays";
 
   const userId = user?.user.id;
   const overlaysQuery = useQuery({
@@ -223,151 +229,185 @@ const HomePage: React.FC = () => {
             </p>
           </div>
         </div>
-        <Button onClick={openCreate}>
-          <Plus />
-          New overlay
-        </Button>
+        {view === "overlays" && (
+          <Button onClick={openCreate}>
+            <Plus />
+            New overlay
+          </Button>
+        )}
         <CreateOverlayModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       </header>
 
-      <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
-        <nav className="flex gap-1 overflow-x-auto" aria-label="Filter overlays">
-          {filters.map(({ value, label, count }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              aria-pressed={filter === value}
-              className={cn(
-                "flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-                filter === value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              )}
-            >
-              {label}
-              <span
-                className={cn(
-                  "rounded-full px-1.5 text-xs tabular-nums",
-                  filter === value ? "bg-primary-foreground/20" : "bg-muted"
-                )}
-              >
-                {count}
-              </span>
-            </button>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 lg:w-72 lg:flex-none">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search overlays or people…"
-              className="pr-8 pl-9"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-4" />
-              </button>
+      <div role="tablist" aria-label="Library" className="flex gap-6 border-b">
+        {(
+          [
+            { value: "overlays", label: "Overlays", icon: Layers },
+            { value: "components", label: "Components", icon: Blocks },
+          ] as const
+        ).map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={view === value}
+            onClick={() => setSearchParams(value === "components" ? { view: value } : {})}
+            className={cn(
+              "-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors outline-none focus-visible:text-foreground",
+              view === value
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
-          </div>
-          <Select value={sort} onValueChange={(value) => setSort(value as Sort)}>
-            <SelectTrigger className="w-40 shrink-0" aria-label="Sort overlays">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(SORT_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={fetchOverlays}
-            disabled={isLoading}
-            title="Refresh"
-            aria-label="Refresh"
           >
-            <RefreshCw className={cn(isLoading && "animate-spin")} />
-          </Button>
-        </div>
+            <Icon className="size-4" />
+            {label}
+          </button>
+        ))}
       </div>
 
-      {displayedError && (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertCircle className="size-4 shrink-0" />
-          <span className="flex-1">{displayedError}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void fetchOverlays()}
-          >
-            Try again
-          </Button>
-        </div>
-      )}
+      {view === "components" ? (
+        <ComponentLibrary />
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <nav className="flex gap-1 overflow-x-auto" aria-label="Filter overlays">
+              {filters.map(({ value, label, count }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFilter(value)}
+                  aria-pressed={filter === value}
+                  className={cn(
+                    "flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    filter === value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  {label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-xs tabular-nums",
+                      filter === value ? "bg-primary-foreground/20" : "bg-muted"
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </nav>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 lg:w-72 lg:flex-none">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search overlays or people…"
+                  className="pr-8 pl-9"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
+              <Select value={sort} onValueChange={(value) => setSort(value as Sort)}>
+                <SelectTrigger className="w-40 shrink-0" aria-label="Sort overlays">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SORT_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchOverlays}
+                disabled={isLoading}
+                title="Refresh"
+                aria-label="Refresh"
+              >
+                <RefreshCw className={cn(isLoading && "animate-spin")} />
+              </Button>
+            </div>
+          </div>
 
-      {!hasLoaded && isLoading ? (
-        <OverlayGrid>
-          {Array.from({ length: 6 }, (_, i) => (
-            <CardSkeleton key={i} />
-          ))}
-        </OverlayGrid>
-      ) : hasLoaded && overlays.length === 0 ? (
-        <EmptyState onCreate={openCreate} />
-      ) : visibleOverlays.length > 0 ? (
-        <OverlayGrid>
-          {visibleOverlays.map((overlay) => (
-            <OverlayCard
-              key={overlay.id}
-              overlay={overlay}
-              isCopied={copiedId === overlay.id}
-              onCopyPublicUrl={handleCopyPublicUrl}
-              onDuplicate={handleDuplicateOverlay}
-              onDelete={setDeleteTarget}
-              onManageAccess={setShareOverlayId}
-            />
-          ))}
-          {filter !== "shared" && !search && (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="group flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/5 hover:text-foreground"
-            >
-              <span className="flex size-12 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <Plus className="size-6" />
-              </span>
-              <span className="font-medium">New overlay</span>
-            </button>
+          {displayedError && (
+            <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              <span className="flex-1">{displayedError}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void fetchOverlays()}
+              >
+                Try again
+              </Button>
+            </div>
           )}
-        </OverlayGrid>
-      ) : hasLoaded ? (
-        <div className="flex flex-col items-center gap-2 py-20 text-center">
-          <Search className="size-8 text-muted-foreground" />
-          <p className="font-medium">
-            {search ? `No overlays match “${search.trim()}”` : "Nothing shared with you yet"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {search
-              ? "Try a different search or filter."
-              : "When someone shares an overlay with you, or adds you to their team, it shows up here."}
-          </p>
-          {search && (
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => setSearch("")}>
-              Clear search
-            </Button>
-          )}
-        </div>
-      ) : null}
+
+          {!hasLoaded && isLoading ? (
+            <OverlayGrid>
+              {Array.from({ length: 6 }, (_, i) => (
+                <CardSkeleton key={i} />
+              ))}
+            </OverlayGrid>
+          ) : hasLoaded && overlays.length === 0 ? (
+            <EmptyState onCreate={openCreate} />
+          ) : visibleOverlays.length > 0 ? (
+            <OverlayGrid>
+              {visibleOverlays.map((overlay) => (
+                <OverlayCard
+                  key={overlay.id}
+                  overlay={overlay}
+                  isCopied={copiedId === overlay.id}
+                  onCopyPublicUrl={handleCopyPublicUrl}
+                  onDuplicate={handleDuplicateOverlay}
+                  onDelete={setDeleteTarget}
+                  onManageAccess={setShareOverlayId}
+                />
+              ))}
+              {filter !== "shared" && !search && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="group flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/5 hover:text-foreground"
+                >
+                  <span className="flex size-12 items-center justify-center rounded-full bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    <Plus className="size-6" />
+                  </span>
+                  <span className="font-medium">New overlay</span>
+                </button>
+              )}
+            </OverlayGrid>
+          ) : hasLoaded ? (
+            <div className="flex flex-col items-center gap-2 py-20 text-center">
+              <Search className="size-8 text-muted-foreground" />
+              <p className="font-medium">
+                {search ? `No overlays match “${search.trim()}”` : "Nothing shared with you yet"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {search
+                  ? "Try a different search or filter."
+                  : "When someone shares an overlay with you, or adds you to their team, it shows up here."}
+              </p>
+              {search && (
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => setSearch("")}>
+                  Clear search
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </>
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}

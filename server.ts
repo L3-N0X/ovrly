@@ -13,6 +13,7 @@ import { handleTwitchRoutes } from "./routes/twitch";
 import { handleSpotifyRoutes } from "./routes/spotify";
 import { handlePublicApiRoutes } from "./routes/publicApi";
 import { handleVariablesRoutes } from "./routes/variables";
+import { handleComponentsRoutes } from "./routes/components";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
 import { refreshOpenedOverlay, startTwitchVariables } from "./services/twitch-variables";
@@ -157,6 +158,12 @@ const server = Bun.serve<WebSocketData>({
       const variablesResponse = await handleVariablesRoutes(req, server, reqPath);
       if (variablesResponse) {
         return variablesResponse;
+      }
+
+      // Handle component routes (elements saved to add to any overlay)
+      const componentsResponse = await handleComponentsRoutes(req, reqPath);
+      if (componentsResponse) {
+        return componentsResponse;
       }
 
       // Handle Twitch routes (connecting channels for their subscriber stats)

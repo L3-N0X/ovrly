@@ -130,7 +130,7 @@ async function createOverlayWithElements(
   });
 }
 
-const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
+export const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
   elements.some(
     (element) =>
       (Array.isArray(element.bindings) &&

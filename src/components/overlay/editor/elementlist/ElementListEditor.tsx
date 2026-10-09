@@ -41,11 +41,12 @@ export interface ElementListEditorProps {
   // An element id, OVERLAY_SELECTION for the overlay itself, or null.
   selectedId: string | null;
   onSelect: (elementId: string | null) => void;
-  // The right-click menu: copying and pasting next to an element, and deleting one (which
-  // asks first).
+  // The right-click menu: copying and pasting next to an element, saving one as a component
+  // and deleting one (both ask first).
   canPaste: boolean;
   onCopy: (elementId: string) => void;
   onPaste: (elementId: string) => void;
+  onRequestSaveAsComponent: (elementId: string) => void;
   onRequestDelete: (elementId: string) => void;
 }
 
@@ -70,6 +71,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   canPaste,
   onCopy,
   onPaste,
+  onRequestSaveAsComponent,
   onRequestDelete,
 }) => {
   const [collapsed, setCollapsed] = useState(() => loadCollapsed(overlay.id));
@@ -310,6 +312,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
                     canPaste={canPaste}
                     onCopy={() => onCopy(element.id)}
                     onPaste={() => onPaste(element.id)}
+                    onSaveAsComponent={() => onRequestSaveAsComponent(element.id)}
                     onDelete={() => onRequestDelete(element.id)}
                   />
                   {isOpenEmptyParent && (

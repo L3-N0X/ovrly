@@ -11,8 +11,12 @@ import {
 import { cn } from "@/lib/utils";
 import { ElementTypeEnum, type ElementType, type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 import { GRID_ITEM_ATTRIBUTE, handleGridKeyDown } from "@/lib/gridNavigation";
+import { insertComponent, type OverlayComponent } from "@/lib/components";
+import { ComponentPicker, type Notice } from "@/components/library/ComponentPicker";
+import { PanelTabs } from "@/components/pages/overlay/PanelTabs";
 import {
   AlertCircle,
+  Info,
   ChartNoAxesGantt,
   Frame,
   Grid3x3,
@@ -267,6 +271,11 @@ const LAYOUT_OPTIONS: ElementOption[] = [
   },
 ];
 
+const ADD_TABS = [
+  { value: "elements", label: "Elements" },
+  { value: "components", label: "My components" },
+] as const;
+
 interface AddElementModalProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
@@ -289,16 +298,37 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
 }) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
-  // The type being added, while its request is on the way.
-  const [adding, setAdding] = useState<ElementType | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"elements" | "components">("elements");
+  // The type or component being added, while its request is on the way.
+  const [adding, setAdding] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   const setOpen = (next: boolean) => {
     // Held open while adding, so the new element doesn't show up out of the blue.
     if (!next && adding) return;
-    if (!next) setError(null);
+    if (!next) setNotice(null);
     setInternalOpen(next);
     onOpenChange?.(next);
+  };
+
+  // Takes the new elements (`added`, or the ones that weren't known before) from the overlay
+  // the server answers with, selects the top one and closes the dialog. Adopting the whole
+  // response would revert local edits that haven't been saved yet (and save the older values
+  // again).
+  const adopt = (updatedOverlay: PrismaOverlay, added?: string[]) => {
+    const known = new Set(overlay.elements.map((el) => el.id));
+    const addedIds = new Set(added ?? updatedOverlay.elements.filter((el) => !known.has(el.id)).map((el) => el.id));
+    const newElements = updatedOverlay.elements.filter((el) => addedIds.has(el.id));
+    onOverlayChange((current) => {
+      const known = new Set(current.elements.map((el) => el.id));
+      return { ...current, elements: [...current.elements, ...newElements.filter((el) => !known.has(el.id))] };
+    });
+    // The top one, not what is nested in it.
+    const top = newElements.find((el) => !el.parentId || !addedIds.has(el.parentId));
+    if (top) onAdded?.(top.id);
+    setAdding(null);
+    setInternalOpen(false);
+    onOpenChange?.(false);
   };
 
   // Adds the element right away. It's named after its type ("Counter 2"), like a new layer
@@ -306,7 +336,7 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
   const handleAddElement = async (elementType: ElementType) => {
     if (adding) return;
     setAdding(elementType);
-    setError(null);
+    setNotice(null);
     try {
       const response = await fetch(`/api/overlays/${overlay.id}/elements`, {
         method: "POST",
@@ -317,24 +347,28 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
         body: JSON.stringify({ type: elementType }),
       });
       if (!response.ok) throw new Error(`Failed to add element (${response.status})`);
-
-      // Only the new element is taken from the response. Adopting the whole response would
-      // revert local edits that haven't been saved yet (and save the older values again).
-      const updatedOverlay: PrismaOverlay = await response.json();
-      const known = new Set(overlay.elements.map((el) => el.id));
-      const newElement = updatedOverlay.elements.find((el) => !known.has(el.id));
-      onOverlayChange((current) => {
-        const known = new Set(current.elements.map((el) => el.id));
-        const added = updatedOverlay.elements.filter((el) => !known.has(el.id));
-        return { ...current, elements: [...current.elements, ...added] };
-      });
-      if (newElement) onAdded?.(newElement.id);
-      setAdding(null);
-      setInternalOpen(false);
-      onOpenChange?.(false);
+      adopt(await response.json());
     } catch (err) {
       console.error(err);
-      setError("The element couldn't be added. Please try again.");
+      setNotice({ tone: "error", message: "The element couldn't be added. Please try again." });
+      setAdding(null);
+    }
+  };
+
+  // Adds a copy of the component's elements at the end of the overlay.
+  const handleAddComponent = async (component: OverlayComponent) => {
+    if (adding) return;
+    setAdding(component.id);
+    setNotice(null);
+    try {
+      const { added, ...updatedOverlay } = await insertComponent(overlay.id, component.id);
+      adopt(updatedOverlay, added);
+    } catch (err) {
+      console.error(err);
+      setNotice({
+        tone: "error",
+        message: `The component couldn't be added. ${err instanceof Error ? err.message : ""}`.trim(),
+      });
       setAdding(null);
     }
   };
@@ -403,31 +437,54 @@ export const AddElementModal: React.FC<AddElementModalProps> = ({
         )}
       </DialogTrigger>
       <DialogContent className="flex max-h-[min(90dvh,860px)] flex-col gap-0 p-0 sm:max-w-4xl">
-        <DialogHeader className="border-b px-6 pt-6 pb-4">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Add an element</DialogTitle>
           <DialogDescription>
             Click one to add it. It's selected right away, so you can style and rename it.
           </DialogDescription>
         </DialogHeader>
+        <PanelTabs label="Add" tabs={ADD_TABS} value={tab} onValueChange={setTab} />
 
         <div
           className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5"
           onKeyDown={handleGridKeyDown}
         >
-          {error && (
+          {notice && (
             <p
-              role="alert"
-              className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role={notice.tone === "error" ? "alert" : "status"}
+              className={cn(
+                "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+                notice.tone === "error"
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : "bg-muted/50 text-muted-foreground"
+              )}
             >
-              <AlertCircle className="size-4 shrink-0" />
-              {error}
+              {notice.tone === "error" ? (
+                <AlertCircle className="size-4 shrink-0" />
+              ) : (
+                <Info className="size-4 shrink-0" />
+              )}
+              {notice.message}
             </p>
           )}
-          {renderOptions("Content", CONTENT_OPTIONS, true)}
-          {renderOptions("Layout", LAYOUT_OPTIONS)}
+          {tab === "elements" ? (
+            <>
+              {renderOptions("Content", CONTENT_OPTIONS, true)}
+              {renderOptions("Layout", LAYOUT_OPTIONS)}
+            </>
+          ) : (
+            <ComponentPicker
+              variables={overlay.variables}
+              adding={adding}
+              disabled={!!adding}
+              onPick={handleAddComponent}
+              onNotice={setNotice}
+            />
+          )}
         </div>
         <p className="hidden border-t bg-muted/30 px-6 py-2.5 text-xs text-muted-foreground sm:block">
-          Arrow keys to move between elements · Enter to add · Esc to close
+          Arrow keys to move between {tab === "elements" ? "elements" : "components"} · Enter to
+          add · Esc to close
         </p>
       </DialogContent>
     </Dialog>

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { hasRole } from "@/lib/sharing";
 import { useCopyPaste } from "@/components/pages/overlay/useCopyPaste";
 import { DeleteElementDialog, UndoDeleteToast } from "@/components/pages/overlay/ElementDeletion";
+import { SaveComponentDialog } from "@/components/library/SaveComponentDialog";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -65,6 +66,8 @@ const OverlayPage: React.FC = () => {
     setSelectedId(selection);
     if (selection) setPanel("editor");
   }, []);
+  // The element being saved as a component.
+  const [saveComponentId, setSaveComponentId] = useState<string | null>(null);
   // The element waiting for the user to confirm its deletion.
   const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
   // The latest deletion, while it can still be undone.
@@ -228,6 +231,7 @@ const OverlayPage: React.FC = () => {
                 canPaste={canPaste}
                 onCopy={copy}
                 onPaste={paste}
+                onRequestSaveAsComponent={setSaveComponentId}
                 onRequestDelete={setDeleteRequestId}
               />
             </aside>
@@ -269,6 +273,11 @@ const OverlayPage: React.FC = () => {
         elements={deleteRequest.length > 0 ? deleteRequest : null}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteRequestId(null)}
+      />
+      <SaveComponentDialog
+        overlayId={id}
+        element={overlay.elements.find((el) => el.id === saveComponentId) ?? null}
+        onClose={() => setSaveComponentId(null)}
       />
       {lastDeletion && (
         <UndoDeleteToast

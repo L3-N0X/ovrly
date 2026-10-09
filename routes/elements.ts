@@ -13,7 +13,9 @@ import {
   revisionHeaders,
   writeIdOf,
 } from "../services/overlay-query";
-import { buildElementCreates, toElementTree, type ElementSeed } from "./overlays";
+import { buildElementCreates, toElementTree, usesOwnTwitch, type ElementSeed } from "./overlays";
+import { parseComponentElements } from "../lib/components";
+import { ownTwitchSource } from "../services/twitch-variables";
 import { lockElement, lockOverlay } from "../services/locks";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import { isStyleObject, mergeStyle } from "../lib/style";
@@ -111,6 +113,39 @@ async function getAllDescendantIds(
     }
   }
   return Array.from(allIds);
+}
+
+// Adds element trees (seeds, see buildElementCreates) at the end of `parentId`, or of the canvas
+// for null, and answers with the ids of all new elements, nested ones included. Locks the
+// overlay, so it has to run in a transaction.
+async function insertElementTrees(
+  tx: Prisma.TransactionClient,
+  overlayId: string,
+  parentId: string | null,
+  seeds: ElementSeed[],
+  ownTwitch: string | null
+): Promise<{ error: Response } | { added: string[] }> {
+  await lockOverlay(tx, overlayId);
+  const idsOf = async () =>
+    (await tx.element.findMany({ where: { overlayId }, select: { id: true } })).map((el) => el.id);
+  const before = new Set(await idsOf());
+  if (parentId !== null) {
+    const parent = await tx.element.findFirst({
+      where: { id: parentId, overlayId, type: { in: PARENT_TYPES } },
+      select: { id: true },
+    });
+    if (!parent) return { error: json({ error: "Invalid parent element" }, 400) };
+  }
+  const last = await tx.element.aggregate({
+    where: { overlayId, parentId },
+    _max: { position: true },
+  });
+  const first = (last._max.position ?? -1) + 1;
+  const positioned = seeds.map((seed, index) => ({ ...seed, position: first + index }));
+  for (const data of buildElementCreates(overlayId, positioned, ownTwitch)) {
+    await tx.element.create({ data: { ...data, parentId } });
+  }
+  return { added: (await idsOf()).filter((id) => !before.has(id)) };
 }
 
 export const handleElementsRoutes = async (
@@ -304,40 +339,76 @@ export const handleElementsRoutes = async (
       };
       collect(toElementTree(source.elements), false);
 
-      const result = await prisma.$transaction(async (tx): Promise<{ error: Response } | { pasted: string[] }> => {
-        await lockOverlay(tx, overlayId);
-        const idsOf = async () =>
-          (await tx.element.findMany({ where: { overlayId }, select: { id: true } })).map((el) => el.id);
-        const before = new Set(await idsOf());
-        if (parentId !== null) {
-          const parent = await tx.element.findFirst({
-            where: { id: parentId as string, overlayId, type: { in: PARENT_TYPES } },
-            select: { id: true },
-          });
-          if (!parent) return { error: json({ error: "Invalid parent element" }, 400) };
-        }
-        const last = await tx.element.aggregate({
-          where: { overlayId, parentId: parentId as string | null },
-          _max: { position: true },
-        });
-        const first = (last._max.position ?? -1) + 1;
-        const seeds = picked.map((node, index) => {
-          const style = isStyleObject(node.style) ? node.style : {};
-          const shifted = (key: string) =>
-            typeof style[key] === "number" ? { [key]: (style[key] as number) + PASTE_OFFSET } : {};
-          return { ...node, position: first + index, style: { ...style, ...shifted("x"), ...shifted("y") } };
-        });
-        // Bindings point at variables by name, so they follow the copy to another account.
-        for (const data of buildElementCreates(overlayId, seeds, null)) {
-          await tx.element.create({ data: { ...data, parentId: parentId as string | null } });
-        }
-        return { pasted: (await idsOf()).filter((id) => !before.has(id)) };
+      // Bindings point at variables by name, so they follow the copy to another account.
+      const seeds = picked.map((node) => {
+        const style = isStyleObject(node.style) ? node.style : {};
+        const shifted = (key: string) =>
+          typeof style[key] === "number" ? { [key]: (style[key] as number) + PASTE_OFFSET } : {};
+        return { ...node, style: { ...style, ...shifted("x"), ...shifted("y") } };
       });
+      const result = await prisma.$transaction((tx) =>
+        insertElementTrees(tx, overlayId, parentId as string | null, seeds, null)
+      );
       if ("error" in result) return result.error;
 
       const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
       // `pasted` tells the client which of the elements are the new ones.
-      return new Response(JSON.stringify({ ...updatedOverlay, pasted: result.pasted }), {
+      return new Response(JSON.stringify({ ...updatedOverlay, pasted: result.added }), {
+        status: 201,
+        headers: {
+          ...corsHeaders,
+          ...revisionHeaders(updatedOverlay),
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      return json({ error: "Invalid request body" }, 400);
+    }
+  }
+
+  // Adds one of the user's components (routes/components.ts): a copy of its elements, which
+  // from then on are elements like any other.
+  const componentMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/elements\/component$/);
+  if (componentMatch && req.method === "POST") {
+    const session = await authenticate(req);
+    if (!session) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const overlayId = componentMatch[1];
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
+
+    try {
+      const { componentId, parentId = null } = (await req.json()) as {
+        componentId?: unknown;
+        parentId?: unknown;
+      };
+      if (typeof componentId !== "string" || (parentId !== null && typeof parentId !== "string")) {
+        return json({ error: "A component is required" }, 400);
+      }
+      const component = await prisma.component.findFirst({
+        where: { id: componentId, userId: session.user.id },
+      });
+      if (!component) return json({ error: "Component not found" }, 404);
+      const elements = parseComponentElements(component.elements);
+      if (typeof elements === "string") return json({ error: elements }, 400);
+      // A component of one element is that element, so it goes by the component's name.
+      if (elements.length === 1) elements[0].name = component.name;
+
+      // Bindings to "twitch:@me" show the channel of the overlay's owner, whose variables it shows.
+      const ownTwitch = usesOwnTwitch(elements)
+        ? ((await ownTwitchSource(check.access.overlay.userId))?.name ?? null)
+        : null;
+      const result = await prisma.$transaction((tx) =>
+        insertElementTrees(tx, overlayId, parentId as string | null, elements, ownTwitch)
+      );
+      if ("error" in result) return result.error;
+
+      const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
+      // `added` tells the client which of the elements are the new ones.
+      return new Response(JSON.stringify({ ...updatedOverlay, added: result.added }), {
         status: 201,
         headers: {
           ...corsHeaders,

@@ -12,7 +12,7 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { ChevronRight, ClipboardPaste, Copy, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { Blocks, ChevronRight, ClipboardPaste, Copy, EyeOff, Pencil, Trash2 } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -48,6 +48,7 @@ export const ElementTreeItem = ({
   canPaste,
   onCopy,
   onPaste,
+  onSaveAsComponent,
   onDelete,
 }: {
   row: FlatRow;
@@ -70,6 +71,7 @@ export const ElementTreeItem = ({
   canPaste: boolean;
   onCopy: () => void;
   onPaste: () => void;
+  onSaveAsComponent: () => void;
   onDelete: () => void;
 }) => {
   const { element, depth, hasChildren } = row;
@@ -77,8 +79,9 @@ export const ElementTreeItem = ({
   const ref = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [instruction, setInstruction] = useState<Instruction | null>(null);
-  // Renaming starts once the menu has closed: its focus handling would end it right away.
-  const renameAfterMenu = useRef(false);
+  // What a menu item does once the menu has closed: its focus handling would end renaming
+  // right away, and a dialog opened while it closes leaves the page unclickable.
+  const afterMenu = useRef<(() => void) | null>(null);
 
   // Read by the drag handlers at event time, so live updates don't re-register them
   // (which would cancel a drag in progress).
@@ -255,13 +258,14 @@ export const ElementTreeItem = ({
       </ContextMenuTrigger>
       <ContextMenuContent
         onCloseAutoFocus={(e) => {
-          if (!renameAfterMenu.current) return;
-          renameAfterMenu.current = false;
+          const action = afterMenu.current;
+          if (!action) return;
+          afterMenu.current = null;
           e.preventDefault();
-          onStartRename();
+          action();
         }}
       >
-        <ContextMenuItem onSelect={() => (renameAfterMenu.current = true)}>
+        <ContextMenuItem onSelect={() => (afterMenu.current = onStartRename)}>
           <Pencil />
           Rename
           <ContextMenuShortcut>F2</ContextMenuShortcut>
@@ -277,8 +281,12 @@ export const ElementTreeItem = ({
           Paste
           <ContextMenuShortcut>Ctrl+V</ContextMenuShortcut>
         </ContextMenuItem>
+        <ContextMenuItem onSelect={() => (afterMenu.current = onSaveAsComponent)}>
+          <Blocks />
+          Save as component…
+        </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onSelect={onDelete}>
+        <ContextMenuItem variant="destructive" onSelect={() => (afterMenu.current = onDelete)}>
           <Trash2 />
           Delete
           <ContextMenuShortcut>Del</ContextMenuShortcut>

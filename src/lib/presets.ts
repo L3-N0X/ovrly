@@ -81,13 +81,14 @@ export const fetchPresets = async (): Promise<OverlayPreset[]> => {
   return data.presets;
 };
 
-// The overlay a template turns into, so it can be previewed with the real renderer before
-// it is created. The ids are made up; nothing here is ever saved.
-export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
+// The elements a tree of seeds (a template's, or a component's) turns into, so they can be
+// previewed with the real renderer before they are created. The ids are made up from `idPrefix`;
+// nothing here is ever saved.
+export const seedsToElements = (seeds: PresetElement[], idPrefix: string): PrismaElement[] => {
   const elements: PrismaElement[] = [];
   const add = (seeds: PresetElement[], parentId: string | null, path: string) =>
     seeds.forEach((seed, position) => {
-      const id = `${preset.id}/${path}${position}`;
+      const id = `${idPrefix}/${path}${position}`;
       elements.push({
         id,
         name: seed.name,
@@ -136,7 +137,13 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
       });
       if (seed.children) add(seed.children, id, `${path}${position}/`);
     });
-  add(preset.elements, null, "");
+  add(seeds, null, "");
+  return elements;
+};
+
+// The overlay a template turns into, previewed like its elements are.
+export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
+  const elements = seedsToElements(preset.elements, preset.id);
 
   return {
     id: preset.id,

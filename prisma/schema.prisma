@@ -38,6 +38,8 @@ model User {
   variables             Variable[]
   // Providers that keep variables of this user up to date, like a Twitch channel's stats.
   variableSources       VariableSource[]
+  // Pieces of overlays this user saved or imported to add to any overlay.
+  components            Component[]
 }
 
 model Image {
@@ -113,6 +115,23 @@ model Overlay {
 }
 
 // Access to a single overlay. Someone with an account share as well gets the higher role.
+// A reusable piece of an overlay: elements a user saved from one (or imported from a file) to
+// add to any overlay later. A snapshot, copied on every insert; it never changes with the
+// elements it came from, nor they with it.
+model Component {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  // The element tree, in the format of a component file (lib/components.ts).
+  elements    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model OverlayShare {
   id         String    @id @default(cuid())
   overlayId  String
