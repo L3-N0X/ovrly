@@ -59,15 +59,14 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
   const owner = overlay.members.find((m) => m.role === "OWNER");
   const elementCount = overlay.elements.length;
 
+  // No transforms or filters on hover: they make the browser resample the scaled down
+  // preview as a bitmap, which smears thin lines and small text.
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 focus-within:border-primary/40">
+    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 focus-within:border-primary/40">
       <div className="relative">
-        <OverlayPreview
-          overlay={overlay}
-          className="transition-transform duration-500 group-hover:scale-[1.02]"
-        />
+        <OverlayPreview overlay={overlay} />
         {/* Fades in on hover to show what clicking the card does. */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           <span className="flex items-center gap-2 rounded-full bg-background/95 px-4 py-2 text-sm font-medium text-foreground shadow-lg">
             {(() => {
               const Icon = canEdit ? Pencil : ROLE_INFO[role].icon;

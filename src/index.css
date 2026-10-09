@@ -259,3 +259,17 @@
     transform: translateY(0);
   }
 }
+
+/* The cycle stack's picture in the add element dialog: each of three layers is up for a third
+   of the time, fading in and out. */
+@keyframes cycle-stack-preview {
+  0%,
+  33.3%,
+  100% {
+    opacity: 0;
+  }
+  5%,
+  28.3% {
+    opacity: 1;
+  }
+}

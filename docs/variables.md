@@ -233,6 +233,8 @@ rewrite.
 | `cover`            | image   | Largest cover                                            |
 | `accent`           | color   | Most vivid colour of the cover, kept off black and white |
 | `accent-dark`      | color   | Its hue, dark enough for a background behind white text  |
+| `accent-darker`    | color   | Its hue, nearly black                                    |
+| `accent-light`     | color   | Nearly white with a hint of its hue, for text on dark    |
 | `accent-contrast`  | color   | `#000000` or `#ffffff`, whichever reads better on accent |
 | `playing`          | boolean | Playing, not paused                                      |
 | `active`           | boolean | Anything loaded in a player                              |
@@ -262,7 +264,10 @@ for black and white covers). Results are cached by URL.
 
 **Progress bars** move smoothly between polls: bind `value` to `progress`,
 `max` to `duration` and `running` to `playing`, and the bar advances one unit
-per second from the last value it got.
+(second) per second from the last value it got. In percent mode, bound to
+`progress-percent`, it advances at the pace the percentage has been rising at,
+measured from the polls since the last jump (a seek, a new track); until two
+polls have come in, it waits for them.
 
 **Revoked access:** when the refresh token stops working, the connection is
 deleted and the source gets `problem: "REVOKED"`; its variables keep their

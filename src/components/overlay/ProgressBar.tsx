@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_WIDTH,
@@ -8,6 +8,7 @@ import {
   DEFAULT_PROGRESS_RADIUS,
   DEFAULT_PROGRESS_WIDTH,
   type PrismaElement,
+  type ProgressMode,
   type ProgressStyle,
 } from "@/lib/types";
 import { progressFraction, progressMode, progressOf } from "@/lib/progress";
@@ -20,25 +21,68 @@ const TICK_MS = 200;
 const toNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
-// `value`, moved on by one per second while `running`, counted from when the value last changed.
-// Providers that are polled (a Spotify track's progress, in seconds) send a new value every few
-// seconds; in between, the bar keeps moving instead of jumping.
-const useAdvancingValue = (value: number, running: boolean) => {
-  const [tick, setTick] = useState<{ from: number; seconds: number } | null>(null);
+// A step between two updates that strays this far from the pace is a jump (a seek, a new
+// track), not rounding, and the pace is measured anew from there.
+const JUMP_TOLERANCE = 0.5;
+// Updates closer together than this say too little about the pace.
+const MIN_STEP_MS = 1000;
+
+type Point = { value: number; time: number };
+// `seen` is the value last handled; `last` the last update that came in after the first render,
+// which happened at some point between two updates and so can't be measured from.
+type Pace = { seen: number; anchor: Point | null; last: Point | null; perSecond: number | null };
+
+// How fast `value` moves, in units per second, measured across the updates since it last jumped.
+// Only read in effects.
+const usePace = (value: number) => {
+  const pace = useRef<Pace>({ seen: value, anchor: null, last: null, perSecond: null });
+  useEffect(() => {
+    const current = pace.current;
+    if (value === current.seen) return;
+    current.seen = value;
+    const point = { value, time: performance.now() };
+    const { anchor, last, perSecond } = current;
+    current.last = point;
+    if (!anchor || !last) {
+      current.anchor = point;
+      return;
+    }
+    const elapsed = point.time - last.time;
+    const step = ((value - last.value) / elapsed) * 1000;
+    const jumped =
+      elapsed < MIN_STEP_MS ||
+      step <= 0 ||
+      (perSecond !== null && Math.abs(step - perSecond) > perSecond * JUMP_TOLERANCE);
+    if (jumped) current.anchor = point;
+    // Measured from the anchor rather than the last step, so rounded values even out.
+    else current.perSecond = ((value - anchor.value) / (point.time - anchor.time)) * 1000;
+  }, [value]);
+  return pace;
+};
+
+// `value`, moved on while `running`, counted from when the value last changed. Providers that are
+// polled (a Spotify track's progress) send a new value every few seconds; in between, the bar keeps
+// moving instead of jumping. In values mode the value is in seconds, so it moves one per second; a
+// percentage moves at the pace it has been changing at (not at all until that is known).
+const useAdvancingValue = (value: number, running: boolean, mode: ProgressMode) => {
+  const pace = usePace(value);
+  const [tick, setTick] = useState<{ from: number; by: number } | null>(null);
   useEffect(() => {
     if (!running) return;
+    const perSecond = mode === "percent" ? (pace.current.perSecond ?? 0) : 1;
+    if (perSecond === 0) return;
     const start = performance.now();
     const timer = setInterval(
-      () => setTick({ from: value, seconds: (performance.now() - start) / 1000 }),
+      () => setTick({ from: value, by: ((performance.now() - start) / 1000) * perSecond }),
       TICK_MS
     );
     return () => {
       clearInterval(timer);
       setTick(null);
     };
-  }, [value, running]);
+  }, [value, running, mode, pace]);
   // A tick of an older value is never added to a newer one.
-  return running && tick?.from === value ? value + tick.seconds : value;
+  return running && tick?.from === value ? value + tick.by : value;
 };
 
 // A bar filled from the left to how far along something is: `value` as a percentage, or out of
@@ -47,7 +91,7 @@ const ProgressBar: React.FC<{ element: PrismaElement }> = ({ element }) => {
   const style = (element.style || {}) as ProgressStyle;
   const { value, max, running } = progressOf(element);
   const mode = progressMode(style);
-  const shown = useAdvancingValue(value, running);
+  const shown = useAdvancingValue(value, running, mode);
   const fraction = progressFraction(shown, max, mode);
 
   const width = toNumber(style.width, DEFAULT_PROGRESS_WIDTH);

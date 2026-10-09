@@ -12,6 +12,7 @@ import { BingoEditor } from "../BingoEditor";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
+import { CycleStackEditor } from "../CycleStackEditor";
 import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
 import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
@@ -119,6 +120,8 @@ export const ElementStyleEditor = ({
       return <RectangleEditor {...editorProps} />;
     case ElementTypeEnum.SCROLLER:
       return <ScrollerEditor {...editorProps} />;
+    case ElementTypeEnum.CYCLE_STACK:
+      return <CycleStackEditor {...editorProps} />;
     case ElementTypeEnum.PROGRESS:
       return <ProgressEditor {...editorProps} />;
   }

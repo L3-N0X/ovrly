@@ -32,6 +32,8 @@ export const SPOTIFY_VARIABLES = {
   cover: "IMAGE",
   accent: "COLOR",
   "accent-dark": "COLOR",
+  "accent-darker": "COLOR",
+  "accent-light": "COLOR",
   "accent-contrast": "COLOR",
   playing: "BOOLEAN",
   active: "BOOLEAN",
@@ -157,6 +159,8 @@ const valuesOf = async (playback: Playback | null) => {
       const colors = await coverColors(small);
       values.accent = colors.accent;
       values["accent-dark"] = colors.dark;
+      values["accent-darker"] = colors.darker;
+      values["accent-light"] = colors.light;
       values["accent-contrast"] = colors.contrast;
     } catch (error) {
       logError("Could not read the colours of a cover", error);

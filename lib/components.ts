@@ -27,7 +27,7 @@ export const MAX_COMPONENT_NAME_LENGTH = 100;
 export const MAX_COMPONENT_DESCRIPTION_LENGTH = 500;
 const MAX_ELEMENT_NAME_LENGTH = 100;
 
-const PARENT_TYPES = new Set(["CONTAINER", "GROUP", "SCROLLER"]);
+const PARENT_TYPES = new Set(["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"]);
 
 type Json = Record<string, unknown>;
 

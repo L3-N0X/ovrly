@@ -12,6 +12,7 @@ import {
   ScrollText,
   Shapes,
   Square,
+  SquareStack,
   Timer,
   Type,
 } from "lucide-react";
@@ -46,6 +47,8 @@ export const ElementTypeIcon = ({
       return <Square className={className} />;
     case ElementTypeEnum.SCROLLER:
       return <ScrollText className={className} />;
+    case ElementTypeEnum.CYCLE_STACK:
+      return <SquareStack className={className} />;
     case ElementTypeEnum.PROGRESS:
       return <ChartNoAxesGantt className={className} />;
     case ElementTypeEnum.CONTAINER: {

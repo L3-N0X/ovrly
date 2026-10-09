@@ -116,7 +116,7 @@ const ControlView: React.FC<ControlViewProps> = ({
                       <span className="truncate">{element.name}</span>
                     </h3>
                     <BindingElementContext.Provider value={element}>
-                      <ElementContentControl element={element} handlers={content} />
+                      <ElementContentControl element={element} overlay={overlay} handlers={content} />
                     </BindingElementContext.Provider>
                   </section>
                 ))}

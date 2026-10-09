@@ -42,6 +42,7 @@ export const ELEMENT_TYPE_NAMES: Record<string, string> = {
   PROGRESS: "Progress Bar",
   SUBATHON: "Subathon",
   SCROLLER: "Scroller",
+  CYCLE_STACK: "Cycle Stack",
 };
 
 // What an overlay started from an empty canvas is called.

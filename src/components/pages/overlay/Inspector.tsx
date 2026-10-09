@@ -102,8 +102,8 @@ const Inspector: React.FC<InspectorProps> = ({
       </PanelHeader>
       {contentElements.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No elements with content yet. Add a title, counter, timer, image, icon or bingo card in the
-          layers panel.
+          No elements with content yet. Add a title, counter, timer, image, icon, bingo card or cycle
+          stack in the layers panel.
         </p>
       ) : (
         contentElements.map((element) => (
@@ -118,7 +118,7 @@ const Inspector: React.FC<InspectorProps> = ({
               <span className="truncate">{element.name}</span>
             </button>
             <BindingElementContext.Provider value={element}>
-              <ElementContentControl element={element} handlers={content} />
+              <ElementContentControl element={element} overlay={overlay} handlers={content} />
             </BindingElementContext.Provider>
           </section>
         ))
@@ -193,7 +193,7 @@ const ElementPanel = ({
       </PanelHeader>
       {hasContent(element.type) && (
         <PanelSection title="Content">
-          <ElementContentControl element={element} handlers={content} />
+          <ElementContentControl element={element} overlay={overlay} handlers={content} />
         </PanelSection>
       )}
       {element.type === ElementTypeEnum.SUBATHON && element.subathon && (

@@ -29,6 +29,11 @@ import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { isIconLibrary, isIconName } from "../lib/icons";
 import { parseProgressPatch } from "../lib/progress";
 import {
+  applyCycleStackAction,
+  parseCycleStackActions,
+  type CycleStackState,
+} from "../lib/cycleStack";
+import {
   applySubathonAction,
   applySubathonSettings,
   parseSubathonActions,
@@ -54,8 +59,9 @@ const ELEMENT_TYPES = [
   "PROGRESS",
   "SUBATHON",
   "SCROLLER",
+  "CYCLE_STACK",
 ];
-const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER"];
+const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"];
 // Copies are shifted by this much (when they are placed by x/y), so a pasted element doesn't
 // hide the one it was copied from.
 const PASTE_OFFSET = 16;
@@ -212,6 +218,9 @@ export const handleElementsRoutes = async (
         // No specific data needed for container, it's just a grouping element
       } else if (type === "SCROLLER") {
         // Lays its children out like a container; the size falls back to the defaults.
+      } else if (type === "CYCLE_STACK") {
+        // Starts cycling right away, at its first child.
+        elementCreateData.cycleStack = { create: {} };
       } else if (type === "GROUP") {
         // Children are positioned freely inside it; it starts out covering the whole canvas,
         // whose size is filled in below, under the overlay's lock.
@@ -594,7 +603,7 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true, countdown: true, subathon: true },
+            include: { bingo: true, timer: true, countdown: true, subathon: true, cycleStack: true },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -708,6 +717,19 @@ export const handleElementsRoutes = async (
               elementUpdateData.countdown = {
                 update: { mode, duration, remaining, endsAt, targetAt },
               };
+            }
+            if (element.type === "CYCLE_STACK") {
+              const parsed = parseCycleStackActions(data.actions);
+              if (!parsed || !current.cycleStack) {
+                return { error: json({ error: "Invalid cycle stack actions" }, 400) };
+              }
+              // Applied with the server's clock, so it doesn't matter whose clock is off.
+              const now = Date.now();
+              const { index, startedAt } = parsed.reduce(
+                (stack, action) => applyCycleStackAction(stack, action, now),
+                current.cycleStack as CycleStackState
+              );
+              elementUpdateData.cycleStack = { update: { index, startedAt } };
             }
             if (element.type === "SUBATHON" && (data.actions !== undefined || data.settings !== undefined)) {
               if (!current.subathon) {

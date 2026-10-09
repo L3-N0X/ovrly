@@ -22,6 +22,7 @@ import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
 import Scroller from "./Scroller";
+import CycleStack from "./CycleStack";
 import { CANVAS_ELEMENT_ATTRIBUTE, useCanvasSelection } from "./canvasSelection";
 
 interface ElementDisplayProps {
@@ -76,6 +77,14 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
               <ElementDisplay key={child.id} element={child} elements={elements} />
             ))}
           </Scroller>
+        );
+      case "CYCLE_STACK":
+        return (
+          <CycleStack
+            element={element}
+            elements={elements}
+            renderChild={(child) => <ElementDisplay element={child} elements={elements} />}
+          />
         );
       case "ICON":
         return icon ? (

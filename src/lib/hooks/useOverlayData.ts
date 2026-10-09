@@ -5,6 +5,7 @@ import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 import { applyTimerAction, type TimerAction } from "@/lib/timer";
 import { applyCountdownAction, type CountdownAction } from "@/lib/countdown";
+import { applyCycleStackAction, type CycleStackAction } from "@/lib/cycleStack";
 import {
   applySubathonAction,
   applySubathonSettings,
@@ -129,9 +130,11 @@ const combineCounter = (queued: object, next: object): object => {
   return { data: { value: (q.value ?? 0) + n.increment } };
 };
 
-type ActionsBody = { data: { actions: (TimerAction | CountdownAction | SubathonAction)[] } };
+type ActionsBody = {
+  data: { actions: (TimerAction | CountdownAction | SubathonAction | CycleStackAction)[] };
+};
 
-// Timer, countdown and subathon actions waiting to be sent go out together, in the order they were made.
+// Timer, countdown, subathon and cycle stack actions waiting to be sent go out together, in the order they were made.
 const combineActions = (queued: object, next: object): object => ({
   data: {
     actions: [...(queued as ActionsBody).data.actions, ...(next as ActionsBody).data.actions],
@@ -816,6 +819,24 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Cycle stacks too: playing, pausing and picking a layer.
+  const handleCycleStackAction = useCallback(
+    (elementId: string, action: CycleStackAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the stack.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "cycleStack",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.cycleStack) el.cycleStack = applyCycleStackAction(el.cycleStack, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
   const handleSubathonSettings = useCallback(
     (elementId: string, settings: SubathonSettings) => {
       updateElement(
@@ -892,6 +913,7 @@ export const useOverlayData = () => {
     handleCountdownAction,
     handleSubathonAction,
     handleSubathonSettings,
+    handleCycleStackAction,
     handleDeleteOverlay,
     variablesVersion,
   };

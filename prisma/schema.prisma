@@ -168,6 +168,7 @@ model Element {
   icon      Icon?
   progress  Progress?
   subathon  Subathon?
+  cycleStack CycleStack?
   // Properties of the element driven by variables instead of their own value.
   bindings  VariableBinding[]
 
@@ -194,6 +195,7 @@ enum ElementType {
   PROGRESS
   SUBATHON
   SCROLLER
+  CYCLE_STACK
 }
 
 model Title {
@@ -266,8 +268,9 @@ model Progress {
   id        String  @id @default(cuid())
   value     Float   @default(50)
   max       Float   @default(100)
-  // Moves the bar on by one per second between updates, for values in seconds that a provider
-  // only sends every few seconds (a Spotify track's progress, bound to whether it is playing).
+  // Moves the bar on between updates (one per second in values mode, at the measured pace in
+  // percent mode), for values a provider only sends every few seconds (a Spotify track's
+  // progress, bound to whether it is playing).
   running   Boolean @default(false)
   elementId String  @unique
   element   Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
@@ -309,6 +312,19 @@ model Subathon {
   element          Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
 
   @@index([channelId])
+}
+
+// Which child of a cycle stack is shown (lib/cycleStack.ts). While it cycles, the child at
+// `index` came up at `startedAt`, and every interval (the element's style) the next one takes
+// over; paused (`startedAt` null), the child at `index` stays. `index` counts the stack's visible
+// children and wraps around, so it never has to know how many there are.
+model CycleStack {
+  id        String    @id @default(cuid())
+  index     Int       @default(0)
+  // New and copied stacks cycle right away.
+  startedAt DateTime? @default(now())
+  elementId String    @unique
+  element   Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 model Bingo {

@@ -14,20 +14,23 @@ export const ElementTypeEnum = {
   PROGRESS: "PROGRESS",
   SUBATHON: "SUBATHON",
   SCROLLER: "SCROLLER",
+  CYCLE_STACK: "CYCLE_STACK",
 } as const;
 
 // Element types that hold other elements.
 export const isParentType = (type: ElementType) =>
   type === ElementTypeEnum.CONTAINER ||
   type === ElementTypeEnum.GROUP ||
-  type === ElementTypeEnum.SCROLLER;
+  type === ElementTypeEnum.SCROLLER ||
+  type === ElementTypeEnum.CYCLE_STACK;
 
 // Whether an element is drawn: only `style.visible: false` (stored or bound) hides it.
 export const isElementVisible = (element: { style: ElementStyle | null }) =>
   (element.style as BaseElementStyle | null)?.visible !== false;
 
 // Element types with content of their own (text, a value, ...) that can be changed while
-// live. Containers and groups only arrange other elements.
+// live. Containers and groups only arrange other elements; a cycle stack's content is which of
+// them it shows.
 export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.TITLE ||
   type === ElementTypeEnum.COUNTER ||
@@ -37,7 +40,8 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.ICON ||
   type === ElementTypeEnum.PROGRESS ||
-  type === ElementTypeEnum.BINGO;
+  type === ElementTypeEnum.BINGO ||
+  type === ElementTypeEnum.CYCLE_STACK;
 
 export type ElementType =
   (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
@@ -284,6 +288,46 @@ export const DEFAULT_SCROLLER_PAUSE = 2;
 export const SCROLLER_SPEED_RANGE = { min: 1, max: 2000 };
 export const SCROLLER_PAUSE_RANGE = { min: 0, max: 60 };
 
+// How a cycle stack goes from one layer to the next.
+export type CycleStackTransition = "none" | "fade";
+
+// Specific style for a Cycle Stack element: its children are layers on top of each other in a
+// box of `width` by `height`, and only one of them is shown at a time, each for `interval`
+// seconds (see src/lib/cycleStack.ts).
+export interface CycleStackStyle extends BaseElementStyle {
+  /** Seconds each layer is shown for while it cycles. */
+  interval?: number;
+  /** "fade" by default. */
+  transition?: CycleStackTransition;
+  /** Seconds a fade takes. */
+  transitionDuration?: number;
+  /** The size of the box, unless `fitContent` is on. */
+  width?: number;
+  height?: number;
+  /** Off by default: when on, the box takes the size of its biggest layer. */
+  fitContent?: boolean;
+  /** Where a layer smaller than the box sits in it; "center" by default. */
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignItems?: "start" | "center" | "end" | "stretch";
+  paddingX?: number;
+  paddingY?: number;
+  /** Transparent by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
+}
+
+export const DEFAULT_CYCLE_STACK_WIDTH = 400;
+export const DEFAULT_CYCLE_STACK_HEIGHT = 240;
+export const DEFAULT_CYCLE_STACK_INTERVAL = 5;
+export const DEFAULT_CYCLE_STACK_TRANSITION_DURATION = 0.5;
+export const CYCLE_STACK_INTERVAL_RANGE = { min: 0.5, max: 3600 };
+export const CYCLE_STACK_TRANSITION_RANGE = { min: 0, max: 10 };
+
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
@@ -387,6 +431,7 @@ export type ElementStyle =
   | ProgressStyle
   | BingoStyle
   | ScrollerStyle
+  | CycleStackStyle
   | GroupStyle;
 
 // The generic Element object from the backend
@@ -447,8 +492,11 @@ export interface PrismaElement {
   } | null;
   image?: { id: string; src: string } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;
-  // `value` out of `max` (100 in percent mode); `running` moves it on by one per second between
-  // updates.
+  // Which child a cycle stack shows (src/lib/cycleStack.ts): the one at `index`, and while it
+  // cycles (`startedAt` set), the ones after it, one per interval since then.
+  cycleStack?: { id: string; index: number; startedAt: string | null } | null;
+  // `value` out of `max` (100 in percent mode); `running` moves it on between updates: by one per
+  // second in values mode, at the pace it has been changing at in percent mode.
   progress?: { id: string; value: number; max: number; running: boolean } | null;
   bingo?: {
     id: string;

@@ -9,6 +9,10 @@ export interface CoverColors {
   accent: string;
   // The accent's hue, dark enough for a background behind white text.
   dark: string;
+  // Darker still, close to black, for a background that should barely show the colour.
+  darker: string;
+  // Nearly white with a hint of the accent's hue, for text on the dark shades.
+  light: string;
   // Black or white, whichever reads better on the accent.
   contrast: string;
 }
@@ -110,8 +114,10 @@ export const colorsOfPixels = (data: Uint8Array, pixelCount: number): CoverColor
   // extremes.
   const accent = toRgb([h, s, clamp(l, 0.3, 0.75)]);
   const dark = toRgb([h, Math.min(s, 0.55), 0.14]);
+  const darker = toRgb([h, Math.min(s, 0.5), 0.07]);
+  const light = toRgb([h, Math.min(s, 0.6), 0.9]);
   const contrast = luminance(accent) > 0.179 ? "#000000" : "#ffffff";
-  return { accent: toHex(accent), dark: toHex(dark), contrast };
+  return { accent: toHex(accent), dark: toHex(dark), darker: toHex(darker), light: toHex(light), contrast };
 };
 
 const download = async (url: string) => {

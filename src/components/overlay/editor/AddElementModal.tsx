@@ -34,6 +34,7 @@ import {
   Search,
   Shapes,
   Square,
+  SquareStack,
   Star,
   Timer,
   Type,
@@ -240,6 +241,28 @@ const LAYOUT_OPTIONS: ElementOption[] = [
               />
             ))}
           </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.CYCLE_STACK,
+    label: "Cycle Stack",
+    description:
+      "Stacks the elements inside it on top of each other and shows them one at a time, switching every few seconds.",
+    icon: SquareStack,
+    preview: (
+      <Stage>
+        <div className="relative h-16 w-24 rounded-md border border-dashed border-sky-400/70">
+          {["bg-white/70", "bg-amber-400/80", "bg-emerald-500/80"].map((color, index) => (
+            <div
+              key={color}
+              className="absolute inset-0 flex items-center justify-center opacity-0"
+              style={{ animation: `cycle-stack-preview 6s ${index * 2}s infinite` }}
+            >
+              <div className={cn("h-8 w-14 rounded-sm", color)} />
+            </div>
+          ))}
         </div>
       </Stage>
     ),

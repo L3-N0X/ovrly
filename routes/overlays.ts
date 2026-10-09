@@ -81,6 +81,10 @@ export function buildElementCreates(
     if (element.type === "SUBATHON") {
       data.subathon = { create: subathonSeed(element.subathon) };
     }
+    // Cycle stacks, on the other hand, cycle right away, from their first child.
+    if (element.type === "CYCLE_STACK") {
+      data.cycleStack = { create: {} };
+    }
     // Bound by name: in another account they show that account's variables of the same name.
     const bindings = bindingSeeds(element.type, element.bindings).flatMap((binding) =>
       binding.source !== OWN_TWITCH_SOURCE

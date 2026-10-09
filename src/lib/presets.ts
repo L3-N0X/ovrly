@@ -130,6 +130,11 @@ export const seedsToElements = (seeds: PresetElement[], idPrefix: string): Prism
           seed.type === ElementTypeEnum.PROGRESS
             ? { id, ...DEFAULT_PROGRESS, ...seed.progress }
             : null,
+        // Cycle stacks cycle from the start, as they do once they are created.
+        cycleStack:
+          seed.type === ElementTypeEnum.CYCLE_STACK
+            ? { id, index: 0, startedAt: new Date(0).toISOString() }
+            : null,
         image: seed.image ? { id, ...seed.image } : null,
         bingo: seed.bingo
           ? { id, ...normalizeBingoData(seed.bingo as PrismaElement["bingo"]) }

@@ -50,7 +50,7 @@ const ProgressControl: React.FC<ProgressControlProps> = ({ element, onProgressCh
         label={
           <>
             Running
-            <span className="ml-1 font-normal text-muted-foreground">(moves on by 1 per second)</span>
+            <span className="ml-1 font-normal text-muted-foreground">(moves on between updates)</span>
           </>
         }
       >
