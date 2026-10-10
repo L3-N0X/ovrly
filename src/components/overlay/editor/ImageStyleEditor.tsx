@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Grid2x2, Square } from "lucide-react";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import { SizeField } from "./appearance";
+import { FIXED_OR_FILL, fixedOrFill, sizeModePatch } from "./sizing";
 
 interface ImageStyleEditorProps {
   element: PrismaElement;
@@ -28,6 +30,12 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
   const serverStyle = useMemo(() => (element.style as ImageStyle) || {}, [element.style]);
   const { value: style, setValue: setStyle } = useLocalCopy(serverStyle);
 
+  const updateStyle = (patch: Partial<ImageStyle>) => {
+    const newStyle = { ...style, ...patch };
+    setStyle(newStyle);
+    onChange(newStyle);
+  };
+
   const handleImmediateValueChange = (
     key: keyof ImageStyle,
     value: ImageStyle[keyof ImageStyle]
@@ -41,25 +49,29 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({
 
   return (
     <div className="space-y-4">
+      <SizeField
+        id={id("width")}
+        label={"Width"}
+        property="style.width"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "width")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "width", mode, 100))}
+        min={1}
+        value={style.width || 100}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={id("height")}
+        label={"Height"}
+        property="style.height"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "height")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "height", mode, 100))}
+        min={1}
+        value={style.height || 100}
+        onChange={(height) => updateStyle({ height })}
+      />
       <div className="grid grid-cols-2 gap-4">
-        <BindableField property="style.width" label="Width" htmlFor={id("width")}>
-          <NumberField
-            id={id("width")}
-            value={style.width || 100}
-            min={0}
-            unit="px"
-            onChange={(width) => handleImmediateValueChange("width", width)}
-          />
-        </BindableField>
-        <BindableField property="style.height" label="Height" htmlFor={id("height")}>
-          <NumberField
-            id={id("height")}
-            value={style.height || 100}
-            min={0}
-            unit="px"
-            onChange={(height) => handleImmediateValueChange("height", height)}
-          />
-        </BindableField>
         <BindableField property="style.borderRadius" label="Border Radius" htmlFor={id("radius")}>
           <NumberField
             id={id("radius")}

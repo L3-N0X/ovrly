@@ -30,26 +30,27 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
 
   return (
     <BindableField property="src" label="Image">
-      <div className="flex items-center space-x-2">
-        {(element.image?.src && (
+      <div className="flex items-center gap-2">
+        {element.image?.src ? (
           <img
-            src={element.image?.src || ""}
+            src={element.image.src}
             alt={element.name}
-            className="w-15 h-15 object-cover rounded-md bg-secondary"
+            className="size-9 shrink-0 rounded-md bg-secondary object-cover"
           />
-        )) || (
-          <div className="w-15 h-15 rounded-md bg-secondary flex items-center justify-center">
-            <Image className="w-8 h-8 text-muted-foreground" />
+        ) : (
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">
+            <Image className="size-4 text-muted-foreground" />
           </div>
         )}
-        <div className="flex flex-col flex-1 min-w-0 mr-0">
-          <p className="text-sm text-muted-foreground mb-1 h-5 truncate overflow-hidden whitespace-nowrap">
-            {element.image?.src.replace(/^.*[\\/]/, "") || "No image uploaded"}
-          </p>
-          <Button onClick={handleButtonClick} variant="secondary" className="flex-grow">
-            {element.image?.src ? "Change Image" : "Upload Image"}
-          </Button>
-        </div>
+        <p
+          className="min-w-0 flex-1 truncate text-sm text-muted-foreground"
+          title={element.image?.src || undefined}
+        >
+          {element.image?.src.replace(/^.*[\\/]/, "") || "No image uploaded"}
+        </p>
+        <Button onClick={handleButtonClick} variant="secondary" size="sm" className="shrink-0">
+          {element.image?.src ? "Change" : "Upload"}
+        </Button>
         <input
           type="file"
           ref={fileInputRef}

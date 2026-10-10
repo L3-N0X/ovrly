@@ -44,7 +44,7 @@ const SubathonControl: React.FC<SubathonControlProps> = ({ element, onAction }) 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-1.5">
         <TimeReadout
           value={formatDuration(left, style.format || DEFAULT_DURATION_FORMAT)}
           title={over ? "The subathon is over" : undefined}
@@ -52,29 +52,26 @@ const SubathonControl: React.FC<SubathonControlProps> = ({ element, onAction }) 
         <Button
           onClick={() => setIsModalOpen(true)}
           title="Add or remove time"
-          size="icon-lg"
+          size="icon"
           variant="secondary"
-          className="h-12 w-12"
         >
-          <Pencil className="w-4 h-4" />
+          <Pencil />
         </Button>
         <Button
           onClick={() => act({ type: running ? "pause" : "start" })}
           title={running ? "Pause" : "Start"}
-          size="icon-lg"
+          size="icon"
           variant="secondary"
-          className="h-12 w-12"
         >
-          {running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          {running ? <Pause /> : <Play />}
         </Button>
         <Button
           onClick={() => setIsResetOpen(true)}
           title="Reset"
-          size="icon-lg"
+          size="icon"
           variant="secondary"
-          className="h-12 w-12"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw />
         </Button>
       </div>
 

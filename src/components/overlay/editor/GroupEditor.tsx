@@ -13,7 +13,8 @@ import {
 } from "@/lib/types";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import React, { useMemo, useState } from "react";
-import { ColorInput, PixelInput } from "./appearance";
+import { ColorInput, PixelInput, SizeField } from "./appearance";
+import { FIXED_OR_FILL, fixedOrFill, sizeModePatch } from "./sizing";
 
 // X/Y of an element that sits directly inside a group, for placing it precisely. Measured
 // from the group's top left corner; negative or large values place it outside the group.
@@ -73,24 +74,28 @@ export const GroupEditor: React.FC<{
         canvas to drag them into position, even past the group's edges or
         outside the overlay.
       </p>
-      <div className="grid grid-cols-2 gap-4">
-        <PixelInput
-          id={`${element.id}-width`}
-          label="Width"
-          property="style.width"
-          min={1}
-          value={style.width ?? DEFAULT_GROUP_WIDTH}
-          onChange={(width) => updateStyle({ width })}
-        />
-        <PixelInput
-          id={`${element.id}-height`}
-          label="Height"
-          property="style.height"
-          min={1}
-          value={style.height ?? DEFAULT_GROUP_HEIGHT}
-          onChange={(height) => updateStyle({ height })}
-        />
-      </div>
+      <SizeField
+        id={`${element.id}-width`}
+        label={"Width"}
+        property="style.width"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "width")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_GROUP_WIDTH))}
+        min={1}
+        value={style.width ?? DEFAULT_GROUP_WIDTH}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={`${element.id}-height`}
+        label={"Height"}
+        property="style.height"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "height")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_GROUP_HEIGHT))}
+        min={1}
+        value={style.height ?? DEFAULT_GROUP_HEIGHT}
+        onChange={(height) => updateStyle({ height })}
+      />
       <BindableField
         property="style.clip"
         inline

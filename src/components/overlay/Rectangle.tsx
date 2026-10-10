@@ -9,6 +9,7 @@ import {
   type RectangleStyle,
 } from "@/lib/types";
 import { useCanvasEditing } from "./canvasEditing";
+import { useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
 
 const MIN_RECTANGLE_SIZE = 1;
@@ -31,7 +32,11 @@ const Rectangle: React.FC<RectangleProps> = ({ element }) => {
   const borderWidth = toNumber(style.borderWidth, DEFAULT_BORDER_WIDTH);
   const borderRadius = toNumber(style.borderRadius, DEFAULT_BORDER_RADIUS);
 
-  const { dragSize, handle } = useElementResize(element, MIN_RECTANGLE_SIZE);
+  const fill = useFill(element);
+  const { dragSize, handle } = useElementResize(element, MIN_RECTANGLE_SIZE, {
+    width: !fill.width,
+    height: !fill.height,
+  });
   const size = dragSize ?? { width, height };
 
   return (
@@ -49,6 +54,7 @@ const Rectangle: React.FC<RectangleProps> = ({ element }) => {
             : undefined,
         // Keeps the border inside the rectangle's size, so adding one doesn't resize it.
         boxSizing: "border-box",
+        ...fill.style,
       }}
       className={
         editing

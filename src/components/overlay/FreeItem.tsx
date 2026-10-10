@@ -1,5 +1,5 @@
 import React, { useSyncExternalStore } from "react";
-import { isElementVisible, type GroupStyle, type PrismaElement } from "@/lib/types";
+import { fillOf, isElementVisible, type GroupStyle, type PrismaElement } from "@/lib/types";
 import { useCanvasEditing } from "./canvasEditing";
 import { useCanvasInteraction } from "./canvasDrag";
 import { FREE_ITEM_ATTRIBUTE } from "./canvasGeometry";
@@ -36,11 +36,13 @@ const FreeItem: React.FC<{
     typeof style.x === "number" || typeof style.y === "number" ? 0 : fallbackIndex * UNPLACED_STEP
   );
   const position = live ?? { x, y };
+  // A side that fills the parent spans all of it, whatever its x/y say (see useFill).
+  const fill = fillOf(element);
 
   const positionStyle: React.CSSProperties = {
     position: "absolute",
-    left: `${position.x}px`,
-    top: `${position.y}px`,
+    ...(fill.width ? { left: 0, right: 0 } : { left: `${position.x}px` }),
+    ...(fill.height ? { top: 0, bottom: 0 } : { top: `${position.y}px` }),
   };
 
   // Nothing to place (see ElementDisplay).

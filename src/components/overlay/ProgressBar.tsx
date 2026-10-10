@@ -12,6 +12,7 @@ import {
   type ProgressStyle,
 } from "@/lib/types";
 import { progressFraction, progressMode, progressOf } from "@/lib/progress";
+import { useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
 
 const MIN_PROGRESS_SIZE = 1;
@@ -99,7 +100,11 @@ const ProgressBar: React.FC<{ element: PrismaElement }> = ({ element }) => {
   const borderWidth = toNumber(style.borderWidth, DEFAULT_BORDER_WIDTH);
   const borderRadius = toNumber(style.borderRadius, DEFAULT_PROGRESS_RADIUS);
 
-  const { dragSize, handle } = useElementResize(element, MIN_PROGRESS_SIZE);
+  const fill = useFill(element);
+  const { dragSize, handle } = useElementResize(element, MIN_PROGRESS_SIZE, {
+    width: !fill.width,
+    height: !fill.height,
+  });
   const size = dragSize ?? { width, height };
 
   return (
@@ -109,7 +114,13 @@ const ProgressBar: React.FC<{ element: PrismaElement }> = ({ element }) => {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(fraction * 100)}
-      style={{ position: "relative", width: `${size.width}px`, height: `${size.height}px`, flexShrink: 0 }}
+      style={{
+        position: "relative",
+        width: `${size.width}px`,
+        height: `${size.height}px`,
+        flexShrink: 0,
+        ...fill.style,
+      }}
     >
       {/* Clipped on its own, so the resize handle can stick out of the bar. */}
       <div

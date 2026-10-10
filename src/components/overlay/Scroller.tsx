@@ -13,6 +13,7 @@ import {
 import { CanvasEditingContext, useCanvasEditing } from "./canvasEditing";
 import { CanvasInteractionContext } from "./canvasDrag";
 import { CanvasSelectionContext } from "./canvasSelection";
+import { ParentLayoutContext, useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
 
 const MIN_SCROLLER_SIZE = 20;
@@ -81,11 +82,16 @@ const Scroller: React.FC<ScrollerProps> = ({ element, children }) => {
   const borderWidth = toNumber(style.borderWidth, DEFAULT_BORDER_WIDTH);
   const borderRadius = toNumber(style.borderRadius, DEFAULT_BORDER_RADIUS);
 
-  const { dragSize, handle } = useElementResize(element, MIN_SCROLLER_SIZE);
+  const fill = useFill(element);
+  const { dragSize, handle } = useElementResize(element, MIN_SCROLLER_SIZE, {
+    width: !fill.width,
+    height: !fill.height,
+  });
   const width = dragSize?.width ?? toNumber(style.width, DEFAULT_SCROLLER_WIDTH);
   const height = dragSize?.height ?? toNumber(style.height, DEFAULT_SCROLLER_HEIGHT);
   // While resizing, the box takes the size being dragged to, so the handle follows the pointer.
-  const shrinks = fitContent && !dragSize;
+  // A side that fills its parent takes the parent's size instead of shrinking to the content.
+  const shrinks = fitContent && !dragSize && !(vertical ? fill.height : fill.width);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -172,6 +178,7 @@ const Scroller: React.FC<ScrollerProps> = ({ element, children }) => {
           borderWidth > 0
             ? `${borderWidth}px solid ${style.borderColor || DEFAULT_BORDER_COLOR}`
             : undefined,
+        ...fill.style,
       }}
       className={
         editing ? "outline-1 -outline-offset-1 outline-dashed outline-white/40" : undefined
@@ -202,7 +209,7 @@ const Scroller: React.FC<ScrollerProps> = ({ element, children }) => {
           }}
         >
           <div ref={contentRef} style={contentStyle}>
-            {children}
+            <ParentLayoutContext.Provider value={direction}>{children}</ParentLayoutContext.Provider>
           </div>
           {looping && (
             // The copy that follows the content round, so the first child comes after the last.
@@ -211,7 +218,9 @@ const Scroller: React.FC<ScrollerProps> = ({ element, children }) => {
               <CanvasEditingContext.Provider value={null}>
                 <CanvasSelectionContext.Provider value={null}>
                   <CanvasInteractionContext.Provider value={null}>
-                    {children}
+                    <ParentLayoutContext.Provider value={direction}>
+                      {children}
+                    </ParentLayoutContext.Provider>
                   </CanvasInteractionContext.Provider>
                 </CanvasSelectionContext.Provider>
               </CanvasEditingContext.Provider>

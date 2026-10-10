@@ -129,12 +129,41 @@ export interface BaseElementStyle {
   y?: number;
   // Hidden elements (`false`) are not drawn; anything else, including nothing stored, shows them.
   visible?: boolean;
+  // Stretch the element across its parent along that side, like Figma's "Fill container"; the
+  // stored size on that side is then ignored. Off by default. Only the types in `canFill` use it.
+  fillWidth?: boolean;
+  fillHeight?: boolean;
 }
+
+// Element types that can fill their parent along a side (`fillWidth`/`fillHeight`).
+export const canFill = (type: ElementType) =>
+  type === ElementTypeEnum.TITLE ||
+  type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.CONTAINER ||
+  type === ElementTypeEnum.GROUP ||
+  type === ElementTypeEnum.SCROLLER ||
+  type === ElementTypeEnum.CYCLE_STACK ||
+  type === ElementTypeEnum.RECTANGLE ||
+  type === ElementTypeEnum.PROGRESS;
+
+// Whether an element fills its parent along each side.
+export const fillOf = (element: { type: ElementType; style: ElementStyle | null }) => {
+  const style = element.style as BaseElementStyle | null;
+  const fills = canFill(element.type);
+  return {
+    width: fills && style?.fillWidth === true,
+    height: fills && style?.fillHeight === true,
+  };
+};
 
 // Specific style for a Title element
 export interface TitleStyle extends BaseElementStyle {
   paddingX?: number;
   paddingY?: number;
+  /** Where the text sits when the title is wider than it; "left" by default. */
+  textAlign?: "left" | "center" | "right";
+  /** Where the text sits when the title is taller than it; "top" by default. */
+  verticalAlign?: "top" | "center" | "bottom";
 }
 
 // Specific style for a Counter element
@@ -179,7 +208,7 @@ export interface IconStyle extends BaseElementStyle {
 
 // Specific style for a Container element
 export interface ContainerStyle extends BaseElementStyle {
-  /** Both sizes are fixed by default; automatic sizing can be enabled per side. */
+  /** Both sizes are fixed by default; a side can hug the children instead (or fill the parent). */
   autoWidth?: boolean;
   autoHeight?: boolean;
   /** Used for the sides that are not automatic. */

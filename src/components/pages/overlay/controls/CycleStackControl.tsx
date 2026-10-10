@@ -46,9 +46,9 @@ const CycleStackControl: React.FC<CycleStackControlProps> = ({ element, overlay,
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="flex h-12 min-w-0 flex-grow items-center gap-2 rounded-md bg-secondary px-3">
-          <span className="shrink-0 font-mono text-lg tabular-nums">
+      <div className="flex items-center gap-1.5">
+        <div className="flex h-9 min-w-0 flex-grow items-center gap-2 rounded-md bg-secondary px-2.5">
+          <span className="shrink-0 font-mono text-base font-medium tabular-nums">
             {index + 1}/{count}
           </span>
           <span className="truncate text-sm text-muted-foreground">{layers[index]?.name}</span>
@@ -56,12 +56,11 @@ const CycleStackControl: React.FC<CycleStackControlProps> = ({ element, overlay,
         <Button
           onClick={() => show(current() - 1)}
           title="Previous layer"
-          size="icon-lg"
+          size="icon"
           variant="secondary"
-          className="h-12 w-12"
           disabled={count < 2}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft />
         </Button>
         <Button
           onClick={() =>
@@ -71,24 +70,22 @@ const CycleStackControl: React.FC<CycleStackControlProps> = ({ element, overlay,
             )
           }
           title={element.cycleStack?.startedAt ? "Pause on this layer" : "Cycle through the layers"}
-          size="icon-lg"
+          size="icon"
           variant="secondary"
-          className="h-12 w-12"
         >
-          {element.cycleStack?.startedAt ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          {element.cycleStack?.startedAt ? <Pause /> : <Play />}
         </Button>
         <Button
           onClick={() => show(current() + 1)}
           title="Next layer"
-          size="icon-lg"
+          size="icon"
           variant="secondary"
-          className="h-12 w-12"
           disabled={count < 2}
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight />
         </Button>
       </div>
-      <ol className="space-y-1" aria-label="Layers">
+      <ol className="space-y-0.5" aria-label="Layers">
         {layers.map((layer, layerIndex) => (
           <li key={layer.id}>
             <button
@@ -97,11 +94,11 @@ const CycleStackControl: React.FC<CycleStackControlProps> = ({ element, overlay,
               aria-current={layerIndex === index ? "true" : undefined}
               title={layerIndex === index ? "Shown right now" : "Show this layer"}
               className={cn(
-                "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:cursor-default",
+                "flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs hover:bg-accent disabled:cursor-default",
                 layerIndex === index && "bg-accent font-medium"
               )}
             >
-              <span className="w-5 shrink-0 text-xs text-muted-foreground tabular-nums">
+              <span className="w-4 shrink-0 text-[11px] text-muted-foreground tabular-nums">
                 {layerIndex + 1}
               </span>
               <ElementTypeIcon element={layer} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

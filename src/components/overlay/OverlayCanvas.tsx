@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from "react";
 import {
   canvasSize,
   CanvasModeEnum,
+  fillOf,
+  isElementVisible,
   type PrismaElement,
   type PrismaOverlay,
 } from "@/lib/types";
@@ -13,6 +15,7 @@ import { CanvasInteractionContext, createDragStore } from "./canvasDrag";
 import { CANVAS_ROOT_ATTRIBUTE, FLOW_ROOT_ATTRIBUTE, FREE_ROOT_ATTRIBUTE } from "./canvasGeometry";
 import { DragLayer } from "./DragLayer";
 import FreeItem from "./FreeItem";
+import { flexLayout, ParentLayoutContext } from "./fill";
 import { SelectionLayer } from "./SelectionLayer";
 import { useCanvasGestures } from "./useCanvasGestures";
 
@@ -71,8 +74,20 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
     height: `${height}px`,
   };
 
+  const rootElements = elements
+    .filter((element) => !element.parentId)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+  // The inner container hugs its elements, unless one of them fills the canvas along a side: then
+  // it spans the canvas on that side, so there is room to fill (the outer one is a row).
+  const fills = rootElements.filter(isElementVisible).map(fillOf);
+  const innerFillsWidth = fills.some((fill) => fill.width);
+  const innerFillsHeight = fills.some((fill) => fill.height);
+
   // Inner container handles alignment of elements within the group
   const innerStyle: React.CSSProperties = {
+    flexGrow: innerFillsWidth ? 1 : undefined,
+    alignSelf: innerFillsHeight ? "stretch" : undefined,
     display: "flex",
     flexDirection: globalStyle?.flexDirection || "column",
     gap: typeof globalStyle?.gap === "number" ? `${globalStyle.gap}px` : "16px",
@@ -82,10 +97,6 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
     padding: typeof globalStyle?.padding === "number" ? `${globalStyle.padding}px` : undefined,
     borderRadius: typeof globalStyle?.radius === "number" ? `${globalStyle.radius}px` : undefined,
   };
-
-  const rootElements = elements
-    .filter((element) => !element.parentId)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   const renderChild = (element: PrismaElement) => (
     <ElementDisplay element={element} elements={elements} />
@@ -101,17 +112,21 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
         className="relative"
         style={{ width: `${width}px`, height: `${height}px` }}
       >
-        {rootElements.map((element, index) => (
-          <FreeItem key={element.id} element={element} fallbackIndex={index}>
-            {renderChild(element)}
-          </FreeItem>
-        ))}
+        <ParentLayoutContext.Provider value="free">
+          {rootElements.map((element, index) => (
+            <FreeItem key={element.id} element={element} fallbackIndex={index}>
+              {renderChild(element)}
+            </FreeItem>
+          ))}
+        </ParentLayoutContext.Provider>
       </div>
     ) : (
       <div {...{ [FLOW_ROOT_ATTRIBUTE]: "" }} style={innerStyle}>
-        {rootElements.map((element) => (
-          <React.Fragment key={element.id}>{renderChild(element)}</React.Fragment>
-        ))}
+        <ParentLayoutContext.Provider value={flexLayout(innerStyle.flexDirection)}>
+          {rootElements.map((element) => (
+            <React.Fragment key={element.id}>{renderChild(element)}</React.Fragment>
+          ))}
+        </ParentLayoutContext.Provider>
       </div>
     );
 

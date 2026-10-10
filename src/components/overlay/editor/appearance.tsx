@@ -1,7 +1,9 @@
 import { ColorField } from "@/components/ui/color-picker";
 import { NumberField } from "@/components/ui/number-field";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { BindableField } from "@/components/variables/BindableField";
 import React from "react";
+import type { SizeMode } from "./sizing";
 
 /**
  * A labelled pixel count. Without `min`, negative values are allowed too. With `property` (as
@@ -55,3 +57,44 @@ export const ColorInput: React.FC<{
     />
   </BindableField>
 );
+
+const SIZE_MODE_LABELS: Record<SizeMode, string> = { fixed: "Fixed", hug: "Hug", fill: "Fill" };
+
+/**
+ * One side of an element's size: the modes it offers, and the pixel count while it is fixed. The
+ * `label` is the side ("Width"); `property` lets the pixel count be bound to a number variable.
+ */
+export const SizeField: React.FC<{
+  id: string;
+  label: string;
+  property?: string;
+  modes: readonly SizeMode[];
+  mode: SizeMode;
+  onModeChange: (mode: SizeMode) => void;
+  /** Only needed when the side can be fixed. */
+  value?: number;
+  min?: number;
+  onChange?: (value: number) => void;
+}> = ({ id, label, property, modes, mode, onModeChange, value, min, onChange }) => {
+  const fixed = mode === "fixed";
+  return (
+    <BindableField
+      // Only a fixed size is a number a variable could give.
+      property={fixed ? property : undefined}
+      label={label}
+      htmlFor={fixed ? id : undefined}
+      actions={
+        <SegmentedControl
+          aria-label={`${label} sizing`}
+          value={mode}
+          onValueChange={onModeChange}
+          options={modes.map((value) => ({ value, label: SIZE_MODE_LABELS[value] }))}
+        />
+      }
+    >
+      {fixed && value !== undefined && onChange && (
+        <NumberField id={id} value={value} min={min} unit="px" onChange={onChange} />
+      )}
+    </BindableField>
+  );
+};

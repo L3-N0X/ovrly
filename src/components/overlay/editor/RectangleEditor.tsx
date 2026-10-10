@@ -11,7 +11,8 @@ import {
 } from "@/lib/types";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import React, { useMemo, useState } from "react";
-import { ColorInput, PixelInput } from "./appearance";
+import { ColorInput, PixelInput, SizeField } from "./appearance";
+import { FIXED_OR_FILL, fixedOrFill, sizeModePatch } from "./sizing";
 
 export const RectangleEditor: React.FC<{
   element: PrismaElement;
@@ -42,23 +43,29 @@ export const RectangleEditor: React.FC<{
         corner to size it, or type the size here. A stroke is only drawn once
         its width is above 0.
       </p>
+      <SizeField
+        id={`${element.id}-width`}
+        label={"Width"}
+        property="style.width"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "width")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_RECTANGLE_WIDTH))}
+        min={1}
+        value={style.width ?? DEFAULT_RECTANGLE_WIDTH}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={`${element.id}-height`}
+        label={"Height"}
+        property="style.height"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "height")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_RECTANGLE_HEIGHT))}
+        min={1}
+        value={style.height ?? DEFAULT_RECTANGLE_HEIGHT}
+        onChange={(height) => updateStyle({ height })}
+      />
       <div className="grid grid-cols-2 gap-4">
-        <PixelInput
-          id={`${element.id}-width`}
-          label="Width"
-          property="style.width"
-          min={1}
-          value={style.width ?? DEFAULT_RECTANGLE_WIDTH}
-          onChange={(width) => updateStyle({ width })}
-        />
-        <PixelInput
-          id={`${element.id}-height`}
-          label="Height"
-          property="style.height"
-          min={1}
-          value={style.height ?? DEFAULT_RECTANGLE_HEIGHT}
-          onChange={(height) => updateStyle({ height })}
-        />
         <ColorInput
           id={`${element.id}-background`}
           label="Background"

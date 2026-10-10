@@ -15,20 +15,19 @@ const IconControl: React.FC<IconControlProps> = ({ element, onIconChange }) => {
   if (!icon) return null;
 
   return (
-    <div className="flex items-center space-x-2">
-      <div className="w-15 h-15 rounded-md bg-secondary flex shrink-0 items-center justify-center">
-        <IconGlyph library={icon.library} name={icon.name} size={32} />
+    <div className="flex items-center gap-2">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">
+        <IconGlyph library={icon.library} name={icon.name} size={20} />
       </div>
-      <div className="flex flex-col flex-1 min-w-0 mr-0">
-        <p className="text-sm text-muted-foreground mb-1 h-5 truncate overflow-hidden whitespace-nowrap">
-          {readableIconName(icon.name)} · {iconLibraryInfo(icon.library).label}
-        </p>
-        <IconPicker value={icon} onChange={(next) => onIconChange(element.id, next)}>
-          <Button variant="secondary" className="flex-grow">
-            Change Icon
-          </Button>
-        </IconPicker>
-      </div>
+      <p className="min-w-0 flex-1 truncate text-sm">
+        {readableIconName(icon.name)}
+        <span className="text-muted-foreground"> · {iconLibraryInfo(icon.library).label}</span>
+      </p>
+      <IconPicker value={icon} onChange={(next) => onIconChange(element.id, next)}>
+        <Button variant="secondary" size="sm" className="shrink-0">
+          Change
+        </Button>
+      </IconPicker>
     </div>
   );
 };

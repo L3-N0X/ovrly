@@ -17,7 +17,8 @@ import { progressMode } from "@/lib/progress";
 import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import React, { useMemo, useState } from "react";
-import { ColorInput, PixelInput } from "./appearance";
+import { ColorInput, PixelInput, SizeField } from "./appearance";
+import { FIXED_OR_FILL, fixedOrFill, sizeModePatch } from "./sizing";
 
 export const ProgressEditor: React.FC<{
   element: PrismaElement;
@@ -60,23 +61,29 @@ export const ProgressEditor: React.FC<{
             : "The bar is filled to the value out of the maximum, like a song's progress out of its length."}
         </p>
       </div>
+      <SizeField
+        id={`${element.id}-width`}
+        label={"Width"}
+        property="style.width"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "width")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_PROGRESS_WIDTH))}
+        min={1}
+        value={style.width ?? DEFAULT_PROGRESS_WIDTH}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={`${element.id}-height`}
+        label={"Height"}
+        property="style.height"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "height")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_PROGRESS_HEIGHT))}
+        min={1}
+        value={style.height ?? DEFAULT_PROGRESS_HEIGHT}
+        onChange={(height) => updateStyle({ height })}
+      />
       <div className="grid grid-cols-2 gap-4">
-        <PixelInput
-          id={`${element.id}-width`}
-          label="Width"
-          property="style.width"
-          min={1}
-          value={style.width ?? DEFAULT_PROGRESS_WIDTH}
-          onChange={(width) => updateStyle({ width })}
-        />
-        <PixelInput
-          id={`${element.id}-height`}
-          label="Height"
-          property="style.height"
-          min={1}
-          value={style.height ?? DEFAULT_PROGRESS_HEIGHT}
-          onChange={(height) => updateStyle({ height })}
-        />
         <ColorInput
           id={`${element.id}-fill`}
           label="Fill"

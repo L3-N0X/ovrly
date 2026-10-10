@@ -1,5 +1,4 @@
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { BindableField } from "@/components/variables/BindableField";
@@ -23,9 +22,11 @@ import {
 } from "@/lib/types";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import React, { useMemo, useState } from "react";
-import { CANVAS_ELEMENT_ATTRIBUTE } from "../canvasSelection";
 import { alignOptions, isRowDirection, justifyOptions } from "./alignment";
-import { ColorInput, PixelInput } from "./appearance";
+import { ColorInput, PixelInput, SizeField } from "./appearance";
+import { sizeModePatch, type SizeMode } from "./sizing";
+
+const SIZE_MODES = ["fixed", "hug", "fill"] as const;
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
@@ -51,23 +52,21 @@ export const ContainerEditor: React.FC<{
     onChange(updatedStyle);
   };
 
-  const autoWidth = style.autoWidth === true;
-  const autoHeight = style.autoHeight === true;
-
-  // Switching an automatic side off keeps the size the container has right now.
-  const setAuto = (side: "width" | "height", auto: boolean) => {
-    const key = side === "width" ? "autoWidth" : "autoHeight";
-    if (auto) return updateStyle({ [key]: true });
-    const box = document.querySelector(`[${CANVAS_ELEMENT_ATTRIBUTE}="${CSS.escape(element.id)}"]`)
-      ?.firstElementChild as HTMLElement | null | undefined;
-    const measured = side === "width" ? box?.offsetWidth : box?.offsetHeight;
-    updateStyle({
-      [key]: false,
-      [side]:
-        style[side] ??
-        (measured || (side === "width" ? DEFAULT_CONTAINER_WIDTH : DEFAULT_CONTAINER_HEIGHT)),
-    });
+  const sizeMode = (side: "width" | "height"): SizeMode => {
+    if ((side === "width" ? style.fillWidth : style.fillHeight) === true) return "fill";
+    return (side === "width" ? style.autoWidth : style.autoHeight) === true ? "hug" : "fixed";
   };
+  const setSizeMode = (side: "width" | "height", mode: SizeMode) =>
+    updateStyle(
+      sizeModePatch(
+        element.id,
+        style,
+        side,
+        mode,
+        side === "width" ? DEFAULT_CONTAINER_WIDTH : DEFAULT_CONTAINER_HEIGHT,
+        side === "width" ? "autoWidth" : "autoHeight",
+      ),
+    );
 
   const row = isRowDirection(style.flexDirection);
   const id = (name: string) => `${element.id}-container-${name}`;
@@ -76,48 +75,28 @@ export const ContainerEditor: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id={id("auto-width")}
-              checked={autoWidth}
-              onCheckedChange={(auto) => setAuto("width", auto)}
-            />
-            <Label htmlFor={id("auto-width")}>Auto width</Label>
-          </div>
-          {!autoWidth && (
-            <PixelInput
-              id={id("width")}
-              label="Width"
-              property="style.width"
-              min={1}
-              value={style.width ?? DEFAULT_CONTAINER_WIDTH}
-              onChange={(width) => updateStyle({ width })}
-            />
-          )}
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id={id("auto-height")}
-              checked={autoHeight}
-              onCheckedChange={(auto) => setAuto("height", auto)}
-            />
-            <Label htmlFor={id("auto-height")}>Auto height</Label>
-          </div>
-          {!autoHeight && (
-            <PixelInput
-              id={id("height")}
-              label="Height"
-              property="style.height"
-              min={1}
-              value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
-              onChange={(height) => updateStyle({ height })}
-            />
-          )}
-        </div>
-      </div>
+      <SizeField
+        id={id("width")}
+        label="Width"
+        property="style.width"
+        modes={SIZE_MODES}
+        mode={sizeMode("width")}
+        onModeChange={(mode) => setSizeMode("width", mode)}
+        min={1}
+        value={style.width ?? DEFAULT_CONTAINER_WIDTH}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={id("height")}
+        label="Height"
+        property="style.height"
+        modes={SIZE_MODES}
+        mode={sizeMode("height")}
+        onModeChange={(mode) => setSizeMode("height", mode)}
+        min={1}
+        value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
+        onChange={(height) => updateStyle({ height })}
+      />
       <div className="space-y-2">
         <Label>Direction</Label>
         <Select

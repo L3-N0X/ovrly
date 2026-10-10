@@ -7,12 +7,14 @@ import {
   DEFAULT_CYCLE_STACK_HEIGHT,
   DEFAULT_CYCLE_STACK_TRANSITION_DURATION,
   DEFAULT_CYCLE_STACK_WIDTH,
+  fillOf,
   type CycleStackStyle,
   type PrismaElement,
 } from "@/lib/types";
 import { cycleIntervalMs, cycleStackLayers, useLayerShown } from "@/lib/cycleStack";
 import { useCanvasEditing } from "./canvasEditing";
 import { useCanvasSelection } from "./canvasSelection";
+import { ParentLayoutContext, useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
 
 const MIN_CYCLE_STACK_SIZE = 20;
@@ -54,9 +56,10 @@ const CycleStack: React.FC<CycleStackProps> = ({ element, elements, renderChild 
     Math.max(0, toNumber(style.transitionDuration, DEFAULT_CYCLE_STACK_TRANSITION_DURATION))
   );
 
+  const fill = useFill(element);
   const { dragSize, handle } = useElementResize(element, MIN_CYCLE_STACK_SIZE, {
-    width: !fitContent,
-    height: !fitContent,
+    width: !fitContent && !fill.width,
+    height: !fitContent && !fill.height,
   });
   const width = dragSize?.width ?? toNumber(style.width, DEFAULT_CYCLE_STACK_WIDTH);
   const height = dragSize?.height ?? toNumber(style.height, DEFAULT_CYCLE_STACK_HEIGHT);
@@ -96,6 +99,7 @@ const CycleStack: React.FC<CycleStackProps> = ({ element, elements, renderChild 
           borderWidth > 0
             ? `${borderWidth}px solid ${style.borderColor || DEFAULT_BORDER_COLOR}`
             : undefined,
+        ...fill.style,
       }}
       className={
         editing ? "outline-1 -outline-offset-1 outline-dashed outline-white/40" : undefined
@@ -103,12 +107,16 @@ const CycleStack: React.FC<CycleStackProps> = ({ element, elements, renderChild 
     >
       {layers.map((layer) => {
         const shown = layer.id === shownId;
+        // A layer that fills the box spans its cell on that side, rather than sitting in it.
+        const layerFill = fillOf(layer);
         return (
           <div
             key={layer.id}
             aria-hidden={!shown}
             style={{
               gridArea: "1 / 1",
+              justifySelf: layerFill.width ? "stretch" : undefined,
+              alignSelf: layerFill.height ? "stretch" : undefined,
               display: "flex",
               flexDirection: "column",
               minWidth: 0,
@@ -125,7 +133,9 @@ const CycleStack: React.FC<CycleStackProps> = ({ element, elements, renderChild 
                   : undefined,
             }}
           >
-            {renderChild(layer)}
+            <ParentLayoutContext.Provider value="column">
+              {renderChild(layer)}
+            </ParentLayoutContext.Provider>
           </div>
         );
       })}

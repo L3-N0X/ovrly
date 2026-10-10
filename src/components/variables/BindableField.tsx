@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { AlertCircle, Braces, Check, Settings2, Unlink } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -32,6 +32,8 @@ interface BindableFieldProps {
   htmlFor?: string;
   // For switches, whose label sits next to them rather than above.
   inline?: boolean;
+  // Controls shown at the end of the label's row (not for inline fields).
+  actions?: React.ReactNode;
   className?: string;
   // The field itself, shown while the property isn't bound.
   children: React.ReactNode;
@@ -51,6 +53,7 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   label,
   htmlFor,
   inline,
+  actions,
   className,
   children,
 }) => {
@@ -58,6 +61,9 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   const element = useBindingElement();
   const kind = element && property ? bindingKind(element.type, property) : undefined;
   const [picking, setPicking] = useState(false);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  // What had focus in the field when the picker opened, to go back to once it closes.
+  const returnFocus = useRef<HTMLElement | null>(null);
 
   if (!variables || !element || !property || !kind) {
     return inline ? (
@@ -67,7 +73,14 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       </div>
     ) : (
       <div className={cn("space-y-2", className)}>
-        <Label htmlFor={htmlFor}>{label}</Label>
+        {actions ? (
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={htmlFor}>{label}</Label>
+            {actions}
+          </div>
+        ) : (
+          <Label htmlFor={htmlFor}>{label}</Label>
+        )}
         {children}
       </div>
     );
@@ -79,13 +92,43 @@ export const BindableField: React.FC<BindableFieldProps> = ({
     setPicking(false);
     variables.onBind(element.id, property, target);
   };
+  const openPicker = () => {
+    const focused = document.activeElement;
+    returnFocus.current =
+      focused instanceof HTMLElement && fieldRef.current?.contains(focused) ? focused : null;
+    setPicking(true);
+  };
+  // Alt+V opens the picker from anywhere in the field, since the bind button can't be tabbed to.
+  // By code, as Option+V types a character on macOS.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!canBind || !e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.code !== "KeyV") return;
+    e.preventDefault();
+    e.stopPropagation();
+    openPicker();
+  };
+  // Back into the field, or into what replaced it once a variable was bound or detached.
+  const onCloseAutoFocus = (e: Event) => {
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    if (!target) return;
+    e.preventDefault();
+    const next = target.isConnected
+      ? target
+      : fieldRef.current?.querySelector<HTMLElement>(
+          "input, textarea, select, button:not([tabindex='-1']), [tabindex]:not([tabindex='-1'])"
+        );
+    next?.focus();
+  };
 
+  // Out of the tab order, so tabbing through a form goes from field to field (Alt+V instead).
   const bindButton = canBind && (
     <button
       type="button"
-      title="Bind to a variable"
+      tabIndex={-1}
+      title="Bind to a variable (Alt+V)"
       aria-label={`Bind ${typeof label === "string" ? label : "field"} to a variable`}
-      onClick={() => setPicking(true)}
+      aria-keyshortcuts="Alt+V"
+      onClick={openPicker}
       className={cn(
         "-my-1 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity outline-none hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/bind:opacity-100 group-focus-within/bind:opacity-100",
         picking && "opacity-100"
@@ -106,7 +149,12 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor={binding ? undefined : htmlFor}>{label}</Label>
-          {!binding && bindButton}
+          {(actions || !binding) && (
+            <div className="flex items-center gap-1">
+              {!binding && bindButton}
+              {actions}
+            </div>
+          )}
         </div>
         {binding ? (
           <BoundVariable
@@ -114,7 +162,7 @@ export const BindableField: React.FC<BindableFieldProps> = ({
             variable={variables.variables?.find((v) => variableRef(v) === variableRef(binding))}
             loaded={variables.variables !== null}
             sourceName={sourceLabel(binding.source, variables.sources)}
-            onPick={canBind ? () => setPicking(true) : undefined}
+            onPick={canBind ? openPicker : undefined}
             onDetach={canBind ? () => bind(null) : undefined}
           />
         ) : (
@@ -126,9 +174,17 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   return (
     <Popover open={picking} onOpenChange={setPicking}>
       <PopoverAnchor asChild>
-        <div className={cn("group/bind", className)}>{field}</div>
+        <div ref={fieldRef} onKeyDown={onKeyDown} className={cn("group/bind", className)}>
+          {field}
+        </div>
       </PopoverAnchor>
-      <PopoverContent align="end" className="w-72 p-0">
+      <PopoverContent
+        align="end"
+        className="w-72 p-0"
+        onCloseAutoFocus={onCloseAutoFocus}
+        // Clicking elsewhere closes it without pulling focus back from what was clicked.
+        onInteractOutside={() => (returnFocus.current = null)}
+      >
         <VariablePicker kind={kind} binding={binding} onBind={bind} />
       </PopoverContent>
     </Popover>

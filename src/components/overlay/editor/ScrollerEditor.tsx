@@ -22,7 +22,8 @@ import {
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import React, { useMemo, useState } from "react";
 import { alignOptions } from "./alignment";
-import { ColorInput, PixelInput } from "./appearance";
+import { ColorInput, PixelInput, SizeField } from "./appearance";
+import { FIXED_OR_FILL, fixedOrFill, sizeModePatch } from "./sizing";
 
 const DIRECTION_OPTIONS = [
   { value: "vertical", label: "Vertical" },
@@ -114,24 +115,28 @@ export const ScrollerEditor: React.FC<{
           </BindableField>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <PixelInput
-          id={id("width")}
-          label={vertical ? "Width" : "Max Width"}
-          property="style.width"
-          min={1}
-          value={style.width ?? DEFAULT_SCROLLER_WIDTH}
-          onChange={(width) => updateStyle({ width })}
-        />
-        <PixelInput
-          id={id("height")}
-          label={vertical ? "Max Height" : "Height"}
-          property="style.height"
-          min={1}
-          value={style.height ?? DEFAULT_SCROLLER_HEIGHT}
-          onChange={(height) => updateStyle({ height })}
-        />
-      </div>
+      <SizeField
+        id={id("width")}
+        label={vertical ? "Width" : "Max Width"}
+        property="style.width"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "width")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_SCROLLER_WIDTH))}
+        min={1}
+        value={style.width ?? DEFAULT_SCROLLER_WIDTH}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={id("height")}
+        label={vertical ? "Max Height" : "Height"}
+        property="style.height"
+        modes={FIXED_OR_FILL}
+        mode={fixedOrFill(style, "height")}
+        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_SCROLLER_HEIGHT))}
+        min={1}
+        value={style.height ?? DEFAULT_SCROLLER_HEIGHT}
+        onChange={(height) => updateStyle({ height })}
+      />
       <div className="flex items-center space-x-2">
         <Switch
           id={id("fit-content")}

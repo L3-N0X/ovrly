@@ -211,7 +211,7 @@ export const VariablesPanel: React.FC<{ overlay: PrismaOverlay; isOwner: boolean
 
       <p className="px-4 py-3 text-xs text-muted-foreground">
         Bind a field to a variable with the <Braces className="inline size-3 align-[-1px]" /> button
-        next to its label. Other apps can update variables through the{" "}
+        next to its label, or with Alt+V while the field has focus. Other apps can update variables through the{" "}
         <Link to="/settings?tab=api" className="underline underline-offset-2">
           API
         </Link>

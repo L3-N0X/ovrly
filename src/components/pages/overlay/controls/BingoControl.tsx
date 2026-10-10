@@ -106,31 +106,40 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
         <Label htmlFor={`bingo-fields-${element.id}`}>
           Fields
-          <span className="font-normal text-muted-foreground">
+          <span className="text-xs font-normal text-muted-foreground tabular-nums">
             {markedCount} of {data.fields.length - (data.freeMiddle ? 1 : 0)} marked
           </span>
         </Label>
-        <div className="flex gap-2">
+        <div className="-my-1 -mr-2 flex shrink-0">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
+            className="h-7 gap-1 px-2 text-xs has-[>svg]:px-2"
             onClick={handleClearMarks}
             disabled={markedCount === 0}
+            title="Unmark every cell"
           >
-            <Eraser className="mr-2 h-4 w-4" />
-            Clear Marks
+            <Eraser className="size-3.5" />
+            Clear
           </Button>
-          <Button variant="outline" size="sm" onClick={handleShuffle} disabled={isShuffling}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs has-[>svg]:px-2"
+            onClick={handleShuffle}
+            disabled={isShuffling}
+            title="Shuffle the fields into new cells"
+          >
             {isShuffling ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <Shuffle className="mr-2 h-4 w-4" />
+              <Shuffle className="size-3.5" />
             )}
-            {isShuffling ? "Shuffling..." : "Shuffle"}
+            {isShuffling ? "Shuffling…" : "Shuffle"}
           </Button>
         </div>
       </div>
@@ -138,8 +147,8 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
       <div className="overflow-x-auto pb-1">
         <div
           id={`bingo-fields-${element.id}`}
-          className="grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${data.columns}, minmax(6rem, 1fr))` }}
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${data.columns}, minmax(5rem, 1fr))` }}
         >
           {fields.map((field, index) => {
             const isFree = isFreeSpace(index);
@@ -155,7 +164,7 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
                   aria-label={`Cell ${index + 1}`}
                   title={isFree ? undefined : field}
                   className={cn(
-                    "h-9 pr-9 pl-2",
+                    "h-8 pr-7 pl-2 text-xs md:text-xs",
                     checked && "border-primary/70 bg-primary/15 dark:bg-primary/15"
                   )}
                 />
@@ -167,13 +176,13 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
                   aria-label={`${checked ? "Unmark" : "Mark"} ${name}`}
                   title={isFree ? "The free middle is always marked" : checked ? "Unmark" : "Mark"}
                   className={cn(
-                    "absolute inset-y-1 right-1 flex w-7 items-center justify-center rounded-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none",
+                    "absolute inset-y-1 right-1 flex w-5 items-center justify-center rounded-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none",
                     checked
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "text-muted-foreground/50 hover:bg-accent hover:text-foreground"
                   )}
                 >
-                  <X className="h-4 w-4" strokeWidth={checked ? 3 : 2} />
+                  <X className="size-3.5" strokeWidth={checked ? 3 : 2} />
                 </button>
               </div>
             );
@@ -181,7 +190,7 @@ const BingoControl: React.FC<BingoControlProps> = ({ element, onDataChange }) =>
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
       )}

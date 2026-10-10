@@ -8,6 +8,7 @@ import {
   type ContainerStyle,
   type PrismaElement,
 } from "@/lib/types";
+import { flexLayout, ParentLayoutContext, useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
 
 const MIN_CONTAINER_SIZE = 20;
@@ -23,11 +24,12 @@ interface ContainerProps {
 
 const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
   const safeStyle = style || {};
+  const fill = useFill(element);
   const fixedWidth = safeStyle.autoWidth !== true;
   const fixedHeight = safeStyle.autoHeight !== true;
   const { dragSize, handle } = useElementResize(element, MIN_CONTAINER_SIZE, {
-    width: fixedWidth,
-    height: fixedHeight,
+    width: fixedWidth && !fill.width,
+    height: fixedHeight && !fill.height,
   });
   const width = dragSize?.width ?? toNumber(safeStyle.width, DEFAULT_CONTAINER_WIDTH);
   const height = dragSize?.height ?? toNumber(safeStyle.height, DEFAULT_CONTAINER_HEIGHT);
@@ -45,9 +47,9 @@ const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
     flexDirection: safeStyle.flexDirection || "column",
     gap: typeof safeStyle.gap === "number" ? `${safeStyle.gap}px` : undefined,
     justifyContent: safeStyle.justifyContent || "flex-start",
-    // Automatic sizing fills the parent's width and grows to fit the children.
+    // Automatic sizing hugs the children (or is stretched by a parent that stretches them).
     position: "relative",
-    width: fixedWidth ? `${width}px` : "100%",
+    width: fixedWidth ? `${width}px` : "auto",
     height: fixedHeight ? `${height}px` : "auto",
     // A fixed side must not give way when the parent runs out of room.
     flexShrink: fixedWidth || fixedHeight ? 0 : undefined,
@@ -76,11 +78,14 @@ const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
       borderWidth > 0
         ? `${borderWidth}px solid ${safeStyle.borderColor || DEFAULT_BORDER_COLOR}`
         : undefined,
+    ...fill.style,
   };
 
   return (
     <div style={containerStyle}>
-      {children}
+      <ParentLayoutContext.Provider value={flexLayout(containerStyle.flexDirection)}>
+        {children}
+      </ParentLayoutContext.Provider>
       {handle}
     </div>
   );

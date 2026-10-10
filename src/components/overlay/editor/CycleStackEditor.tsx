@@ -31,7 +31,8 @@ import {
 } from "@/lib/types";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import React, { useMemo, useState } from "react";
-import { ColorInput, PixelInput } from "./appearance";
+import { ColorInput, PixelInput, SizeField } from "./appearance";
+import { FIXED_OR_FILL, HUG_OR_FILL, sizeModePatch, type SizeMode } from "./sizing";
 
 const TRANSITION_OPTIONS = [
   { value: "fade", label: "Fade" },
@@ -76,6 +77,12 @@ export const CycleStackEditor: React.FC<{
 
   const transition: CycleStackTransition = style.transition === "none" ? "none" : "fade";
   const fitContent = style.fitContent === true;
+  const sizeMode = (side: "width" | "height"): SizeMode =>
+    (side === "width" ? style.fillWidth : style.fillHeight) === true
+      ? "fill"
+      : fitContent
+        ? "hug"
+        : "fixed";
   const id = (name: string) => `${element.id}-cycle-stack-${name}`;
   const pixels = (key: "paddingX" | "paddingY") =>
     typeof style[key] === "number" ? style[key] : 0;
@@ -135,26 +142,33 @@ export const CycleStackEditor: React.FC<{
         />
         <Label htmlFor={id("fit-content")}>Size to the biggest layer</Label>
       </div>
-      {!fitContent && (
-        <div className="grid grid-cols-2 gap-4">
-          <PixelInput
-            id={id("width")}
-            label="Width"
-            property="style.width"
-            min={1}
-            value={style.width ?? DEFAULT_CYCLE_STACK_WIDTH}
-            onChange={(width) => updateStyle({ width })}
-          />
-          <PixelInput
-            id={id("height")}
-            label="Height"
-            property="style.height"
-            min={1}
-            value={style.height ?? DEFAULT_CYCLE_STACK_HEIGHT}
-            onChange={(height) => updateStyle({ height })}
-          />
-        </div>
-      )}
+      {/* Sized to the biggest layer, a side hugs it unless it fills the parent. */}
+      <SizeField
+        id={id("width")}
+        label="Width"
+        property="style.width"
+        modes={fitContent ? HUG_OR_FILL : FIXED_OR_FILL}
+        mode={sizeMode("width")}
+        onModeChange={(mode) =>
+          updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_CYCLE_STACK_WIDTH))
+        }
+        min={1}
+        value={style.width ?? DEFAULT_CYCLE_STACK_WIDTH}
+        onChange={(width) => updateStyle({ width })}
+      />
+      <SizeField
+        id={id("height")}
+        label="Height"
+        property="style.height"
+        modes={fitContent ? HUG_OR_FILL : FIXED_OR_FILL}
+        mode={sizeMode("height")}
+        onModeChange={(mode) =>
+          updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_CYCLE_STACK_HEIGHT))
+        }
+        min={1}
+        value={style.height ?? DEFAULT_CYCLE_STACK_HEIGHT}
+        onChange={(height) => updateStyle({ height })}
+      />
       <div className="space-y-2">
         <Label htmlFor={id("justify")}>Horizontal Alignment</Label>
         <SegmentedControl
