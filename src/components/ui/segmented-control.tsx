@@ -12,13 +12,16 @@ export interface SegmentedOption<T extends string> {
 
 /**
  * Picks one of a few options. The selected one is a raised segment with a tinted icon, hover
- * only brightens the text, so the two never look alike. Only as wide as its options.
+ * only brightens the text, so the two never look alike. Only as wide as its options, unless
+ * `stretch` shares the whole width out between them.
  */
 function SegmentedControl<T extends string>({
   id,
   value,
   onValueChange,
   options,
+  size = "default",
+  stretch = false,
   className,
   "aria-label": ariaLabel,
 }: {
@@ -26,6 +29,9 @@ function SegmentedControl<T extends string>({
   value: T;
   onValueChange: (value: T) => void;
   options: readonly SegmentedOption<T>[];
+  /** `sm` matches the small fields of the inspector. */
+  size?: "default" | "sm";
+  stretch?: boolean;
   className?: string;
   "aria-label"?: string;
 }) {
@@ -39,7 +45,9 @@ function SegmentedControl<T extends string>({
       aria-label={ariaLabel}
       data-slot="segmented-control"
       className={cn(
-        "inline-flex w-fit max-w-full items-center gap-0.5 rounded-lg border border-input bg-muted/50 p-0.5 dark:bg-input/25",
+        "inline-flex max-w-full items-center gap-0.5 border border-input bg-muted/50 p-0.5 dark:bg-input/25",
+        size === "sm" ? "rounded-md" : "rounded-lg",
+        stretch ? "flex w-full" : "w-fit",
         className
       )}
     >
@@ -50,16 +58,25 @@ function SegmentedControl<T extends string>({
           title={label}
           aria-label={label}
           className={cn(
-            "inline-flex h-7 cursor-pointer items-center justify-center rounded-md text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] outline-none",
+            "inline-flex cursor-pointer items-center justify-center font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] outline-none",
             "data-[state=off]:hover:bg-foreground/5 data-[state=off]:hover:text-foreground",
             "focus-visible:ring-[3px] focus-visible:ring-ring/50",
             "data-[state=on]:bg-popover data-[state=on]:text-primary data-[state=on]:shadow-sm data-[state=on]:ring-1 data-[state=on]:ring-black/5",
             "dark:data-[state=on]:bg-input dark:data-[state=on]:text-ring dark:data-[state=on]:ring-white/10",
             "disabled:pointer-events-none disabled:opacity-50",
-            Icon ? "w-8" : "px-3"
+            size === "sm" ? "h-[22px] rounded-[5px] text-xs" : "h-7 rounded-md text-sm",
+            stretch
+              ? "min-w-0 flex-1 px-1"
+              : Icon
+                ? size === "sm"
+                  ? "w-7"
+                  : "w-8"
+                : size === "sm"
+                  ? "px-2"
+                  : "px-3"
           )}
         >
-          {Icon ? <Icon className="size-4" /> : label}
+          {Icon ? <Icon className={size === "sm" ? "size-3.5" : "size-4"} /> : label}
         </ToggleGroupPrimitive.Item>
       ))}
     </ToggleGroupPrimitive.Root>

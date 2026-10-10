@@ -32,6 +32,12 @@ interface BindableFieldProps {
   htmlFor?: string;
   // For switches, whose label sits next to them rather than above.
   inline?: boolean;
+  // For the small fields of the inspector, which carry their label inside (as a prefix like "X"
+  // or an icon): no label above, the bind button shows on hover at the field's right end, and
+  // a bound variable takes the field's place at the same height. `label` becomes the tooltip.
+  compact?: boolean;
+  // What the field shows in front of its value, repeated in front of a bound variable.
+  prefix?: React.ReactNode;
   className?: string;
   // The field itself, shown while the property isn't bound.
   children: React.ReactNode;
@@ -51,6 +57,8 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   label,
   htmlFor,
   inline,
+  compact,
+  prefix,
   className,
   children,
 }) => {
@@ -59,11 +67,22 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   const kind = element && property ? bindingKind(element.type, property) : undefined;
   const [picking, setPicking] = useState(false);
 
+  const tooltip = typeof label === "string" ? label : undefined;
+
   if (!variables || !element || !property || !kind) {
+    if (compact) {
+      return (
+        <div className={cn("min-w-0", className)} title={tooltip}>
+          {children}
+        </div>
+      );
+    }
     return inline ? (
-      <div className={cn("flex items-center space-x-2", className)}>
+      <div className={cn("flex h-7 items-center space-x-2", className)}>
         {children}
-        <Label htmlFor={htmlFor}>{label}</Label>
+        <Label htmlFor={htmlFor} className="text-xs font-normal">
+          {label}
+        </Label>
       </div>
     ) : (
       <div className={cn("space-y-2", className)}>
@@ -87,7 +106,9 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       aria-label={`Bind ${typeof label === "string" ? label : "field"} to a variable`}
       onClick={() => setPicking(true)}
       className={cn(
-        "-my-1 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity outline-none hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/bind:opacity-100 group-focus-within/bind:opacity-100",
+        "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity outline-none hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/bind:opacity-100 group-focus-within/bind:opacity-100",
+        // Over the end of the field, so it needs a background to hide the unit beneath it.
+        compact ? "size-5 bg-background" : "-my-1 size-6",
         picking && "opacity-100"
       )}
     >
@@ -95,11 +116,34 @@ export const BindableField: React.FC<BindableFieldProps> = ({
     </button>
   );
 
-  const field =
-    inline && !binding ? (
-      <div className="flex items-center gap-2">
+  const boundVariable = binding && (
+    <BoundVariable
+      binding={binding}
+      variable={variables.variables?.find((v) => variableRef(v) === variableRef(binding))}
+      loaded={variables.variables !== null}
+      sourceName={sourceLabel(binding.source, variables.sources)}
+      onPick={canBind ? () => setPicking(true) : undefined}
+      onDetach={canBind ? () => bind(null) : undefined}
+      compact={compact}
+      prefix={prefix}
+    />
+  );
+
+  const field = compact ? (
+    (boundVariable ?? (
+      <div className="relative">
         {children}
-        <Label htmlFor={htmlFor}>{label}</Label>
+        <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center [&>*]:pointer-events-auto">
+          {bindButton}
+        </span>
+      </div>
+    ))
+  ) : inline && !binding ? (
+      <div className="flex h-7 items-center gap-2">
+        {children}
+        <Label htmlFor={htmlFor} className="text-xs font-normal">
+          {label}
+        </Label>
         <span className="ml-auto flex">{bindButton}</span>
       </div>
     ) : (
@@ -108,25 +152,16 @@ export const BindableField: React.FC<BindableFieldProps> = ({
           <Label htmlFor={binding ? undefined : htmlFor}>{label}</Label>
           {!binding && bindButton}
         </div>
-        {binding ? (
-          <BoundVariable
-            binding={binding}
-            variable={variables.variables?.find((v) => variableRef(v) === variableRef(binding))}
-            loaded={variables.variables !== null}
-            sourceName={sourceLabel(binding.source, variables.sources)}
-            onPick={canBind ? () => setPicking(true) : undefined}
-            onDetach={canBind ? () => bind(null) : undefined}
-          />
-        ) : (
-          children
-        )}
+        {boundVariable || children}
       </div>
     );
 
   return (
     <Popover open={picking} onOpenChange={setPicking}>
       <PopoverAnchor asChild>
-        <div className={cn("group/bind", className)}>{field}</div>
+        <div className={cn("group/bind min-w-0", className)} title={compact ? tooltip : undefined}>
+          {field}
+        </div>
       </PopoverAnchor>
       <PopoverContent align="end" className="w-72 p-0">
         <VariablePicker kind={kind} binding={binding} onBind={bind} />
@@ -143,12 +178,15 @@ const BoundVariable: React.FC<{
   sourceName: string;
   onPick?: () => void;
   onDetach?: () => void;
-}> = ({ binding, variable, loaded, sourceName, onPick, onDetach }) => {
+  compact?: boolean;
+  prefix?: React.ReactNode;
+}> = ({ binding, variable, loaded, sourceName, onPick, onDetach, compact, prefix }) => {
   const missing = loaded && !variable;
   return (
     <div
       className={cn(
-        "flex h-9 w-full min-w-0 items-center gap-1.5 rounded-md border pr-1 pl-2 text-sm",
+        "@container flex w-full min-w-0 items-center gap-1.5 rounded-md border pr-1",
+        compact ? "h-7 pl-1.5 text-xs" : "h-9 pl-2 text-sm",
         missing
           ? "border-amber-500/50 bg-amber-500/10"
           : "border-violet-500/40 bg-violet-500/10"
@@ -159,8 +197,13 @@ const BoundVariable: React.FC<{
         onClick={onPick}
         disabled={!onPick}
         title={`${binding.key} · ${sourceName}${onPick ? " (pick another variable)" : ""}`}
-        className="@container flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left outline-none disabled:cursor-default"
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left outline-none disabled:cursor-default"
       >
+        {prefix !== undefined && (
+          <span className="flex shrink-0 items-center text-muted-foreground [&_svg]:size-3.5">
+            {prefix}
+          </span>
+        )}
         {variable ? (
           <VariableTypeIcon type={variable.type} className="text-violet-500" />
         ) : (
@@ -175,12 +218,10 @@ const BoundVariable: React.FC<{
         </span>
       </button>
       {variable ? (
-        <VariableValuePreview
-          type={variable.type}
-          value={variable.value}
-          compact
-          className="max-w-16 shrink-0"
-        />
+        // Narrow fields keep the room for the variable's name.
+        <span className={cn("max-w-16 shrink-0", compact && "hidden @[11rem]:inline-flex")}>
+          <VariableValuePreview type={variable.type} value={variable.value} compact />
+        </span>
       ) : (
         missing && (
           <span title="There is no variable of this name (any more). The field shows its own value until there is.">
@@ -194,7 +235,11 @@ const BoundVariable: React.FC<{
           title="Detach variable"
           aria-label="Detach variable"
           onClick={onDetach}
-          className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm",
+            compact ? "size-5" : "size-7",
+            "text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          )}
         >
           <Unlink className="size-3.5" />
         </button>

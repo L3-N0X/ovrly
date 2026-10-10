@@ -1,5 +1,6 @@
 import React from "react";
 import type { CounterStyle } from "@/lib/types";
+import { shadowStyle } from "./shadow";
 import { textStyle } from "./textStyle";
 
 interface CounterProps {
@@ -21,6 +22,7 @@ const Counter: React.FC<CounterProps> = ({ value, style }) => {
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
+        ...shadowStyle(style, { box: !!style?.backgroundColor }),
       }}
     >
       {value}

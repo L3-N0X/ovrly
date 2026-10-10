@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PrismaElement, ImageStyle } from '@/lib/types';
+import { shadowStyle } from './shadow';
 import { useElementResize } from './useElementResize';
 
 const MIN_IMAGE_SIZE = 8;
@@ -25,6 +26,7 @@ const Image: React.FC<ImageProps> = ({ element }) => {
         width: width !== undefined ? `${width}px` : undefined,
         height: height !== undefined ? `${height}px` : undefined,
         flexShrink: 0,
+        ...shadowStyle(imageStyle),
       }}
     >
       {hasImage ? (

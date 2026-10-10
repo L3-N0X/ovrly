@@ -6,12 +6,12 @@ import { GlobalStyleEditor } from "@/components/overlay/editor/GlobalStyleEditor
 import { renameElement } from "@/components/overlay/editor/renameElement";
 import { InlineRename } from "@/components/ui/inline-rename";
 import {
-  ElementPositionEditor,
+  ElementPositionSection,
   ElementStyleEditor,
 } from "@/components/overlay/editor/elementlist/ElementInspector";
+import { InspectorSection } from "@/components/overlay/editor/fields";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
-import { flattenTree, isPlacedFreely } from "@/components/overlay/editor/elementlist/tree";
-import { cn } from "@/lib/utils";
+import { flattenTree } from "@/components/overlay/editor/elementlist/tree";
 import {
   canvasSize,
   CanvasModeEnum,
@@ -34,9 +34,10 @@ interface InspectorProps {
   content: ContentHandlers;
 }
 
-// The right hand panel. What it shows follows the selection: an element's content, position
-// and style; the overlay's global layout; or, with nothing selected, the content controls of
-// every element so the overlay can be run live from one place.
+// The right hand panel, laid out like Figma's. What it shows follows the selection: an element's
+// content followed by its design in sections of a fixed order (Position, Layout, Appearance,
+// Text, Fill, Stroke, Effects); the canvas and its layout; or, with nothing selected, the content
+// controls of every element so the overlay can be run live from one place.
 const Inspector: React.FC<InspectorProps> = ({
   overlay,
   selectedId,
@@ -56,15 +57,11 @@ const Inspector: React.FC<InspectorProps> = ({
             {width} × {height}
           </span>
         </PanelHeader>
-        <PanelSection title="Canvas">
-          <CanvasEditor overlay={overlay} onOverlayChange={onOverlayChange} />
-        </PanelSection>
+        <CanvasEditor overlay={overlay} onOverlayChange={onOverlayChange} />
         {/* The arrangement only places what sits directly on the canvas, so it is only shown
             when the canvas arranges those elements. */}
         {overlay.canvasMode === CanvasModeEnum.AUTO && (
-          <PanelSection title="Layout">
-            <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
-          </PanelSection>
+          <GlobalStyleEditor overlay={overlay} onOverlayChange={onOverlayChange} />
         )}
       </>
     );
@@ -98,13 +95,13 @@ const Inspector: React.FC<InspectorProps> = ({
         </span>
       </PanelHeader>
       {contentElements.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-muted-foreground">
+        <p className="px-3 py-6 text-xs text-muted-foreground">
           No elements with content yet. Add a title, counter, timer, image, icon or bingo card in the
           layers panel.
         </p>
       ) : (
         contentElements.map((element) => (
-          <section key={element.id} className="space-y-2 border-b px-4 py-3">
+          <section key={element.id} className="space-y-2 border-b px-3 py-3">
             <button
               type="button"
               title="Select to edit style and position"
@@ -120,7 +117,7 @@ const Inspector: React.FC<InspectorProps> = ({
           </section>
         ))
       )}
-      <p className="px-4 py-3 text-xs text-muted-foreground">
+      <p className="px-3 py-3 text-xs text-muted-foreground">
         Select an element on the canvas or in the layers panel to change its style and position.
       </p>
     </>
@@ -189,52 +186,29 @@ const ElementPanel = ({
         </div>
       </PanelHeader>
       {hasContent(element.type) && (
-        <PanelSection title="Content">
+        <InspectorSection title="Content">
           <ElementContentControl element={element} handlers={content} />
-        </PanelSection>
+        </InspectorSection>
       )}
-      {isPlacedFreely(overlay, element) && (
-        <PanelSection title="Position">
-          <ElementPositionEditor
-            element={element}
-            overlay={overlay}
-            onOverlayChange={onOverlayChange}
-          />
-        </PanelSection>
-      )}
-      <PanelSection title="Style">
-        <ElementStyleEditor
-          element={element}
-          overlay={overlay}
-          onOverlayChange={onOverlayChange}
-          onBingoDataChange={content.onBingoDataChange}
-        />
-      </PanelSection>
+      <ElementPositionSection
+        element={element}
+        overlay={overlay}
+        onOverlayChange={onOverlayChange}
+      />
+      <ElementStyleEditor
+        element={element}
+        overlay={overlay}
+        onOverlayChange={onOverlayChange}
+        onBingoDataChange={content.onBingoDataChange}
+      />
     </BindingElementContext.Provider>
   );
 };
 
 const PanelHeader = ({ children }: { children: React.ReactNode }) => (
-  <div className="sticky top-0 z-10 flex h-11 shrink-0 items-center gap-2 border-b bg-background px-4">
+  <div className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b bg-background px-3">
     {children}
   </div>
-);
-
-const PanelSection = ({
-  title,
-  className,
-  children,
-}: {
-  title: string;
-  className?: string;
-  children: React.ReactNode;
-}) => (
-  <section className={cn("space-y-3 border-b px-4 py-4", className)}>
-    <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-      {title}
-    </h3>
-    {children}
-  </section>
 );
 
 export default Inspector;

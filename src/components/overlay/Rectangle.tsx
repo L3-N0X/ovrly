@@ -9,6 +9,7 @@ import {
   type RectangleStyle,
 } from "@/lib/types";
 import { useCanvasEditing } from "./canvasEditing";
+import { shadowStyle } from "./shadow";
 import { useElementResize } from "./useElementResize";
 
 const MIN_RECTANGLE_SIZE = 1;
@@ -49,6 +50,7 @@ const Rectangle: React.FC<RectangleProps> = ({ element }) => {
             : undefined,
         // Keeps the border inside the rectangle's size, so adding one doesn't resize it.
         boxSizing: "border-box",
+        ...shadowStyle(style, { box: !!style.backgroundColor }),
       }}
       className={
         editing

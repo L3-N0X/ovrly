@@ -1,23 +1,32 @@
 import { Switch } from "@/components/ui/switch";
 import { BindableField } from "@/components/variables/BindableField";
 import {
-  DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_RADIUS,
   DEFAULT_BORDER_WIDTH,
   DEFAULT_GROUP_HEIGHT,
   DEFAULT_GROUP_WIDTH,
-  BORDER_RADIUS_RANGE,
-  BORDER_WIDTH_RANGE,
   type GroupStyle,
   type PrismaElement,
 } from "@/lib/types";
-import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
-import React, { useMemo, useState } from "react";
-import { ColorInput, PixelInput } from "./appearance";
+import React from "react";
+import {
+  CornerRadiusProp,
+  EffectsSection,
+  FieldGrid,
+  FieldHint,
+  FillSection,
+  InspectorSection,
+  Letter,
+  NumberProp,
+  SizeFields,
+  StrokeSection,
+} from "./fields";
+import { spreadFor, useStyleDraft } from "./useStyleDraft";
 
-// X/Y of an element that sits directly inside a group, for placing it precisely. Measured
-// from the group's top left corner; negative or large values place it outside the group.
-export const GroupPositionEditor: React.FC<{
+// X/Y of an element that sits directly inside a group or on a free canvas, for placing it
+// precisely. Measured from the parent's top left corner; negative or large values place it
+// outside.
+export const PositionFields: React.FC<{
   element: PrismaElement;
   onChange: (position: { x: number; y: number }) => void;
 }> = ({ element, onChange }) => {
@@ -25,130 +34,88 @@ export const GroupPositionEditor: React.FC<{
   const x = style.x ?? 0;
   const y = style.y ?? 0;
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <PixelInput
+    <FieldGrid>
+      <NumberProp
         id={`${element.id}-x`}
         label="X"
+        prefix={<Letter>X</Letter>}
         property="style.x"
+        unit="px"
         value={x}
         onChange={(x) => onChange({ x, y })}
       />
-      <PixelInput
+      <NumberProp
         id={`${element.id}-y`}
         label="Y"
+        prefix={<Letter>Y</Letter>}
         property="style.y"
+        unit="px"
         value={y}
         onChange={(y) => onChange({ x, y })}
       />
-    </div>
+    </FieldGrid>
   );
 };
 
+// Elements in a group are placed freely: with the Move tool (M) they can be dragged anywhere,
+// even past the group's edges or outside the overlay.
 export const GroupEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: GroupStyle) => void;
 }> = ({ element, onChange }) => {
-  const [isPickingColor, setIsPickingColor] = useState(false);
-  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
-  // new value to mean the server sent a new one.
-  const serverStyle = useMemo(
-    () => (element.style || {}) as GroupStyle,
-    [element.style],
-  );
-  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(
-    serverStyle,
-    isPickingColor,
-  );
-  const updateStyle = (patch: Partial<GroupStyle>) => {
-    const updatedStyle = { ...style, ...patch };
-    setStyle(updatedStyle);
-    onChange(updatedStyle);
-  };
+  const { style, update, colorProps } = useStyleDraft(element, onChange);
+  const id = element.id;
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Elements in a group are placed freely. Pick the Move tool (M) above the
-        canvas to drag them into position, even past the group's edges or
-        outside the overlay.
-      </p>
-      <div className="grid grid-cols-2 gap-4">
-        <PixelInput
-          id={`${element.id}-width`}
-          label="Width"
-          property="style.width"
-          min={1}
-          value={style.width ?? DEFAULT_GROUP_WIDTH}
-          onChange={(width) => updateStyle({ width })}
+    <>
+      <InspectorSection title="Layout">
+        <SizeFields
+          id={id}
+          width={style.width ?? DEFAULT_GROUP_WIDTH}
+          height={style.height ?? DEFAULT_GROUP_HEIGHT}
+          onChange={update}
         />
-        <PixelInput
-          id={`${element.id}-height`}
-          label="Height"
-          property="style.height"
-          min={1}
-          value={style.height ?? DEFAULT_GROUP_HEIGHT}
-          onChange={(height) => updateStyle({ height })}
-        />
-      </div>
-      <BindableField
-        property="style.clip"
-        inline
-        htmlFor={`${element.id}-clip`}
-        label={
-          <>
-            Clip content
-            <span className="ml-1 font-normal text-muted-foreground">
-              (hide what sticks out of the group)
-            </span>
-          </>
-        }
-      >
-        <Switch
-          id={`${element.id}-clip`}
-          checked={!!style.clip}
-          onCheckedChange={(clip) => updateStyle({ clip })}
-        />
-      </BindableField>
-      <div className="grid grid-cols-2 gap-4">
-        <ColorInput
-          id={`${element.id}-background`}
-          label="Background"
-          property="style.backgroundColor"
-          value={style.backgroundColor || ""}
-          defaultColor="#000000"
-          onChange={(backgroundColor) => updateStyle({ backgroundColor })}
-          onClear={() => updateStyle({ backgroundColor: "" })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={`${element.id}-radius`}
-          label="Corner Radius"
-          property="style.radius"
-          min={BORDER_RADIUS_RANGE.min}
-          max={BORDER_RADIUS_RANGE.max}
-          value={style.radius ?? DEFAULT_BORDER_RADIUS}
-          onChange={(radius) => updateStyle({ radius })}
-        />
-        <ColorInput
-          id={`${element.id}-border-color`}
-          label="Stroke"
-          property="style.borderColor"
-          value={style.borderColor || DEFAULT_BORDER_COLOR}
-          defaultColor={DEFAULT_BORDER_COLOR}
-          onChange={(borderColor) => updateStyle({ borderColor })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={`${element.id}-border-width`}
-          label="Stroke Width"
-          property="style.borderWidth"
-          min={BORDER_WIDTH_RANGE.min}
-          max={BORDER_WIDTH_RANGE.max}
-          value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
-          onChange={(borderWidth) => updateStyle({ borderWidth })}
-        />
-      </div>
-    </div>
+        <BindableField property="style.clip" inline htmlFor={`${id}-clip`} label="Clip content">
+          <Switch
+            id={`${id}-clip`}
+            checked={!!style.clip}
+            onCheckedChange={(clip) => update({ clip })}
+          />
+        </BindableField>
+        <FieldHint>
+          Children are placed freely. Clipping hides whatever sticks out past the group's edges.
+        </FieldHint>
+      </InspectorSection>
+      <InspectorSection title="Appearance">
+        <FieldGrid>
+          <CornerRadiusProp
+            id={`${id}-radius`}
+            property="radius"
+            value={style.radius ?? DEFAULT_BORDER_RADIUS}
+            onChange={(radius) => update({ radius })}
+          />
+        </FieldGrid>
+      </InspectorSection>
+      <FillSection
+        id={id}
+        value={style.backgroundColor}
+        colorProps={colorProps}
+        onChange={(backgroundColor) => update({ backgroundColor })}
+      />
+      <StrokeSection
+        id={id}
+        color={style.borderColor}
+        width={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
+        colorProps={colorProps}
+        onChange={update}
+      />
+      <EffectsSection
+        id={id}
+        style={style}
+        spread={spreadFor(style.backgroundColor)}
+        colorProps={colorProps}
+        onChange={update}
+      />
+    </>
   );
 };

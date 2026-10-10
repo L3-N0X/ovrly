@@ -1,15 +1,20 @@
 import { Label } from "@/components/ui/label";
-import { ColorField } from "@/components/ui/color-picker";
-import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { type BingoStyle, type PrismaElement } from "@/lib/types";
-import { fontWeightOf } from "@/lib/fonts";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ImageIcon, Loader2, Trash2 } from "lucide-react";
+import {
+  BetweenHorizontalStart,
+  Columns3,
+  ImageIcon,
+  Loader2,
+  Percent,
+  Rows3,
+  Scan,
+  SquareRoundCorner,
+  Trash2,
+} from "lucide-react";
 import { uploadImage } from "@/lib/uploads";
-import { FontPicker } from "../../FontPicker";
-import { FontWeightPicker } from "../../FontWeightPicker";
 import {
   Select,
   SelectContent,
@@ -19,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { BindableField } from "@/components/variables/BindableField";
-import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import { cn } from "@/lib/utils";
 import {
   BINGO_BORDER_RADIUS_RANGE,
   BINGO_BORDER_WIDTH_RANGE,
@@ -39,85 +44,54 @@ import {
   type BingoCrossStyle,
   type BingoDataUpdate,
   type BingoImageFit,
+  type ResolvedBingoStyle,
 } from "@/lib/bingo";
-
-/** A labelled number field. `unit` defaults to pixels. */
-const NumberControl: React.FC<{
-  id: string;
-  label: string;
-  // The style property, so it can be bound to a variable.
-  property: string;
-  min: number;
-  max: number;
-  value: number;
-  unit?: string;
-  onChange: (value: number) => void;
-}> = ({ id, label, property, min, max, value, unit = "px", onChange }) => (
-  <BindableField property={property} label={label} htmlFor={id}>
-    <NumberField
-      id={id}
-      value={value}
-      min={min}
-      max={max}
-      unit={unit}
-      progress={unit === "%"}
-      onChange={(next) => {
-        if (next !== value) onChange(next);
-      }}
-    />
-  </BindableField>
-);
-
-const ColorControl: React.FC<{
-  id: string;
-  label: string;
-  property: string;
-  value: string;
-  onChange: (color: string) => void;
-  onOpenChange: (open: boolean) => void;
-}> = ({ id, label, property, ...props }) => (
-  <BindableField property={property} label={label} htmlFor={id}>
-    <ColorField id={id} {...props} />
-  </BindableField>
-);
-
-/** A titled group of controls. */
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <section className="space-y-4">
-    <h4 className="text-sm font-semibold">{title}</h4>
-    {children}
-  </section>
-);
+import {
+  ColorProp,
+  EffectsSection,
+  FieldGrid,
+  FieldHint,
+  FillSection,
+  InspectorSection,
+  Letter,
+  NumberProp,
+  SMALL_CONTROL,
+  StrokeSection,
+  StrokeWidthIcon,
+  TextSection,
+} from "./fields";
+import { useStyleDraft } from "./useStyleDraft";
 
 const SizeSelect: React.FC<{
   id: string;
   label: string;
+  icon: React.ReactNode;
   value: number;
   disabled: boolean;
   onChange: (value: number) => void;
-}> = ({ id, label, value, disabled, onChange }) => (
-  <div className="space-y-2">
-    <Label htmlFor={id}>{label}</Label>
-    <Select
-      value={String(value)}
-      disabled={disabled}
-      onValueChange={(raw) => {
-        const next = Number.parseInt(raw, 10);
-        if (Number.isInteger(next) && next !== value) onChange(next);
-      }}
-    >
-      <SelectTrigger id={id} className="w-full">
+}> = ({ id, label, icon, value, disabled, onChange }) => (
+  <Select
+    value={String(value)}
+    disabled={disabled}
+    onValueChange={(raw) => {
+      const next = Number.parseInt(raw, 10);
+      if (Number.isInteger(next) && next !== value) onChange(next);
+    }}
+  >
+    <SelectTrigger id={id} aria-label={label} title={label} className={SMALL_CONTROL}>
+      <span className="flex items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:text-muted-foreground">
+        {icon}
         <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {bingoSizes.map((option) => (
-          <SelectItem key={option} value={String(option)}>
-            {option}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
+      </span>
+    </SelectTrigger>
+    <SelectContent>
+      {bingoSizes.map((option) => (
+        <SelectItem key={option} value={String(option)}>
+          {option} {label.toLowerCase()}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
 );
 
 const imageFitLabels: Record<BingoImageFit, string> = {
@@ -154,37 +128,37 @@ const BackgroundImageControl: React.FC<{
   };
 
   return (
-    <div className="space-y-2">
-      <BindableField property="style.backgroundImage" label="Background Image" htmlFor={id}>
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-secondary">
+    <div className="space-y-1">
+      <BindableField compact property="style.backgroundImage" label="Background image">
+        <div className="flex items-center gap-1.5">
+          <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-secondary">
             {value ? (
-              <img src={value} alt="" className="h-full w-full object-cover" />
+              <img src={value} alt="" className="size-full object-cover" />
             ) : (
-              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+              <ImageIcon className="size-3.5 text-muted-foreground" />
             )}
           </div>
           <Button
             id={id}
             type="button"
             variant="secondary"
-            className="flex-1"
+            className={cn("flex-1", SMALL_CONTROL)}
             disabled={isUploading}
             onClick={() => fileInputRef.current?.click()}
           >
-            {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isUploading ? "Uploading..." : value ? "Replace Image" : "Upload Image"}
+            {isUploading && <Loader2 className="size-3.5 animate-spin" />}
+            {isUploading ? "Uploading..." : value ? "Replace image" : "Add background image"}
           </Button>
           {value && (
             <Button
               type="button"
-              variant="outline"
-              size="icon"
+              variant="ghost"
+              size="icon-sm"
               aria-label="Remove background image"
               title="Remove background image"
               onClick={() => onChange(undefined)}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 />
             </Button>
           )}
           <input
@@ -197,7 +171,7 @@ const BackgroundImageControl: React.FC<{
         </div>
       </BindableField>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
       )}
@@ -210,7 +184,6 @@ export const BingoEditor: React.FC<{
   onChange: (newStyle: BingoStyle) => void;
   onDataChange?: (elementId: string, data: BingoDataUpdate) => void;
 }> = ({ element, onChange, onDataChange }) => {
-  const [isPickingColor, setIsPickingColor] = useState(false);
   // The free-middle switch as this user last set it, together with the server state it was set
   // against: it stays in front of the server's value until that state is replaced, which is how
   // it stops being an override. Derived rather than cleared in an effect, so a stale override
@@ -220,20 +193,13 @@ export const BingoEditor: React.FC<{
     value: boolean;
   } | null>(null);
 
-  const bingoStyle = useMemo(
-    () => resolveBingoStyle(element.style as BingoStyle | null),
-    [element.style]
+  const { style, update, colorProps } = useStyleDraft<BingoStyle>(
+    element,
+    onChange,
+    resolveBingoStyle
   );
-  // Held while a colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(bingoStyle, isPickingColor);
-
-  // `onChange` updates the page's state, so it must not run inside a state updater, which
-  // React calls while rendering.
-  const handleStyleChange = (newStylePart: Partial<BingoStyle>) => {
-    const updated = { ...style, ...newStylePart };
-    setStyle(updated);
-    onChange(updated);
-  };
+  // Every value is filled in by resolveBingoStyle.
+  const resolved = style as ResolvedBingoStyle;
 
   const { rows, columns } = normalizeBingoData(element.bingo);
   // This user's choice wins until the server state it was made against is replaced.
@@ -250,15 +216,38 @@ export const BingoEditor: React.FC<{
   };
 
   const id = (name: string) => `${element.id}-bingo-${name}`;
-  const colorProps = { onOpenChange: setIsPickingColor };
 
   return (
-    <div className="space-y-6">
-      <Section title="Card">
-        <div className="grid grid-cols-2 gap-4">
+    <>
+      <InspectorSection title="Layout">
+        <FieldGrid>
+          <NumberProp
+            id={id("width")}
+            property="style.width"
+            label="Width"
+            prefix={<Letter>W</Letter>}
+            unit="px"
+            min={BINGO_SIZE_RANGE.min}
+            max={BINGO_SIZE_RANGE.max}
+            value={resolved.width}
+            onChange={(width) => update({ width })}
+          />
+          <div
+            title="Fields are always square, so the height follows from the width, rows and columns."
+            className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-input bg-input/30 pl-1.5 text-xs text-muted-foreground"
+          >
+            <Letter>H</Letter>
+            <span className="truncate">Auto</span>
+          </div>
+        </FieldGrid>
+      </InspectorSection>
+
+      <InspectorSection title="Grid">
+        <FieldGrid>
           <SizeSelect
             id={id("rows")}
             label="Rows"
+            icon={<Rows3 />}
             value={rows}
             disabled={!onDataChange}
             onChange={(next) => onDataChange?.(element.id, { rows: next })}
@@ -266,267 +255,237 @@ export const BingoEditor: React.FC<{
           <SizeSelect
             id={id("columns")}
             label="Columns"
+            icon={<Columns3 />}
             value={columns}
             disabled={!onDataChange}
             onChange={(next) => onDataChange?.(element.id, { columns: next })}
           />
-        </div>
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id={id("free-middle")}
-              checked={freeMiddle && canUseFreeMiddle}
-              onCheckedChange={handleFreeMiddleChange}
-              disabled={!canUseFreeMiddle || !onDataChange}
-            />
-            <Label htmlFor={id("free-middle")}>Free Middle</Label>
-          </div>
-          {!canUseFreeMiddle && (
-            <p className="text-xs text-muted-foreground">
-              Needs an odd number of rows and columns.
-            </p>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Resizing keeps every field in its row and column. Field labels are edited in the Content
-          section, and are limited to {BINGO_MAX_FIELD_LENGTH} characters.
-        </p>
-        <NumberControl
-          id={id("width")}
-          property="style.width"
-          label="Width"
-          min={BINGO_SIZE_RANGE.min}
-          max={BINGO_SIZE_RANGE.max}
-          value={style.width}
-          onChange={(width) => handleStyleChange({ width })}
-        />
-        <p className="text-xs text-muted-foreground">
-          Fields are always square, so the height follows from the width, rows and columns.
-        </p>
-      </Section>
-
-      <Section title="Text">
-        <div className="space-y-2">
-          <Label htmlFor={id("font-family")}>Font Family</Label>
-          <FontPicker
-            id={id("font-family")}
-            value={style.fontFamily || ""}
-            weight={fontWeightOf(style)}
-            onChange={(fontFamily) => handleStyleChange({ fontFamily })}
+        </FieldGrid>
+        <div
+          className="flex h-7 items-center space-x-2"
+          title={canUseFreeMiddle ? undefined : "Needs an odd number of rows and columns."}
+        >
+          <Switch
+            id={id("free-middle")}
+            checked={freeMiddle && canUseFreeMiddle}
+            onCheckedChange={handleFreeMiddleChange}
+            disabled={!canUseFreeMiddle || !onDataChange}
           />
+          <Label htmlFor={id("free-middle")} className="text-xs font-normal">
+            Free middle
+            {!canUseFreeMiddle && (
+              <span className="text-muted-foreground">(needs odd rows and columns)</span>
+            )}
+          </Label>
         </div>
-        <NumberControl
-          id={id("font-size")}
-          property="style.fontSize"
-          label="Max Font Size"
-          min={BINGO_FONT_SIZE_RANGE.min}
-          max={BINGO_FONT_SIZE_RANGE.max}
-          value={style.fontSize}
-          onChange={(fontSize) => handleStyleChange({ fontSize })}
-        />
-        <p className="text-xs text-muted-foreground">
-          Labels are as large as their cell allows, up to this size, and only wrap between words.
-        </p>
-        <div className="space-y-2">
-          <Label htmlFor={id("font-weight")}>Font Weight</Label>
-          <FontWeightPicker
-            id={id("font-weight")}
-            value={fontWeightOf(style)}
-            onChange={(fontWeight) => handleStyleChange({ fontWeight })}
-          />
-        </div>
-        <ColorControl
-          id={id("color")}
-          property="style.color"
-          label="Text Color"
-          value={style.color}
-          onChange={(color) => handleStyleChange({ color })}
-          {...colorProps}
-        />
-      </Section>
-
-      <Section title="Background">
-        <ColorControl
-          id={id("background")}
-          property="style.backgroundColor"
-          label="Background Color"
-          value={style.backgroundColor}
-          onChange={(backgroundColor) => handleStyleChange({ backgroundColor })}
-          {...colorProps}
-        />
-        <BackgroundImageControl
-          id={id("background-image")}
-          value={style.backgroundImage}
-          onChange={(backgroundImage) => handleStyleChange({ backgroundImage })}
-        />
-        {style.backgroundImage && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor={id("background-image-fit")}>Image Fit</Label>
-              <Select
-                value={style.backgroundImageFit}
-                onValueChange={(value) =>
-                  handleStyleChange({ backgroundImageFit: value as BingoImageFit })
-                }
-              >
-                <SelectTrigger id={id("background-image-fit")} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BINGO_IMAGE_FITS.map((fit) => (
-                    <SelectItem key={fit} value={fit}>
-                      {imageFitLabels[fit]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <NumberControl
-              id={id("background-image-opacity")}
-              property="style.backgroundImageOpacity"
-              label="Image Opacity"
-              unit="%"
-              min={BINGO_PERCENT_RANGE.min}
-              max={BINGO_PERCENT_RANGE.max}
-              value={style.backgroundImageOpacity}
-              onChange={(backgroundImageOpacity) => handleStyleChange({ backgroundImageOpacity })}
-            />
-          </>
-        )}
-      </Section>
-
-      <Section title="Borders">
-        <ColorControl
-          id={id("border-color")}
-          property="style.borderColor"
-          label="Outline Color"
-          value={style.borderColor}
-          onChange={(borderColor) => handleStyleChange({ borderColor })}
-          {...colorProps}
-        />
-        <NumberControl
-          id={id("border-width")}
-          property="style.borderWidth"
-          label="Outline Width"
-          min={BINGO_BORDER_WIDTH_RANGE.min}
-          max={BINGO_BORDER_WIDTH_RANGE.max}
-          value={style.borderWidth}
-          onChange={(borderWidth) => handleStyleChange({ borderWidth })}
-        />
-        <NumberControl
-          id={id("border-radius")}
-          property="style.borderRadius"
-          label="Corner Radius"
-          min={BINGO_BORDER_RADIUS_RANGE.min}
-          max={BINGO_BORDER_RADIUS_RANGE.max}
-          value={style.borderRadius}
-          onChange={(borderRadius) => handleStyleChange({ borderRadius })}
-        />
         <BindableField
           property="style.gridLines"
-          label="Grid Lines"
+          label="Grid lines"
           htmlFor={id("grid-lines")}
           inline
         >
           <Switch
             id={id("grid-lines")}
-            checked={style.gridLines}
-            onCheckedChange={(gridLines) => handleStyleChange({ gridLines })}
+            checked={resolved.gridLines}
+            onCheckedChange={(gridLines) => update({ gridLines })}
           />
         </BindableField>
-        {style.gridLines ? (
-          <>
-            <ColorControl
+        {resolved.gridLines ? (
+          <FieldGrid>
+            <ColorProp
               id={id("grid-line-color")}
               property="style.gridLineColor"
-              label="Grid Line Color"
-              value={style.gridLineColor}
-              onChange={(gridLineColor) => handleStyleChange({ gridLineColor })}
+              label="Grid line color"
+              value={resolved.gridLineColor}
+              onChange={(gridLineColor) => update({ gridLineColor })}
               {...colorProps}
             />
-            <NumberControl
+            <NumberProp
               id={id("grid-line-width")}
               property="style.gridLineWidth"
-              label="Grid Line Width"
+              label="Grid line width"
+              prefix={<StrokeWidthIcon />}
+              unit="px"
               min={BINGO_GRID_LINE_WIDTH_RANGE.min}
               max={BINGO_GRID_LINE_WIDTH_RANGE.max}
-              value={style.gridLineWidth}
-              onChange={(gridLineWidth) => handleStyleChange({ gridLineWidth })}
+              value={resolved.gridLineWidth}
+              onChange={(gridLineWidth) => update({ gridLineWidth })}
             />
-            <p className="text-xs text-muted-foreground">
-              Lines run between all fields and meet the outline, like a table. Give the outline the
-              same width and color for a uniform grid.
-            </p>
-          </>
+          </FieldGrid>
         ) : (
-          <>
-            <NumberControl
+          <FieldGrid>
+            <NumberProp
               id={id("gap")}
               property="style.gap"
-              label="Gap"
+              label="Gap between fields"
+              prefix={<BetweenHorizontalStart />}
+              unit="px"
               min={BINGO_GAP_RANGE.min}
               max={BINGO_GAP_RANGE.max}
-              value={style.gap}
-              onChange={(gap) => handleStyleChange({ gap })}
+              value={resolved.gap}
+              onChange={(gap) => update({ gap })}
             />
-            <NumberControl
+            <NumberProp
               id={id("padding")}
               property="style.padding"
               label="Padding"
+              prefix={<Scan />}
+              unit="px"
               min={BINGO_PADDING_RANGE.min}
               max={BINGO_PADDING_RANGE.max}
-              value={style.padding}
-              onChange={(padding) => handleStyleChange({ padding })}
+              value={resolved.padding}
+              onChange={(padding) => update({ padding })}
             />
-          </>
+          </FieldGrid>
         )}
-      </Section>
+        <FieldHint>
+          {resolved.gridLines
+            ? "Lines run between all fields and meet the stroke, like a table. Give the stroke the same width and color for a uniform grid."
+            : `Resizing keeps every field in its row and column. Labels are edited in Content (up to ${BINGO_MAX_FIELD_LENGTH} characters).`}
+        </FieldHint>
+      </InspectorSection>
 
-      <Section title="Cross">
-        <div className="space-y-2">
-          <Label>Style</Label>
+      <InspectorSection title="Appearance">
+        <FieldGrid>
+          <NumberProp
+            id={id("border-radius")}
+            property="style.borderRadius"
+            label="Corner radius"
+            prefix={<SquareRoundCorner />}
+            unit="px"
+            min={BINGO_BORDER_RADIUS_RANGE.min}
+            max={BINGO_BORDER_RADIUS_RANGE.max}
+            value={resolved.borderRadius}
+            onChange={(borderRadius) => update({ borderRadius })}
+          />
+        </FieldGrid>
+      </InspectorSection>
+
+      <TextSection
+        id={id("text")}
+        style={resolved}
+        defaultFontSize={resolved.fontSize}
+        fontSizeLabel="Max font size (labels shrink to fit their field)"
+        fontSizeRange={BINGO_FONT_SIZE_RANGE}
+        colorProps={colorProps}
+        onChange={update}
+      />
+
+      <FillSection
+        id={id("fill")}
+        value={resolved.backgroundColor}
+        optional={false}
+        colorProps={colorProps}
+        onChange={(backgroundColor) => update({ backgroundColor })}
+      >
+        <BackgroundImageControl
+          id={id("background-image")}
+          value={resolved.backgroundImage}
+          onChange={(backgroundImage) => update({ backgroundImage })}
+        />
+        {resolved.backgroundImage && (
+          <FieldGrid>
+            <Select
+              value={resolved.backgroundImageFit}
+              onValueChange={(value) => update({ backgroundImageFit: value as BingoImageFit })}
+            >
+              <SelectTrigger
+                id={id("background-image-fit")}
+                aria-label="Image fit"
+                title="Image fit"
+                className={SMALL_CONTROL}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BINGO_IMAGE_FITS.map((fit) => (
+                  <SelectItem key={fit} value={fit}>
+                    {imageFitLabels[fit]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <NumberProp
+              id={id("background-image-opacity")}
+              property="style.backgroundImageOpacity"
+              label="Image opacity"
+              prefix={<Percent />}
+              unit="%"
+              progress
+              min={BINGO_PERCENT_RANGE.min}
+              max={BINGO_PERCENT_RANGE.max}
+              value={resolved.backgroundImageOpacity}
+              onChange={(backgroundImageOpacity) => update({ backgroundImageOpacity })}
+            />
+          </FieldGrid>
+        )}
+      </FillSection>
+
+      <StrokeSection
+        id={id("stroke")}
+        color={resolved.borderColor}
+        width={resolved.borderWidth}
+        range={BINGO_BORDER_WIDTH_RANGE}
+        colorProps={colorProps}
+        onChange={update}
+      />
+
+      <InspectorSection title="Cross">
+        <FieldGrid className="items-center">
           <SegmentedControl<BingoCrossStyle>
             aria-label="Cross style"
-            value={style.crossStyle}
-            onValueChange={(crossStyle) => handleStyleChange({ crossStyle })}
+            size="sm"
+            stretch
+            value={resolved.crossStyle}
+            onValueChange={(crossStyle) => update({ crossStyle })}
             options={[
               { value: "brush", label: "Brush" },
               { value: "line", label: "Line" },
             ]}
           />
-        </div>
-        <ColorControl
-          id={id("cross-color")}
-          property="style.checkedCrossColor"
-          label="Cross Color"
-          value={style.checkedCrossColor}
-          onChange={(checkedCrossColor) => handleStyleChange({ checkedCrossColor })}
-          {...colorProps}
-        />
-        <NumberControl
-          id={id("cross-thickness")}
-          property="style.crossThickness"
-          label="Cross Thickness"
-          unit="%"
-          min={BINGO_CROSS_THICKNESS_RANGE.min}
-          max={BINGO_CROSS_THICKNESS_RANGE.max}
-          value={style.crossThickness}
-          onChange={(crossThickness) => handleStyleChange({ crossThickness })}
-        />
-        <NumberControl
-          id={id("cross-opacity")}
-          property="style.crossOpacity"
-          label="Cross Opacity"
-          unit="%"
-          min={BINGO_PERCENT_RANGE.min}
-          max={BINGO_PERCENT_RANGE.max}
-          value={style.crossOpacity}
-          onChange={(crossOpacity) => handleStyleChange({ crossOpacity })}
-        />
-        <p className="text-xs text-muted-foreground">
-          The cross is drawn behind the label, so marked fields stay readable.
-        </p>
-      </Section>
-    </div>
+          <ColorProp
+            id={id("cross-color")}
+            property="style.checkedCrossColor"
+            label="Cross color"
+            value={resolved.checkedCrossColor}
+            onChange={(checkedCrossColor) => update({ checkedCrossColor })}
+            {...colorProps}
+          />
+          <NumberProp
+            id={id("cross-thickness")}
+            property="style.crossThickness"
+            label="Cross thickness (percent of the field)"
+            prefix={<Letter>T</Letter>}
+            unit="%"
+            progress
+            min={BINGO_CROSS_THICKNESS_RANGE.min}
+            max={BINGO_CROSS_THICKNESS_RANGE.max}
+            value={resolved.crossThickness}
+            onChange={(crossThickness) => update({ crossThickness })}
+          />
+          <NumberProp
+            id={id("cross-opacity")}
+            property="style.crossOpacity"
+            label="Cross opacity"
+            prefix={<Percent />}
+            unit="%"
+            progress
+            min={BINGO_PERCENT_RANGE.min}
+            max={BINGO_PERCENT_RANGE.max}
+            value={resolved.crossOpacity}
+            onChange={(crossOpacity) => update({ crossOpacity })}
+          />
+        </FieldGrid>
+        <FieldHint>The cross is drawn behind the label, so marked fields stay readable.</FieldHint>
+      </InspectorSection>
+
+      <EffectsSection
+        id={id("effects")}
+        style={resolved}
+        spread="available"
+        colorProps={colorProps}
+        onChange={update}
+      />
+    </>
   );
 };

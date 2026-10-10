@@ -1,6 +1,4 @@
 import React from "react";
-import { NumberField } from "@/components/ui/number-field";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -18,33 +16,15 @@ import {
   type OnOverlayChange,
   type PrismaOverlay,
 } from "@/lib/types";
-
-// Whole pixels only. Sizes outside what OBS can show are clamped rather than rejected.
-const PixelField = ({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) => (
-  <div className="space-y-2">
-    <Label htmlFor={id}>{label}</Label>
-    <NumberField
-      id={id}
-      value={value}
-      min={MIN_CANVAS_SIZE}
-      max={MAX_CANVAS_SIZE}
-      unit="px"
-      onChange={(next) => {
-        if (next !== value) onChange(next);
-      }}
-    />
-  </div>
-);
+import {
+  Field,
+  FieldGrid,
+  FieldHint,
+  InspectorSection,
+  Letter,
+  NumberProp,
+  SMALL_CONTROL,
+} from "./fields";
 
 // The common canvas sizes, so the usual ones don't have to be typed. Anything else is
 // entered by hand, which the free size option stands in for.
@@ -76,10 +56,23 @@ export const CanvasEditor: React.FC<{
   const setMode = (canvasMode: PrismaOverlay["canvasMode"]) =>
     onOverlayChange((current) => ({ ...current, canvasMode }));
 
+  // Whole pixels only. Sizes outside what OBS can show are clamped rather than rejected.
+  const sizeField = (side: "width" | "height") => (
+    <NumberProp
+      id={`canvas-${side}`}
+      label={side === "width" ? "Width" : "Height"}
+      prefix={<Letter>{side === "width" ? "W" : "H"}</Letter>}
+      min={MIN_CANVAS_SIZE}
+      max={MAX_CANVAS_SIZE}
+      unit="px"
+      value={side === "width" ? width : height}
+      onChange={(value) => setSize({ [side]: value })}
+    />
+  );
+
   return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="canvas-preset">Size</Label>
+    <>
+      <InspectorSection title="Size">
         <Select
           value={presetIdFor(width, height)}
           onValueChange={(presetId) => {
@@ -89,7 +82,7 @@ export const CanvasEditor: React.FC<{
             }
           }}
         >
-          <SelectTrigger id="canvas-preset">
+          <SelectTrigger id="canvas-preset" aria-label="Size preset" className={SMALL_CONTROL}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -103,54 +96,37 @@ export const CanvasEditor: React.FC<{
             </SelectGroup>
           </SelectContent>
         </Select>
-      </div>
+        <FieldGrid>
+          {sizeField("width")}
+          {sizeField("height")}
+        </FieldGrid>
+        <FieldHint>
+          Set the OBS browser source to {width} × {height} to fill it exactly.
+        </FieldHint>
+      </InspectorSection>
 
-      <div className="grid grid-cols-2 gap-4">
-        <PixelField
-          id="canvas-width"
-          label="Width"
-          value={width}
-          onChange={(value) => setSize({ width: value })}
-        />
-        <PixelField
-          id="canvas-height"
-          label="Height"
-          value={height}
-          onChange={(value) => setSize({ height: value })}
-        />
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Set the OBS browser source to {width} × {height} to fill it exactly.
-      </p>
-
-      <div className="space-y-2">
-        <Label htmlFor="canvas-placement">Placement</Label>
-        <Select
-          value={overlay.canvasMode}
-          onValueChange={(value) => setMode(value as PrismaOverlay["canvasMode"])}
-        >
-          <SelectTrigger id="canvas-placement">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={CanvasModeEnum.FREE}>Free placement</SelectItem>
-            <SelectItem value={CanvasModeEnum.AUTO}>Auto layout</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      {overlay.canvasMode === CanvasModeEnum.FREE ? (
-        <p className="text-xs text-muted-foreground">
-          Every element on the canvas is placed freely: pick the move tool (M) and drag it, or
-          nudge it with the arrow keys. Elements may stick out past the canvas edges. The canvas
-          is the group they all live in, so it can't be deleted.
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          The arrangement below lays out the elements that sit directly on the canvas, in a row
-          or a column with gaps. Elements inside a container or a group are unaffected.
-        </p>
-      )}
-    </div>
+      <InspectorSection title="Placement">
+        <Field label="Elements on the canvas" htmlFor="canvas-placement">
+          <Select
+            value={overlay.canvasMode}
+            onValueChange={(value) => setMode(value as PrismaOverlay["canvasMode"])}
+          >
+            <SelectTrigger id="canvas-placement" className={SMALL_CONTROL}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={CanvasModeEnum.FREE}>Free placement</SelectItem>
+              <SelectItem value={CanvasModeEnum.AUTO}>Auto layout</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <FieldHint>
+          {overlay.canvasMode === CanvasModeEnum.FREE
+            ? "Every element on the canvas is placed freely: pick the move tool (M) and drag it, or nudge it with the arrow keys. Elements may stick out past the canvas edges. The canvas is the group they all live in, so it can't be deleted."
+            : "The auto layout below arranges the elements that sit directly on the canvas, in a row or a column with gaps. Elements inside a container or a group are unaffected."}
+        </FieldHint>
+      </InspectorSection>
+    </>
   );
 };
 

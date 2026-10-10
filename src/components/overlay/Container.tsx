@@ -8,6 +8,7 @@ import {
   type ContainerStyle,
   type PrismaElement,
 } from "@/lib/types";
+import { shadowStyle } from "./shadow";
 import { useElementResize } from "./useElementResize";
 
 const MIN_CONTAINER_SIZE = 20;
@@ -76,6 +77,7 @@ const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
       borderWidth > 0
         ? `${borderWidth}px solid ${safeStyle.borderColor || DEFAULT_BORDER_COLOR}`
         : undefined,
+    ...shadowStyle(safeStyle, { box: !!safeStyle.backgroundColor }),
   };
 
   return (

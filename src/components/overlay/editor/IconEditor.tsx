@@ -1,50 +1,50 @@
-import React, { useMemo, useState } from "react";
-import { ColorField } from "@/components/ui/color-picker";
-import { NumberField } from "@/components/ui/number-field";
-import { BindableField } from "@/components/variables/BindableField";
-import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import React from "react";
+import { Ratio } from "lucide-react";
 import type { IconStyle, PrismaElement } from "@/lib/types";
+import {
+  EffectsSection,
+  FieldGrid,
+  FillSection,
+  InspectorSection,
+  NumberProp,
+} from "./fields";
+import { useStyleDraft } from "./useStyleDraft";
 
 export const IconStyleEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: IconStyle) => void;
 }> = ({ element, onChange }) => {
-  const [isPickingColor, setIsPickingColor] = useState(false);
-
-  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
-  // new value to mean the server sent a new one.
-  const serverStyle = useMemo(() => (element.style as IconStyle) || {}, [element.style]);
-  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(serverStyle, isPickingColor);
-
-  const handleStyleChange = (newStyle: Partial<IconStyle>) => {
-    const updatedStyle = { ...style, ...newStyle };
-    setStyle(updatedStyle);
-    onChange(updatedStyle);
-  };
-
-  const id = (name: string) => `${element.id}-icon-${name}`;
+  const { style, update, colorProps } = useStyleDraft(element, onChange);
+  const id = `${element.id}-icon`;
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <BindableField property="style.size" label="Size" htmlFor={id("size")}>
-        <NumberField
-          id={id("size")}
-          className="h-10"
-          value={typeof style.size === "number" ? style.size : 64}
-          min={1}
-          unit="px"
-          onChange={(size) => handleStyleChange({ size })}
-        />
-      </BindableField>
-      <BindableField property="style.color" label="Color" htmlFor={id("color")}>
-        <ColorField
-          id={id("color")}
-          value={style.color || "#ffffff"}
-          onChange={(color) => handleStyleChange({ color })}
-          onOpenChange={setIsPickingColor}
-        />
-      </BindableField>
-    </div>
+    <>
+      <InspectorSection title="Layout">
+        <FieldGrid>
+          {/* Icons are square, so one size is both their width and height. */}
+          <NumberProp
+            id={`${id}-size`}
+            label="Size (width and height)"
+            prefix={<Ratio />}
+            property="style.size"
+            min={1}
+            unit="px"
+            value={typeof style.size === "number" ? style.size : 64}
+            onChange={(size) => update({ size })}
+          />
+        </FieldGrid>
+      </InspectorSection>
+      {/* An icon's colour is what fills its drawing, as in Figma. */}
+      <FillSection
+        id={id}
+        value={style.color || "#ffffff"}
+        optional={false}
+        property="style.color"
+        label="Color"
+        colorProps={colorProps}
+        onChange={(color) => update({ color: color || "#ffffff" })}
+      />
+      <EffectsSection id={id} style={style} colorProps={colorProps} onChange={update} />
+    </>
   );
 };

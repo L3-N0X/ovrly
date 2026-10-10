@@ -112,7 +112,28 @@ export interface BaseElementStyle {
   // Offset from the top left corner of the parent, used when the parent is a GROUP.
   x?: number;
   y?: number;
+  /**
+   * A drop shadow is drawn while this is set (see `shadowStyle` in
+   * components/overlay/shadow.ts); the other shadow values fall back to `DEFAULT_SHADOW`.
+   */
+  shadowColor?: string;
+  shadowX?: number;
+  shadowY?: number;
+  shadowBlur?: number;
+  /** Only used by elements with a fill, whose shadow is cast by their box. */
+  shadowSpread?: number;
 }
+
+// What a shadow starts out as when it is added: a soft one, slightly below the element.
+export const DEFAULT_SHADOW = {
+  shadowColor: "#00000080",
+  shadowX: 0,
+  shadowY: 4,
+  shadowBlur: 12,
+  shadowSpread: 0,
+} as const;
+
+export const SHADOW_BLUR_RANGE = { min: 0, max: 200 };
 
 // Specific style for a Counter element
 export interface CounterStyle extends BaseElementStyle {

@@ -236,8 +236,8 @@ replaces with the creator's own channel, adding it as a source if needed
 1. Add the property and its kind to `BINDABLE_PROPERTIES` in both
    `lib/bindings.ts` and `src/lib/bindings.ts`.
 2. Wrap the field in `<BindableField property="style.foo" label="Foo">`
-   (`PixelInput` and `ColorInput` in `editor/appearance.tsx` take a `property`
-   prop). The field needs `BindingElementContext`, which the inspector and the
+   (`NumberProp` and `ColorProp` in `editor/fields.tsx` take a `property`
+   prop and use its compact mode). The field needs `BindingElementContext`, which the inspector and the
    control view provide.
 3. For a content property, teach `resolveElement` where the value goes.
 

@@ -11,6 +11,15 @@ export type BindingKind = "text" | "number" | "color" | "image" | "boolean";
 // Where an element sits in a group or on a free canvas.
 const POSITION = { "style.x": "number", "style.y": "number" } as const;
 
+// The drop shadow every element can have.
+const SHADOW = {
+  "style.shadowColor": "color",
+  "style.shadowX": "number",
+  "style.shadowY": "number",
+  "style.shadowBlur": "number",
+  "style.shadowSpread": "number",
+} as const;
+
 const TEXT_STYLE = {
   "style.color": "color",
   "style.fontSize": "number",
@@ -24,18 +33,19 @@ const BOX_STYLE = {
 } as const;
 
 export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = {
-  TITLE: { text: "text", ...TEXT_STYLE, ...POSITION },
-  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION },
-  TIMER: { ...BOX_STYLE, ...POSITION },
-  COUNTDOWN: { ...BOX_STYLE, ...POSITION },
+  TITLE: { text: "text", ...TEXT_STYLE, ...POSITION, ...SHADOW },
+  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...SHADOW },
+  TIMER: { ...BOX_STYLE, ...POSITION, ...SHADOW },
+  COUNTDOWN: { ...BOX_STYLE, ...POSITION, ...SHADOW },
   IMAGE: {
     src: "image",
     "style.width": "number",
     "style.height": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...SHADOW,
   },
-  ICON: { "style.color": "color", "style.size": "number", ...POSITION },
+  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...SHADOW },
   BINGO: {
     "style.width": "number",
     "style.fontSize": "number",
@@ -55,6 +65,7 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.crossThickness": "number",
     "style.crossOpacity": "number",
     ...POSITION,
+    ...SHADOW,
   },
   CONTAINER: {
     "style.width": "number",
@@ -67,6 +78,7 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...SHADOW,
   },
   GROUP: {
     "style.width": "number",
@@ -77,6 +89,7 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.borderWidth": "number",
     "style.radius": "number",
     ...POSITION,
+    ...SHADOW,
   },
   RECTANGLE: {
     "style.width": "number",
@@ -86,6 +99,7 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...SHADOW,
   },
 };
 
