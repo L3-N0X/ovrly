@@ -1,5 +1,8 @@
+import { Switch } from "@/components/ui/switch";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   ElementTypeEnum,
+  isElementVisible,
   type ElementStyle,
   type PrismaElement,
   type PrismaOverlay,
@@ -9,10 +12,14 @@ import { BingoEditor } from "../BingoEditor";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
+import { CycleStackEditor } from "../CycleStackEditor";
 import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
 import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
+import { ProgressEditor } from "../ProgressEditor";
 import { RectangleEditor } from "../RectangleEditor";
+import { ScrollerEditor } from "../ScrollerEditor";
+import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 
@@ -47,6 +54,33 @@ export const ElementPositionEditor = ({
   );
 };
 
+// Whether the element is drawn. Bound to a yes/no variable, apps and providers can show and hide it.
+export const ElementVisibilityEditor = ({
+  element,
+  overlay,
+  onOverlayChange,
+}: {
+  element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: OnOverlayChange;
+}) => {
+  const updateStyle = styleUpdater(element, overlay, onOverlayChange);
+  return (
+    <BindableField
+      property="style.visible"
+      inline
+      htmlFor={`${element.id}-visible`}
+      label="Visible"
+    >
+      <Switch
+        id={`${element.id}-visible`}
+        checked={isElementVisible(element)}
+        onCheckedChange={(visible) => updateStyle({ ...(element.style || {}), visible })}
+      />
+    </BindableField>
+  );
+};
+
 // The appearance settings of the selected element.
 export const ElementStyleEditor = ({
   element,
@@ -70,6 +104,8 @@ export const ElementStyleEditor = ({
     case ElementTypeEnum.TIMER:
     case ElementTypeEnum.COUNTDOWN:
       return <TimerStyleEditor {...editorProps} />;
+    case ElementTypeEnum.SUBATHON:
+      return <SubathonStyleEditor {...editorProps} />;
     case ElementTypeEnum.ICON:
       return <IconStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
@@ -82,5 +118,11 @@ export const ElementStyleEditor = ({
       return <GroupEditor {...editorProps} />;
     case ElementTypeEnum.RECTANGLE:
       return <RectangleEditor {...editorProps} />;
+    case ElementTypeEnum.SCROLLER:
+      return <ScrollerEditor {...editorProps} />;
+    case ElementTypeEnum.CYCLE_STACK:
+      return <CycleStackEditor {...editorProps} />;
+    case ElementTypeEnum.PROGRESS:
+      return <ProgressEditor {...editorProps} />;
   }
 };

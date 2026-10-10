@@ -49,12 +49,13 @@ export const useElementResize = (
   const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const start = resizeStart.current;
     if (!start) return;
+    const grid = e.shiftKey && !!editing?.shiftSnapsToGrid;
     const size = {
       width: axes.width
-        ? snap(start.width + (e.clientX - start.pointerX) / start.scale, e.shiftKey)
+        ? snap(start.width + (e.clientX - start.pointerX) / start.scale, grid)
         : start.width,
       height: axes.height
-        ? snap(start.height + (e.clientY - start.pointerY) / start.scale, e.shiftKey)
+        ? snap(start.height + (e.clientY - start.pointerY) / start.scale, grid)
         : start.height,
     };
     // Lines its right and bottom edges up with what's around it, unless Alt is held.

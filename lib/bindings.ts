@@ -4,12 +4,16 @@ import { isSourceName, isVariableName } from "./variables";
 // what kind of value each one takes. Mirrored, with labels, by src/lib/bindings.ts.
 //
 // Properties are named the way the element stores them: "text" (a title's), "value" (a
-// counter's) and "src" (an image's) are content, anything under "style." is design.
+// counter's or progress bar's), "max" and "running" (a progress bar's) and "src" (an image's)
+// are content, anything under "style." is design.
 
 export type BindingKind = "text" | "number" | "color" | "image" | "boolean";
 
 // Where an element sits in a group or on a free canvas.
 const POSITION = { "style.x": "number", "style.y": "number" } as const;
+
+// Whether the element is drawn at all; every element type has it.
+const VISIBILITY = { "style.visible": "boolean" } as const;
 
 const TEXT_STYLE = {
   "style.color": "color",
@@ -23,19 +27,34 @@ const BOX_STYLE = {
   "style.radius": "number",
 } as const;
 
+const TIMER_STYLE = {
+  ...BOX_STYLE,
+  "style.paddingX": "number",
+  "style.paddingY": "number",
+} as const;
+
 export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = {
-  TITLE: { text: "text", ...TEXT_STYLE, ...POSITION },
-  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION },
-  TIMER: { ...BOX_STYLE, ...POSITION },
-  COUNTDOWN: { ...BOX_STYLE, ...POSITION },
+  TITLE: {
+    text: "text",
+    ...TEXT_STYLE,
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    ...POSITION,
+    ...VISIBILITY,
+  },
+  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...VISIBILITY },
+  TIMER: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  COUNTDOWN: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  SUBATHON: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
   IMAGE: {
     src: "image",
     "style.width": "number",
     "style.height": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
   },
-  ICON: { "style.color": "color", "style.size": "number", ...POSITION },
+  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...VISIBILITY },
   BINGO: {
     "style.width": "number",
     "style.fontSize": "number",
@@ -55,6 +74,7 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.crossThickness": "number",
     "style.crossOpacity": "number",
     ...POSITION,
+    ...VISIBILITY,
   },
   CONTAINER: {
     "style.width": "number",
@@ -67,6 +87,36 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
+  },
+  SCROLLER: {
+    "style.width": "number",
+    "style.height": "number",
+    "style.speed": "number",
+    "style.pause": "number",
+    "style.gap": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
+  },
+  CYCLE_STACK: {
+    "style.interval": "number",
+    "style.transitionDuration": "number",
+    "style.width": "number",
+    "style.height": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
   },
   GROUP: {
     "style.width": "number",
@@ -77,6 +127,7 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.borderWidth": "number",
     "style.radius": "number",
     ...POSITION,
+    ...VISIBILITY,
   },
   RECTANGLE: {
     "style.width": "number",
@@ -86,6 +137,21 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
+  },
+  PROGRESS: {
+    value: "number",
+    max: "number",
+    running: "boolean",
+    "style.width": "number",
+    "style.height": "number",
+    "style.fillColor": "color",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
   },
 };
 

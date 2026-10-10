@@ -21,7 +21,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 const time = (date: string) => new Date(date).getTime();
 
 // What the time left depends on.
-type CountdownTiming = Pick<CountdownState, "mode" | "remaining" | "endsAt" | "targetAt">;
+export type CountdownTiming = Pick<CountdownState, "mode" | "remaining" | "endsAt" | "targetAt">;
 
 // Whether it is counting down right now. One counting down to a point in time always is.
 export const isCountdownRunning = (countdown: CountdownTiming) =>

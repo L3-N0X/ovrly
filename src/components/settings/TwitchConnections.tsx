@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Plug, Unplug } from "lucide-react";
+import { CheckCircle2, Loader2, Plug, RefreshCw, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { twitchApi, type TwitchConnection, type TwitchConnectionsResponse } from "@/lib/twitch";
@@ -55,7 +55,8 @@ export const TwitchConnections: React.FC<{
       {connected && !error && (
         <p className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="size-4 shrink-0" />
-          {connected} is connected. Its subscriber stats show up in your overlays within a minute.
+          {connected} is connected. Its subscriber stats show up in your overlays within a minute,
+          and its subs and cheers count in your subathons.
         </p>
       )}
       {error && (
@@ -70,8 +71,9 @@ export const TwitchConnections: React.FC<{
           <p className="text-sm text-muted-foreground">
             Followers, viewers and the stream of any channel work right away once you add the channel in an overlay's Variables tab.
             Subscribers and sub points are private on Twitch: to show them, sign in to Twitch as
-            the channel and allow ovrly to read its subscriptions. They are then shown in your
-            overlays and in those of the people on your team.
+            the channel and allow ovrly to read its subscriptions and cheers. They are then shown in
+            your overlays and in those of the people on your team, and subathons count its subs and
+            cheers.
           </p>
         </div>
         <div className="px-5 pb-5">
@@ -93,7 +95,8 @@ export const TwitchConnections: React.FC<{
         <div className="mb-3">
           <h2 className="font-medium">Connected channels</h2>
           <p className="text-sm text-muted-foreground">
-            Channels whose subscriber stats your overlays can show.
+            Channels whose subscriber stats your overlays can show and whose subs and cheers your
+            subathons count.
           </p>
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
@@ -119,7 +122,21 @@ export const TwitchConnections: React.FC<{
                     <span className="block truncate text-xs text-muted-foreground">
                       twitch.tv/{connection.login} · since {formatDate(connection.createdAt)}
                     </span>
+                    {!connection.bits && (
+                      <span className="block text-xs text-amber-600 dark:text-amber-400">
+                        Connected before cheers could be read: connect it again to count them in
+                        subathons.
+                      </span>
+                    )}
                   </span>
+                  {!connection.bits && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={twitchApi.connectUrl}>
+                        <RefreshCw />
+                        Reconnect
+                      </a>
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

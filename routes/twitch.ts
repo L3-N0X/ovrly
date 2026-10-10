@@ -1,12 +1,14 @@
 import { prisma } from "../auth";
-import { authenticate } from "../middleware/authMiddleware";
+import { authenticate, requireOverlayRole } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
 import { refreshTwitchChannel } from "../services/twitch-variables";
+import { listeningChannels, syncSubathonListeners } from "../services/twitch-events";
 import {
   authorizeUrl,
-  CONNECTION_SCOPES,
+  BITS_SCOPE,
   exchangeCode,
   findChannel,
+  REQUIRED_SCOPES,
   revokeUserToken,
   twitchConfigured,
   validateUserToken,
@@ -55,8 +57,14 @@ const listConnections = async (userId: string) => ({
   connections: await prisma.twitchConnection.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, twitchId: true, login: true, displayName: true, createdAt: true },
-  }),
+    select: { id: true, twitchId: true, login: true, displayName: true, createdAt: true, scope: true },
+  }).then((connections) =>
+    connections.map(({ scope, ...connection }) => ({
+      ...connection,
+      // Channels connected before subathons existed can't report cheers until connected again.
+      bits: scope.split(" ").includes(BITS_SCOPE),
+    }))
+  ),
 });
 
 export const handleTwitchRoutes = async (req: Request, path: string) => {
@@ -85,7 +93,7 @@ export const handleTwitchRoutes = async (req: Request, path: string) => {
 
     try {
       const token = await exchangeCode(code, twitchRedirectUri());
-      if (!CONNECTION_SCOPES.every((scope) => token.scope.includes(scope))) {
+      if (!REQUIRED_SCOPES.every((scope) => token.scope.includes(scope))) {
         await revokeUserToken(token.accessToken);
         return backToSettings({ error: "missing_scope" });
       }
@@ -114,11 +122,47 @@ export const handleTwitchRoutes = async (req: Request, path: string) => {
       if (previous) await revokeUserToken(previous.accessToken);
       // Everyone who added the channel gets its subscriber stats (or loses them) right away.
       await refreshTwitchChannel(owner.id);
+      // Subathons listen with the new token (and its scopes) from now on.
+      syncSubathonListeners();
       return backToSettings({ connected: data.displayName });
     } catch (error) {
       console.error("[TWITCH] Connecting a channel failed:", error);
       return backToSettings({ error: "failed" });
     }
+  }
+
+  // The channels the subathons of an overlay can listen to: those connected by its owner or by
+  // someone whose team the owner is on, and whether their events are coming in right now.
+  const subathonMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/subathon-channels$/);
+  if (subathonMatch && req.method === "GET") {
+    const session = await authenticate(req);
+    if (!session) return json({ error: "Unauthorized" }, 401);
+    const check = await requireOverlayRole(session.user, subathonMatch[1], "CONTROLLER");
+    if (check.error) return check.error;
+    const ownerId = check.access.overlay.userId;
+    const teams = await prisma.accountShare.findMany({
+      where: { userId: ownerId },
+      select: { ownerId: true },
+    });
+    const connections = await prisma.twitchConnection.findMany({
+      where: { userId: { in: [ownerId, ...teams.map((t) => t.ownerId)] } },
+      orderBy: { createdAt: "asc" },
+      select: { twitchId: true, login: true, displayName: true, scope: true },
+    });
+    const own = await prisma.account.findFirst({
+      where: { userId: ownerId, providerId: "twitch" },
+      select: { accountId: true },
+    });
+    const listening = listeningChannels();
+    return json({
+      available: twitchConfigured(),
+      ownChannelId: own?.accountId ?? null,
+      channels: connections.map(({ scope, ...channel }) => ({
+        ...channel,
+        bits: scope.split(" ").includes(BITS_SCOPE),
+        listening: listening.has(channel.twitchId),
+      })),
+    });
   }
 
   if (path === "/api/twitch/connections" && req.method === "GET") {
@@ -138,6 +182,7 @@ export const handleTwitchRoutes = async (req: Request, path: string) => {
     await prisma.twitchConnection.deleteMany({ where: { id: connection.id } });
     await revokeUserToken(connection.accessToken);
     await refreshTwitchChannel(connection.twitchId);
+    syncSubathonListeners();
     return json(await listConnections(session.user.id));
   }
 

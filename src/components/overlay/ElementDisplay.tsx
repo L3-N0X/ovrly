@@ -1,22 +1,28 @@
 import React from "react";
 import type {
-  BaseElementStyle,
+  TitleStyle,
   CounterStyle,
   PrismaElement,
   ContainerStyle,
   IconStyle,
+  SubathonStyle,
   TimerStyle,
 } from "@/lib/types";
+import { isElementVisible } from "@/lib/types";
 import Title from "./Title";
 import Counter from "./Counter";
 import Container from "./Container";
 import Timer from "./Timer";
 import Countdown from "./Countdown";
+import Subathon from "./Subathon";
 import Icon from "./Icon";
 import Rectangle from "./Rectangle";
+import ProgressBar from "./ProgressBar";
 import Image from "./Image";
 import Bingo from "./Bingo";
 import Group from "./Group";
+import Scroller from "./Scroller";
+import CycleStack from "./CycleStack";
 import { CANVAS_ELEMENT_ATTRIBUTE, useCanvasSelection } from "./canvasSelection";
 
 interface ElementDisplayProps {
@@ -25,7 +31,7 @@ interface ElementDisplayProps {
 }
 
 const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) => {
-  const { type, style, title, counter, timer, countdown, icon } = element;
+  const { type, style, title, counter, timer, countdown, subathon, icon } = element;
   const selection = useCanvasSelection();
 
   const children = elements
@@ -35,7 +41,7 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
   const renderElement = () => {
     switch (type) {
       case "TITLE":
-        return title ? <Title text={title.text} style={(style || {}) as BaseElementStyle} /> : null;
+        return title ? <Title text={title.text} style={(style || {}) as TitleStyle} /> : null;
       case "COUNTER":
         return counter ? (
           <Counter value={counter.value} style={(style || {}) as CounterStyle} />
@@ -52,6 +58,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         return countdown ? (
           <Countdown countdown={countdown} style={(style || {}) as TimerStyle} />
         ) : null;
+      case "SUBATHON":
+        return subathon ? (
+          <Subathon subathon={subathon} style={(style || {}) as SubathonStyle} />
+        ) : null;
       case "CONTAINER":
         return (
           <Container element={element} style={(style || {}) as ContainerStyle}>
@@ -60,12 +70,30 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
             ))}
           </Container>
         );
+      case "SCROLLER":
+        return (
+          <Scroller element={element}>
+            {children.map((child) => (
+              <ElementDisplay key={child.id} element={child} elements={elements} />
+            ))}
+          </Scroller>
+        );
+      case "CYCLE_STACK":
+        return (
+          <CycleStack
+            element={element}
+            elements={elements}
+            renderChild={(child) => <ElementDisplay element={child} elements={elements} />}
+          />
+        );
       case "ICON":
         return icon ? (
           <Icon icon={icon} style={(style || {}) as IconStyle} label={element.name} />
         ) : null;
       case "RECTANGLE":
         return <Rectangle element={element} />;
+      case "PROGRESS":
+        return <ProgressBar element={element} />;
       case "IMAGE":
         return <Image element={element} />;
       case "BINGO":
@@ -83,6 +111,10 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         return null;
     }
   };
+
+  // A hidden element is not drawn at all, so it takes no space in a container either. It can still
+  // be selected from the element list.
+  if (!isElementVisible(element)) return null;
 
   const content = renderElement();
   if (!selection || !content) return content;

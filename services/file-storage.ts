@@ -80,6 +80,8 @@ const getClient = () => {
 
 export interface FileStorage {
   save(file: File): Promise<{ url: string; filename: string }>;
+  // Saves a copy of a stored file under a new key, checked like an upload.
+  copy(filename: string): Promise<{ url: string; filename: string }>;
   delete(filename: string): Promise<void>;
   get(filename: string): S3File;
 }
@@ -103,6 +105,17 @@ export const fileStorage: FileStorage = {
     const filename = `${randomUUID()}/${sanitizeBaseName(file.name)}.${ALLOWED_TYPES[type]}`;
     await getClient().write(filename, bytes, { type });
     return { url: `/uploads/${filename}`, filename };
+  },
+
+  async copy(filename) {
+    const source = getClient().file(filename);
+    if ((await source.stat()).size > MAX_UPLOAD_BYTES) {
+      throw new UnsupportedFileError("File is too big to copy");
+    }
+    const name = filename.slice(filename.indexOf("/") + 1);
+    return fileStorage.save(
+      new File([await source.arrayBuffer()], name, { type: contentTypeForKey(filename) })
+    );
   },
 
   async delete(filename) {

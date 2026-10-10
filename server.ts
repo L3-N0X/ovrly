@@ -10,11 +10,15 @@ import { handleReorderRoutes } from "./routes/reorder";
 import { handleBingoRoutes } from "./routes/bingo";
 import { handleSharingRoutes } from "./routes/sharing";
 import { handleTwitchRoutes } from "./routes/twitch";
+import { handleSpotifyRoutes } from "./routes/spotify";
 import { handlePublicApiRoutes } from "./routes/publicApi";
 import { handleVariablesRoutes } from "./routes/variables";
+import { handleComponentsRoutes } from "./routes/components";
 import { authorizeWebSocket } from "./middleware/wsAuth";
 import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
 import { refreshOpenedOverlay, startTwitchVariables } from "./services/twitch-variables";
+import { refreshOpenedSpotify, startSpotifyVariables } from "./services/spotify-variables";
+import { startTwitchEvents, syncSubathonListeners } from "./services/twitch-events";
 import { variablesChannel } from "./services/variables";
 import type { WebSocketData } from "./types";
 import path from "path";
@@ -156,10 +160,22 @@ const server = Bun.serve<WebSocketData>({
         return variablesResponse;
       }
 
+      // Handle component routes (elements saved to add to any overlay)
+      const componentsResponse = await handleComponentsRoutes(req, reqPath);
+      if (componentsResponse) {
+        return componentsResponse;
+      }
+
       // Handle Twitch routes (connecting channels for their subscriber stats)
       const twitchResponse = await handleTwitchRoutes(req, reqPath);
       if (twitchResponse) {
         return twitchResponse;
+      }
+
+      // Handle Spotify routes (connecting an account for its playback)
+      const spotifyResponse = await handleSpotifyRoutes(req, reqPath);
+      if (spotifyResponse) {
+        return spotifyResponse;
       }
 
       // Handle preset routes
@@ -199,9 +215,12 @@ const server = Bun.serve<WebSocketData>({
       sockets.add(ws);
       ws.subscribe(`overlay-${overlayId}`);
       if (seesVariables) ws.subscribe(variablesChannel(ownerId));
-      // Twitch channels are only polled while an overlay of their user is open, so they may
-      // be out of date.
+      // Twitch channels and Spotify playback are only polled while an overlay of their user is
+      // open, so they may be out of date.
       refreshOpenedOverlay(ownerId);
+      refreshOpenedSpotify(ownerId);
+      // Paused subathons of the owner count Twitch events while one of their overlays is open.
+      syncSubathonListeners();
       console.log(`[SERVER LOG] WebSocket subscribed to overlay-${overlayId}`);
     },
     message() {
@@ -221,7 +240,10 @@ setInterval(() => {
   }
 }, HEARTBEAT_INTERVAL_MS);
 
-startTwitchVariables(server, () => [...sockets].map((ws) => ws.data.ownerId));
+const openOverlayOwners = () => [...sockets].map((ws) => ws.data.ownerId);
+startTwitchVariables(server, openOverlayOwners);
+startSpotifyVariables(server, openOverlayOwners);
+startTwitchEvents(server, openOverlayOwners);
 
 console.log(`Server running on port ${server.port}`);
 console.log(`App base URL from env: ${process.env.APP_BASE_URL}`);

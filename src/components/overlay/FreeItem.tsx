@@ -1,5 +1,5 @@
 import React, { useSyncExternalStore } from "react";
-import type { GroupStyle, PrismaElement } from "@/lib/types";
+import { isElementVisible, type GroupStyle, type PrismaElement } from "@/lib/types";
 import { useCanvasEditing } from "./canvasEditing";
 import { useCanvasInteraction } from "./canvasDrag";
 import { FREE_ITEM_ATTRIBUTE } from "./canvasGeometry";
@@ -42,6 +42,9 @@ const FreeItem: React.FC<{
     left: `${position.x}px`,
     top: `${position.y}px`,
   };
+
+  // Nothing to place (see ElementDisplay).
+  if (!isElementVisible(element)) return null;
 
   if (!editing) {
     return <div style={positionStyle}>{children}</div>;

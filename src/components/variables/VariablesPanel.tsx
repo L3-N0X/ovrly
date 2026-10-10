@@ -7,6 +7,7 @@ import {
   Ellipsis,
   ImageIcon,
   Loader2,
+  Music,
   Plus,
   Search,
   Trash2,
@@ -46,8 +47,10 @@ import {
   isProviderSource,
   isVariableName,
   NAME_RULES,
+  providerVariableDescription,
   sourceLabel,
-  TWITCH_VARIABLE_DESCRIPTIONS,
+  SPOTIFY_SOURCE,
+  spotifyProblem,
   twitchProblem,
   VARIABLE_TYPE_LABELS,
   VARIABLE_TYPES,
@@ -55,6 +58,7 @@ import {
   type Variable,
   type VariableSource,
 } from "@/lib/variables";
+import { spotifyApi } from "@/lib/spotify";
 import { useVariables } from "@/lib/variablesContext";
 import { VariableTypeIcon, VariableValuePreview } from "./VariableBits";
 
@@ -68,14 +72,18 @@ const errorMessage = (error: unknown) =>
 /**
  * The variables tab of the editor: every variable of the overlay's owner, grouped by source,
  * with their live values. Values can be changed right here (controllers and up); editors also
- * create and delete variables and add Twitch channels. Fields are bound to them from the
- * fields themselves (BindableField).
+ * create and delete variables and add Twitch channels. Spotify is connected by the owner in the
+ * settings. Fields are bound to them from the fields themselves (BindableField).
  */
-export const VariablesPanel: React.FC<{ overlay: PrismaOverlay }> = ({ overlay }) => {
+export const VariablesPanel: React.FC<{ overlay: PrismaOverlay; isOwner: boolean }> = ({
+  overlay,
+  isOwner,
+}) => {
   const context = useVariables();
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [addingTwitch, setAddingTwitch] = useState(false);
+  const [addingSpotify, setAddingSpotify] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Which elements of this overlay use each variable.
@@ -92,6 +100,7 @@ export const VariablesPanel: React.FC<{ overlay: PrismaOverlay }> = ({ overlay }
 
   if (!context) return null;
   const { variables, sources, error, canEdit } = context;
+  const hasSpotify = sources.some((source) => source.provider === "SPOTIFY" && !source.problem);
 
   const search = query.trim().toLowerCase();
   const matching = (variables ?? []).filter(
@@ -152,6 +161,12 @@ export const VariablesPanel: React.FC<{ overlay: PrismaOverlay }> = ({ overlay }
                 <Tv />
                 Twitch channel
               </DropdownMenuItem>
+              {!hasSpotify && (
+                <DropdownMenuItem onSelect={() => setAddingSpotify(true)}>
+                  <Music />
+                  Spotify
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -172,7 +187,12 @@ export const VariablesPanel: React.FC<{ overlay: PrismaOverlay }> = ({ overlay }
         search ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">No variables match “{query}”.</p>
         ) : (
-          <EmptyState canEdit={canEdit} onCreate={() => setCreating(true)} onAddTwitch={() => setAddingTwitch(true)} />
+          <EmptyState
+            canEdit={canEdit}
+            onCreate={() => setCreating(true)}
+            onAddTwitch={() => setAddingTwitch(true)}
+            onAddSpotify={() => setAddingSpotify(true)}
+          />
         )
       ) : (
         ordered.map(([source, items]) => (
@@ -204,6 +224,7 @@ export const VariablesPanel: React.FC<{ overlay: PrismaOverlay }> = ({ overlay }
         sources={writableSources}
       />
       <AddTwitchDialog open={addingTwitch} onOpenChange={setAddingTwitch} />
+      <AddSpotifyDialog open={addingSpotify} onOpenChange={setAddingSpotify} isOwner={isOwner} />
     </div>
   );
 };
@@ -212,7 +233,8 @@ const EmptyState: React.FC<{
   canEdit: boolean;
   onCreate: () => void;
   onAddTwitch: () => void;
-}> = ({ canEdit, onCreate, onAddTwitch }) => (
+  onAddSpotify: () => void;
+}> = ({ canEdit, onCreate, onAddTwitch, onAddSpotify }) => (
   <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
     <span className="flex size-10 items-center justify-center rounded-full border bg-card">
       <Braces className="size-4 text-muted-foreground" />
@@ -234,6 +256,10 @@ const EmptyState: React.FC<{
           <Tv />
           Twitch channel
         </Button>
+        <Button size="sm" variant="outline" onClick={onAddSpotify}>
+          <Music />
+          Spotify
+        </Button>
       </div>
     )}
   </div>
@@ -252,7 +278,16 @@ const VariableGroup: React.FC<{
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const problem = provider?.provider === "TWITCH" ? twitchProblem(provider) : null;
+  const problem =
+    provider?.provider === "TWITCH"
+      ? twitchProblem(provider)
+      : provider?.provider === "SPOTIFY"
+        ? spotifyProblem(provider)
+        : null;
+  const spotify = provider?.provider === "SPOTIFY";
+  // A connected Spotify is removed by disconnecting it in the owner's settings; only one whose
+  // access was revoked can be removed here.
+  const removable = !spotify || !!provider?.problem;
   const used = variables.some((variable) => usage.has(variableRef(variable)));
 
   const remove = async () => {
@@ -287,7 +322,9 @@ const VariableGroup: React.FC<{
           <ChevronDown
             className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")}
           />
-          {provider ? (
+          {spotify ? (
+            <Music className="size-3.5 shrink-0 text-[#1db954]" />
+          ) : provider ? (
             <Tv className="size-3.5 shrink-0 text-violet-500" />
           ) : (
             <Braces className="size-3.5 shrink-0 text-muted-foreground" />
@@ -295,7 +332,7 @@ const VariableGroup: React.FC<{
           <span className="truncate text-xs font-semibold">{label}</span>
           <span className="text-xs text-muted-foreground tabular-nums">{variables.length}</span>
         </button>
-        {context.canEdit && (
+        {context.canEdit && removable && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -310,7 +347,7 @@ const VariableGroup: React.FC<{
             <DropdownMenuContent align="end">
               <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
                 <Trash2 />
-                {provider ? "Remove channel" : "Delete group"}
+                {spotify ? "Remove Spotify" : provider ? "Remove channel" : "Delete group"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -327,7 +364,7 @@ const VariableGroup: React.FC<{
           {provider && variables.length === 0 && (
             <p className="flex items-center gap-2 px-4 pb-3 text-xs text-muted-foreground">
               <Loader2 className="size-3 animate-spin" />
-              Fetching from Twitch…
+              Fetching from {spotify ? "Spotify" : "Twitch"}…
             </p>
           )}
           <div className="pb-1">
@@ -369,6 +406,7 @@ const VariableGroup: React.FC<{
 
 const VariableRow: React.FC<{ variable: Variable; usedBy: string[] }> = ({ variable, usedBy }) => {
   const context = useVariables()!;
+  const provider = context.sources.find((source) => source.name === variable.source);
   const readOnly = isProviderSource(variable.source) || !context.canControl;
   // Held while editing, so the list being fetched again after each save doesn't move the
   // field out from under the user.
@@ -400,7 +438,7 @@ const VariableRow: React.FC<{ variable: Variable; usedBy: string[] }> = ({ varia
     }
   };
 
-  const description = TWITCH_VARIABLE_DESCRIPTIONS[variable.key];
+  const description = providerVariableDescription(provider, variable.key);
 
   return (
     <div
@@ -778,3 +816,44 @@ const AddTwitchDialog: React.FC<{ open: boolean; onOpenChange: (open: boolean) =
     </Dialog>
   );
 };
+
+const AddSpotifyDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  // Only the owner's Spotify shows up in their overlays, so only they can connect it.
+  isOwner: boolean;
+}> = ({ open, onOpenChange, isOwner }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Add Spotify</DialogTitle>
+        <DialogDescription>
+          What is playing on Spotify becomes variables: track, artist, album, cover, whether it
+          plays, progress and length (in seconds and as text like 1:23), volume, and an accent
+          colour taken from the cover. Bind a progress bar's value and maximum to{" "}
+          <code className="text-xs">progress</code> and <code className="text-xs">duration</code>,
+          and running to <code className="text-xs">playing</code>, so it moves smoothly.
+        </DialogDescription>
+      </DialogHeader>
+      <p className="text-sm text-muted-foreground">
+        {isOwner
+          ? "Spotify asks you to allow ovrly to read what you play, then sends you to your settings. This overlay picks it up right away."
+          : `The owner of this overlay connects their Spotify account in their settings. Their variables are called “${SPOTIFY_SOURCE}”, which you can already bind to.`}
+      </p>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          {isOwner ? "Cancel" : "Close"}
+        </Button>
+        {isOwner && (
+          <Button asChild>
+            {/* A full page load: the server sends the browser on to Spotify. */}
+            <a href={spotifyApi.connectUrl}>
+              <Music />
+              Connect Spotify
+            </a>
+          </Button>
+        )}
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);

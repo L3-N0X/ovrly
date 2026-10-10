@@ -11,22 +11,37 @@ export const ElementTypeEnum = {
   GROUP: "GROUP",
   ICON: "ICON",
   RECTANGLE: "RECTANGLE",
+  PROGRESS: "PROGRESS",
+  SUBATHON: "SUBATHON",
+  SCROLLER: "SCROLLER",
+  CYCLE_STACK: "CYCLE_STACK",
 } as const;
 
 // Element types that hold other elements.
 export const isParentType = (type: ElementType) =>
-  type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
+  type === ElementTypeEnum.CONTAINER ||
+  type === ElementTypeEnum.GROUP ||
+  type === ElementTypeEnum.SCROLLER ||
+  type === ElementTypeEnum.CYCLE_STACK;
+
+// Whether an element is drawn: only `style.visible: false` (stored or bound) hides it.
+export const isElementVisible = (element: { style: ElementStyle | null }) =>
+  (element.style as BaseElementStyle | null)?.visible !== false;
 
 // Element types with content of their own (text, a value, ...) that can be changed while
-// live. Containers and groups only arrange other elements.
+// live. Containers and groups only arrange other elements; a cycle stack's content is which of
+// them it shows.
 export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.TITLE ||
   type === ElementTypeEnum.COUNTER ||
   type === ElementTypeEnum.TIMER ||
   type === ElementTypeEnum.COUNTDOWN ||
+  type === ElementTypeEnum.SUBATHON ||
   type === ElementTypeEnum.IMAGE ||
   type === ElementTypeEnum.ICON ||
-  type === ElementTypeEnum.BINGO;
+  type === ElementTypeEnum.PROGRESS ||
+  type === ElementTypeEnum.BINGO ||
+  type === ElementTypeEnum.CYCLE_STACK;
 
 export type ElementType =
   (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
@@ -112,6 +127,14 @@ export interface BaseElementStyle {
   // Offset from the top left corner of the parent, used when the parent is a GROUP.
   x?: number;
   y?: number;
+  // Hidden elements (`false`) are not drawn; anything else, including nothing stored, shows them.
+  visible?: boolean;
+}
+
+// Specific style for a Title element
+export interface TitleStyle extends BaseElementStyle {
+  paddingX?: number;
+  paddingY?: number;
 }
 
 // Specific style for a Counter element
@@ -124,9 +147,20 @@ export interface CounterStyle extends BaseElementStyle {
 // Specific style for a Timer or Countdown element
 export interface TimerStyle extends BaseElementStyle {
   backgroundColor?: string;
+  /** Older timers may still store uniform padding; paddingX/paddingY take precedence per axis. */
   padding?: number;
+  paddingX?: number;
+  paddingY?: number;
   radius?: number;
   format?: string;
+}
+
+// Specific style for a Subathon element: a countdown that shows what Twitch events add to it.
+export interface SubathonStyle extends TimerStyle {
+  /** Shows the time an event added ("+5m") above the countdown for a moment. On by default. */
+  showAdded?: boolean;
+  /** Shown instead of the time once it has run out; empty keeps showing zero. */
+  endedText?: string;
 }
 
 // Specific style for an Image element
@@ -145,7 +179,7 @@ export interface IconStyle extends BaseElementStyle {
 
 // Specific style for a Container element
 export interface ContainerStyle extends BaseElementStyle {
-  /** Both sizes are automatic unless switched off: the container fills its parent's width and grows with its children. */
+  /** Both sizes are fixed by default; automatic sizing can be enabled per side. */
   autoWidth?: boolean;
   autoHeight?: boolean;
   /** Used for the sides that are not automatic. */
@@ -213,6 +247,87 @@ export const BORDER_RADIUS_RANGE = { min: 0, max: 200 };
 export const DEFAULT_RECTANGLE_WIDTH = 320;
 export const DEFAULT_RECTANGLE_HEIGHT = 200;
 
+// How a scroller moves content that doesn't fit: `bounce` scrolls to the end, waits, scrolls back
+// and waits again; `loop` scrolls on forever, the first child following the last one again.
+export type ScrollerMode = "bounce" | "loop";
+
+// Specific style for a Scroller element: lays its children out like a container, in a box of at
+// most `width` by `height`, and scrolls them by itself when they are longer than that.
+export interface ScrollerStyle extends BaseElementStyle {
+  /** "vertical" by default: the children stack in a column and scroll up. */
+  direction?: "vertical" | "horizontal";
+  /** "bounce" by default. */
+  mode?: ScrollerMode;
+  /** The size of the box; the side it scrolls along is a maximum when `fitContent` is on. */
+  width?: number;
+  height?: number;
+  /** Off by default; while it's on, the side it scrolls along shrinks to the children. */
+  fitContent?: boolean;
+  /** Pixels per second. */
+  speed?: number;
+  /** Seconds to wait at each end, in bounce mode. */
+  pause?: number;
+  gap?: number;
+  paddingX?: number;
+  paddingY?: number;
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
+  /** Transparent by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
+}
+
+export const DEFAULT_SCROLLER_WIDTH = 400;
+export const DEFAULT_SCROLLER_HEIGHT = 240;
+export const DEFAULT_SCROLLER_SPEED = 40;
+export const DEFAULT_SCROLLER_PAUSE = 2;
+export const SCROLLER_SPEED_RANGE = { min: 1, max: 2000 };
+export const SCROLLER_PAUSE_RANGE = { min: 0, max: 60 };
+
+// How a cycle stack goes from one layer to the next.
+export type CycleStackTransition = "none" | "fade";
+
+// Specific style for a Cycle Stack element: its children are layers on top of each other in a
+// box of `width` by `height`, and only one of them is shown at a time, each for `interval`
+// seconds (see src/lib/cycleStack.ts).
+export interface CycleStackStyle extends BaseElementStyle {
+  /** Seconds each layer is shown for while it cycles. */
+  interval?: number;
+  /** "fade" by default. */
+  transition?: CycleStackTransition;
+  /** Seconds a fade takes. */
+  transitionDuration?: number;
+  /** The size of the box, unless `fitContent` is on. */
+  width?: number;
+  height?: number;
+  /** Off by default: when on, the box takes the size of its biggest layer. */
+  fitContent?: boolean;
+  /** Where a layer smaller than the box sits in it; "center" by default. */
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignItems?: "start" | "center" | "end" | "stretch";
+  paddingX?: number;
+  paddingY?: number;
+  /** Transparent by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
+}
+
+export const DEFAULT_CYCLE_STACK_WIDTH = 400;
+export const DEFAULT_CYCLE_STACK_HEIGHT = 240;
+export const DEFAULT_CYCLE_STACK_INTERVAL = 5;
+export const DEFAULT_CYCLE_STACK_TRANSITION_DURATION = 0.5;
+export const CYCLE_STACK_INTERVAL_RANGE = { min: 0.5, max: 3600 };
+export const CYCLE_STACK_TRANSITION_RANGE = { min: 0, max: 10 };
+
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
@@ -244,6 +359,32 @@ export interface RectangleStyle extends BaseElementStyle {
   /** 0 by default, so the corners are square. */
   borderRadius?: number;
 }
+
+// How a progress bar reads its value: as a percentage, or as a value out of a maximum (a song's
+// progress out of its length).
+export type ProgressMode = "percent" | "values";
+
+// Specific style for a Progress element: a track, filled from the left to how far along it is.
+export interface ProgressStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  /** "percent" by default. */
+  mode?: ProgressMode;
+  /** The filled part; white by default. */
+  fillColor?: string;
+  /** The empty part, a translucent white by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+}
+
+export const DEFAULT_PROGRESS_WIDTH = 480;
+export const DEFAULT_PROGRESS_HEIGHT = 12;
+export const DEFAULT_PROGRESS_FILL = "#ffffff";
+export const DEFAULT_PROGRESS_BACKGROUND = "#ffffff33";
+export const DEFAULT_PROGRESS_RADIUS = 6;
 
 // Specific style for a Bingo element
 export interface BingoStyle extends BaseElementStyle {
@@ -279,13 +420,18 @@ export interface BingoStyle extends BaseElementStyle {
 // A union of all possible element style types
 export type ElementStyle =
   | BaseElementStyle
+  | TitleStyle
   | CounterStyle
   | ContainerStyle
   | TimerStyle
+  | SubathonStyle
   | ImageStyle
   | IconStyle
   | RectangleStyle
+  | ProgressStyle
   | BingoStyle
+  | ScrollerStyle
+  | CycleStackStyle
   | GroupStyle;
 
 // The generic Element object from the backend
@@ -315,8 +461,43 @@ export interface PrismaElement {
     endsAt: string | null;
     targetAt: string | null;
   } | null;
+  // A countdown that Twitch subs and cheers add time to (lib/subathon.ts on the server). Times
+  // are milliseconds.
+  subathon?: {
+    id: string;
+    // What it starts from and resets to.
+    duration: number;
+    // The time left while paused; while running, it ends at `endsAt`.
+    remaining: number;
+    endsAt: string | null;
+    // The Twitch channel id whose events count; null for the owner's own channel.
+    channelId: string | null;
+    // Added per sub of each tier, and per 100 bits.
+    tier1Ms: number;
+    tier2Ms: number;
+    tier3Ms: number;
+    bitsMs: number;
+    // Multiplies what events add (a happy hour).
+    multiplier: number;
+    // Events never take the time left past this. Null for no limit.
+    maxRemaining: number | null;
+    countWhilePaused: boolean;
+    // Totals since the last reset.
+    subs: number;
+    bits: number;
+    addedMs: number;
+    // What the latest event added, and when.
+    lastAddedMs: number;
+    lastAddedAt: string | null;
+  } | null;
   image?: { id: string; src: string } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;
+  // Which child a cycle stack shows (src/lib/cycleStack.ts): the one at `index`, and while it
+  // cycles (`startedAt` set), the ones after it, one per interval since then.
+  cycleStack?: { id: string; index: number; startedAt: string | null } | null;
+  // `value` out of `max` (100 in percent mode); `running` moves it on between updates: by one per
+  // second in values mode, at the pace it has been changing at in percent mode.
+  progress?: { id: string; value: number; max: number; running: boolean } | null;
   bingo?: {
     id: string;
     rows: number;

@@ -84,7 +84,7 @@ const attempt = async <T>(what: string, fetch: () => Promise<T>): Promise<T | un
 
 // A token of the connected channel that works right now, refreshed when it is about to expire.
 // Null when the channel's owner revoked it; the connection is removed then.
-const connectionToken = async (
+export const connectionToken = async (
   connection: { id: string; accessToken: string; refreshToken: string; expiresAt: Date },
   force = false
 ) => {
@@ -108,6 +108,23 @@ const connectionToken = async (
     }
     throw error;
   }
+};
+
+/**
+ * Who may use what these connected channels share (subscriber stats, subathon events): whoever
+ * connected it and the people they added to their team (an account share). By channel id.
+ */
+export const allowedUsersByChannel = async (connections: { twitchId: string; userId: string }[]) => {
+  const teams = await prisma.accountShare.findMany({
+    where: { ownerId: { in: connections.map((c) => c.userId) }, userId: { not: null } },
+    select: { ownerId: true, userId: true },
+  });
+  return new Map(
+    connections.map((c) => [
+      c.twitchId,
+      new Set([c.userId, ...teams.filter((t) => t.ownerId === c.userId).map((t) => t.userId!)]),
+    ])
+  );
 };
 
 type SubResult = { total: number; points: number } | "NOT_CONNECTED";
@@ -144,21 +161,10 @@ export const refreshTwitchVariables = async (userIds: string[]) => {
   if (sources.length === 0) return;
   const channelIds = [...new Set(sources.map((source) => source.externalId))];
 
-  // Subscriber stats of a connected channel may be shown to whoever connected it and to the
-  // people they added to their team (an account share).
   const connections = await prisma.twitchConnection.findMany({
     where: { twitchId: { in: channelIds } },
   });
-  const teams = await prisma.accountShare.findMany({
-    where: { ownerId: { in: connections.map((c) => c.userId) }, userId: { not: null } },
-    select: { ownerId: true, userId: true },
-  });
-  const allowedUsers = new Map(
-    connections.map((c) => [
-      c.twitchId,
-      new Set([c.userId, ...teams.filter((t) => t.ownerId === c.userId).map((t) => t.userId!)]),
-    ])
-  );
+  const allowedUsers = await allowedUsersByChannel(connections);
   const problemOf = (source: (typeof sources)[number]): TwitchProblem | null => {
     const allowed = allowedUsers.get(source.externalId);
     if (!allowed) return "NOT_CONNECTED";

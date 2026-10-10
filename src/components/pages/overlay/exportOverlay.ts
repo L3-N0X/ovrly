@@ -10,7 +10,9 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     title?: { text: string } | null;
     image?: { src: string } | null;
     icon?: { library: string; name: string } | null;
+    progress?: { value: number; max: number; running: boolean } | null;
     countdown?: { mode: string; duration: number; targetAt: string | null } | null;
+    subathon?: Record<string, unknown> | null;
     bindings?: VariableBinding[];
     children?: ExportElement[];
   };
@@ -39,12 +41,30 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     if (element.icon) {
       newElement.icon = { library: element.icon.library, name: element.icon.name };
     }
+    if (element.progress) {
+      const { value, max, running } = element.progress;
+      newElement.progress = { value, max, running };
+    }
     // Timers are exported without their state; they start out stopped.
     if (element.countdown) {
       newElement.countdown = {
         mode: element.countdown.mode,
         duration: element.countdown.duration,
         targetAt: element.countdown.targetAt,
+      };
+    }
+    // Only its settings, without the channel: an import listens to its new owner's channel.
+    if (element.subathon) {
+      const { duration, tier1Ms, tier2Ms, tier3Ms, bitsMs, maxRemaining, countWhilePaused } =
+        element.subathon;
+      newElement.subathon = {
+        duration,
+        tier1Ms,
+        tier2Ms,
+        tier3Ms,
+        bitsMs,
+        maxRemaining,
+        countWhilePaused,
       };
     }
     // Which variables; wherever it is imported, it shows that account's variables of those names.

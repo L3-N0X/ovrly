@@ -65,6 +65,13 @@ const isEditableTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
+// Shortcuts only apply while nothing else wants the keys: not while typing, and not inside
+// dialogs or menus.
+const isFreeKey = (e: KeyboardEvent) =>
+  !e.defaultPrevented &&
+  !isEditableTarget(e.target) &&
+  !(e.target instanceof Element && e.target.closest('[role="dialog"], [role="menu"], [role="listbox"]'));
+
 interface EditorCanvasProps {
   overlay: PrismaOverlay;
   onOverlayChange: OnOverlayChange;
@@ -92,6 +99,11 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [tool, setTool] = useState<Tool>("select");
+  const [shiftHeld, setShiftHeld] = useState(false);
+  // Shift only borrows the move tool from the select tool; in the move tool it keeps its own
+  // meanings (snapping to the grid, nudging further).
+  const shiftMoves = tool === "select" && shiftHeld;
+  const activeTool: Tool = shiftMoves ? "move" : tool;
   const [isAddOpen, setAddOpen] = useState(false);
   const [snapping, setSnapping] = useState(
     () => localStorage.getItem(SNAPPING_STORAGE_KEY) !== "false"
@@ -219,15 +231,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   }, [zoomAt, panBy]);
 
   useEffect(() => {
-    // Shortcuts only apply while nothing else wants the keys: not while typing, and not
-    // inside dialogs or menus.
-    const isFree = (e: KeyboardEvent) =>
-      !e.defaultPrevented &&
-      !isEditableTarget(e.target) &&
-      !(
-        e.target instanceof Element &&
-        e.target.closest('[role="dialog"], [role="menu"], [role="listbox"]')
-      );
     // Space and Escape mean something else on buttons and tree rows, so they are only taken
     // when the canvas (or nothing in particular) has focus.
     const isCanvasFocused = (e: KeyboardEvent) =>
@@ -237,7 +240,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     const selected = overlay.elements.find((el) => el.id === selectedId);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isFree(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!isFreeKey(e) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === " " || e.key === "Escape" || e.key === "Enter") {
         if (!isCanvasFocused(e)) return;
         e.preventDefault();
@@ -259,7 +262,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         ArrowDown: [0, 1],
       }[e.key];
       if (nudge) {
-        if (tool !== "move" || !selected || !isPlacedFreely(overlay, selected)) return;
+        if (activeTool !== "move" || !selected || !isPlacedFreely(overlay, selected)) return;
         if (!isCanvasFocused(e)) return;
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -309,7 +312,57 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", releaseSpace);
     };
-  }, [fitToScreen, zoomAtCenter, onSelect, selectedId, onRequestDelete, overlay, tool, onOverlayChange]);
+  }, [fitToScreen, zoomAtCenter, onSelect, selectedId, onRequestDelete, overlay, activeTool, onOverlayChange]);
+
+  // Holding Shift switches to the move tool until it is let go. A press that started while it
+  // was held keeps the move tool until the pointer is released, so letting go of Shift halfway
+  // through a drag doesn't drop it.
+  useEffect(() => {
+    let held = false;
+    let pressed = false;
+    const sync = () => setShiftHeld(held || pressed);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Shift" || e.repeat || held || !isFreeKey(e)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      held = true;
+      sync();
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== "Shift") return;
+      held = false;
+      sync();
+    };
+    const handlePointerDown = () => {
+      pressed = held;
+    };
+    const handlePointerUp = () => {
+      if (!pressed) return;
+      // After the event: the canvas drops the dragged element on this same pointerup, which it
+      // only does while the move tool is still on.
+      setTimeout(() => {
+        pressed = false;
+        sync();
+      });
+    };
+    const release = () => {
+      held = pressed = false;
+      sync();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("pointerup", handlePointerUp, true);
+    window.addEventListener("pointercancel", handlePointerUp, true);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("pointerup", handlePointerUp, true);
+      window.removeEventListener("pointercancel", handlePointerUp, true);
+      window.removeEventListener("blur", release);
+    };
+  }, []);
 
   const startPanning = (pointerId: number) => {
     if (!gesture.current) return;
@@ -402,7 +455,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   };
 
   const editing = useMemo<CanvasEditing | null>(() => {
-    if (tool !== "move") return null;
+    if (activeTool !== "move") return null;
     return {
       onMove: moveElement,
       onResize: moveElement,
@@ -416,8 +469,9 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           onStructureChange
         ),
       snapping,
+      shiftSnapsToGrid: !shiftMoves,
     };
-  }, [tool, moveElement, onOverlayChange, onStructureChange, snapping]);
+  }, [activeTool, shiftMoves, moveElement, onOverlayChange, onStructureChange, snapping]);
 
   const selection = useMemo<CanvasSelection>(
     () => ({ selectedId, onSelect }),
@@ -542,7 +596,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
       <div className="absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">
         <ToolButton
-          active={tool === "select"}
+          active={activeTool === "select"}
           onClick={() => setTool("select")}
           label="Select"
           shortcut="V"
@@ -550,7 +604,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           <MousePointer2 />
         </ToolButton>
         <ToolButton
-          active={tool === "move"}
+          active={activeTool === "move"}
           onClick={() => setTool("move")}
           label="Move and arrange elements"
           shortcut="M"

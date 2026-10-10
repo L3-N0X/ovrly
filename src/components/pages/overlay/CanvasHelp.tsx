@@ -108,6 +108,7 @@ export function CanvasHelp() {
             { gesture: "Click again", action: "Go one level inside a group." },
             { keys: ["Ctrl", "Click"], action: "Select the innermost element directly." },
             { gesture: "Click empty canvas", action: "Open the overlay's canvas settings." },
+            { keys: ["Shift"], action: "Hold to use the move tool until you let go." },
           ]}
         />
 

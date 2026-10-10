@@ -41,6 +41,13 @@ export interface ElementListEditorProps {
   // An element id, OVERLAY_SELECTION for the overlay itself, or null.
   selectedId: string | null;
   onSelect: (elementId: string | null) => void;
+  // The right-click menu: copying and pasting next to an element, saving one as a component
+  // and deleting one (both ask first).
+  canPaste: boolean;
+  onCopy: (elementId: string) => void;
+  onPaste: (elementId: string) => void;
+  onRequestSaveAsComponent: (elementId: string) => void;
+  onRequestDelete: (elementId: string) => void;
 }
 
 // The layers panel: the element tree with drag and drop, plus the overlay itself as root.
@@ -61,6 +68,11 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
   onStructureChange,
   selectedId,
   onSelect: setSelectedId,
+  canPaste,
+  onCopy,
+  onPaste,
+  onRequestSaveAsComponent,
+  onRequestDelete,
 }) => {
   const [collapsed, setCollapsed] = useState(() => loadCollapsed(overlay.id));
   const [isDragging, setIsDragging] = useState(false);
@@ -297,6 +309,11 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
                       setRenamingId(null);
                       if (name) renameElement(element.id, element.name, name, onOverlayChange);
                     }}
+                    canPaste={canPaste}
+                    onCopy={() => onCopy(element.id)}
+                    onPaste={() => onPaste(element.id)}
+                    onSaveAsComponent={() => onRequestSaveAsComponent(element.id)}
+                    onDelete={() => onRequestDelete(element.id)}
                   />
                   {isOpenEmptyParent && (
                     <AppendZone parentId={element.id} depth={depth + 1} getElements={getElements}>

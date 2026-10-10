@@ -7,7 +7,15 @@ import {
 } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
 import { hasRole } from "../lib/sharing";
-import { publishOverlay, revisionHeaders, writeIdOf } from "../services/overlay-query";
+import {
+  overlayElementsInclude,
+  publishOverlay,
+  revisionHeaders,
+  writeIdOf,
+} from "../services/overlay-query";
+import { buildElementCreates, toElementTree, usesOwnTwitch, type ElementSeed } from "./overlays";
+import { parseComponentElements } from "../lib/components";
+import { ownTwitchSource } from "../services/twitch-variables";
 import { lockElement, lockOverlay } from "../services/locks";
 import { createBingoState, normalizeBingoState, parseBingoUpdate } from "../lib/bingo";
 import { isStyleObject, mergeStyle } from "../lib/style";
@@ -19,8 +27,23 @@ import {
 } from "../lib/countdown";
 import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { isIconLibrary, isIconName } from "../lib/icons";
+import { parseProgressPatch } from "../lib/progress";
+import {
+  applyCycleStackAction,
+  parseCycleStackActions,
+  type CycleStackState,
+} from "../lib/cycleStack";
+import {
+  applySubathonAction,
+  applySubathonSettings,
+  parseSubathonActions,
+  parseSubathonSettings,
+  subathonColumns,
+  type SubathonState,
+} from "../lib/subathon";
+import { syncSubathonListeners } from "../services/twitch-events";
 import { isBindableProperty, isContentProperty, parseBindingTarget } from "../lib/bindings";
-import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
+import type { ElementType, Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 const ELEMENT_TYPES = [
   "TITLE",
@@ -33,7 +56,15 @@ const ELEMENT_TYPES = [
   "GROUP",
   "ICON",
   "RECTANGLE",
+  "PROGRESS",
+  "SUBATHON",
+  "SCROLLER",
+  "CYCLE_STACK",
 ];
+const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"];
+// Copies are shifted by this much (when they are placed by x/y), so a pasted element doesn't
+// hide the one it was copied from.
+const PASTE_OFFSET = 16;
 // Bingo data a controller may change while live. Rows, columns and the free middle cell shape the
 // card, so they are part of its design.
 const BINGO_CONTENT_KEYS = ["fields", "checked"];
@@ -52,6 +83,11 @@ const requiredRoleForPatch = (body: Record<string, unknown>, elementType: string
     return "EDITOR" as const;
   }
   const data = body.data;
+  // A subathon's settings (its channel, what events are worth) are part of its design; running
+  // it, including a happy hour multiplier, is content.
+  if (elementType === "SUBATHON" && data && typeof data === "object" && "settings" in data) {
+    return "EDITOR" as const;
+  }
   if (
     elementType === "BINGO" &&
     data &&
@@ -83,6 +119,39 @@ async function getAllDescendantIds(
     }
   }
   return Array.from(allIds);
+}
+
+// Adds element trees (seeds, see buildElementCreates) at the end of `parentId`, or of the canvas
+// for null, and answers with the ids of all new elements, nested ones included. Locks the
+// overlay, so it has to run in a transaction.
+async function insertElementTrees(
+  tx: Prisma.TransactionClient,
+  overlayId: string,
+  parentId: string | null,
+  seeds: ElementSeed[],
+  ownTwitch: string | null
+): Promise<{ error: Response } | { added: string[] }> {
+  await lockOverlay(tx, overlayId);
+  const idsOf = async () =>
+    (await tx.element.findMany({ where: { overlayId }, select: { id: true } })).map((el) => el.id);
+  const before = new Set(await idsOf());
+  if (parentId !== null) {
+    const parent = await tx.element.findFirst({
+      where: { id: parentId, overlayId, type: { in: PARENT_TYPES } },
+      select: { id: true },
+    });
+    if (!parent) return { error: json({ error: "Invalid parent element" }, 400) };
+  }
+  const last = await tx.element.aggregate({
+    where: { overlayId, parentId },
+    _max: { position: true },
+  });
+  const first = (last._max.position ?? -1) + 1;
+  const positioned = seeds.map((seed, index) => ({ ...seed, position: first + index }));
+  for (const data of buildElementCreates(overlayId, positioned, ownTwitch)) {
+    await tx.element.create({ data: { ...data, parentId } });
+  }
+  return { added: (await idsOf()).filter((id) => !before.has(id)) };
 }
 
 export const handleElementsRoutes = async (
@@ -134,14 +203,24 @@ export const handleElementsRoutes = async (
         elementCreateData.timer = { create: { startedAt: null, pausedAt: null } };
       } else if (type === "COUNTDOWN") {
         elementCreateData.countdown = { create: {} };
+      } else if (type === "SUBATHON") {
+        // Listens to the owner's own channel until another one is picked.
+        elementCreateData.subathon = { create: {} };
       } else if (type === "ICON") {
         elementCreateData.icon = { create: {} };
+      } else if (type === "PROGRESS") {
+        elementCreateData.progress = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
       } else if (type === "BINGO") {
         elementCreateData.bingo = { create: createBingoState() };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
+      } else if (type === "SCROLLER") {
+        // Lays its children out like a container; the size falls back to the defaults.
+      } else if (type === "CYCLE_STACK") {
+        // Starts cycling right away, at its first child.
+        elementCreateData.cycleStack = { create: {} };
       } else if (type === "GROUP") {
         // Children are positioned freely inside it; it starts out covering the whole canvas,
         // whose size is filled in below, under the overlay's lock.
@@ -210,6 +289,145 @@ export const handleElementsRoutes = async (
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+  }
+
+  const pasteMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/elements\/paste$/);
+  if (pasteMatch && req.method === "POST") {
+    const session = await authenticate(req);
+    if (!session) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const overlayId = pasteMatch[1];
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
+
+    try {
+      const { ids, parentId = null } = (await req.json()) as { ids?: unknown; parentId?: unknown };
+      if (
+        !Array.isArray(ids) ||
+        ids.length === 0 ||
+        ids.length > 1000 ||
+        !ids.every((id) => typeof id === "string") ||
+        (parentId !== null && typeof parentId !== "string")
+      ) {
+        return json({ error: "Element IDs are required" }, 400);
+      }
+
+      // The copied elements may belong to another overlay (also one of someone else's that is
+      // shared with the user). Copying takes the design along, so that needs an editor too.
+      const copied = await prisma.element.findMany({
+        where: { id: { in: ids } },
+        select: { overlayId: true },
+      });
+      if (copied.length === 0) return json({ error: "The copied elements no longer exist" }, 404);
+      const sourceOverlayId = copied[0].overlayId;
+      if (copied.some((el) => el.overlayId !== sourceOverlayId)) {
+        return json({ error: "Cannot copy elements from different overlays" }, 400);
+      }
+      if (sourceOverlayId !== overlayId) {
+        const sourceCheck = await requireOverlayRole(session.user, sourceOverlayId, "EDITOR");
+        if (sourceCheck.error) return sourceCheck.error;
+      }
+      const source = await prisma.overlay.findUnique({
+        where: { id: sourceOverlayId },
+        include: overlayElementsInclude,
+      });
+      if (!source) return json({ error: "The copied elements no longer exist" }, 404);
+
+      // Each copied element comes with everything nested in it; one that sits inside another
+      // copied element is already part of that one.
+      const picked: ElementSeed[] = [];
+      const collect = (nodes: ElementSeed[], inside: boolean) => {
+        for (const node of nodes) {
+          const isCopied = ids.includes(node.id);
+          if (isCopied && !inside) picked.push(node);
+          collect(node.children, inside || isCopied);
+        }
+      };
+      collect(toElementTree(source.elements), false);
+
+      // Bindings point at variables by name, so they follow the copy to another account.
+      const seeds = picked.map((node) => {
+        const style = isStyleObject(node.style) ? node.style : {};
+        const shifted = (key: string) =>
+          typeof style[key] === "number" ? { [key]: (style[key] as number) + PASTE_OFFSET } : {};
+        return { ...node, style: { ...style, ...shifted("x"), ...shifted("y") } };
+      });
+      const result = await prisma.$transaction((tx) =>
+        insertElementTrees(tx, overlayId, parentId as string | null, seeds, null)
+      );
+      if ("error" in result) return result.error;
+
+      const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
+      // `pasted` tells the client which of the elements are the new ones.
+      return new Response(JSON.stringify({ ...updatedOverlay, pasted: result.added }), {
+        status: 201,
+        headers: {
+          ...corsHeaders,
+          ...revisionHeaders(updatedOverlay),
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      return json({ error: "Invalid request body" }, 400);
+    }
+  }
+
+  // Adds one of the user's components (routes/components.ts): a copy of its elements, which
+  // from then on are elements like any other.
+  const componentMatch = path.match(/^\/api\/overlays\/([a-zA-Z0-9_-]+)\/elements\/component$/);
+  if (componentMatch && req.method === "POST") {
+    const session = await authenticate(req);
+    if (!session) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const overlayId = componentMatch[1];
+    const check = await requireOverlayRole(session.user, overlayId, "EDITOR");
+    if (check.error) return check.error;
+
+    try {
+      const { componentId, parentId = null } = (await req.json()) as {
+        componentId?: unknown;
+        parentId?: unknown;
+      };
+      if (typeof componentId !== "string" || (parentId !== null && typeof parentId !== "string")) {
+        return json({ error: "A component is required" }, 400);
+      }
+      const component = await prisma.component.findFirst({
+        where: { id: componentId, userId: session.user.id },
+      });
+      if (!component) return json({ error: "Component not found" }, 404);
+      const elements = parseComponentElements(component.elements);
+      if (typeof elements === "string") return json({ error: elements }, 400);
+      // A component of one element is that element, so it goes by the component's name.
+      if (elements.length === 1) elements[0].name = component.name;
+
+      // Bindings to "twitch:@me" show the channel of the overlay's owner, whose variables it shows.
+      const ownTwitch = usesOwnTwitch(elements)
+        ? ((await ownTwitchSource(check.access.overlay.userId))?.name ?? null)
+        : null;
+      const result = await prisma.$transaction((tx) =>
+        insertElementTrees(tx, overlayId, parentId as string | null, elements, ownTwitch)
+      );
+      if ("error" in result) return result.error;
+
+      const updatedOverlay = await publishOverlay(server, overlayId, writeIdOf(req));
+      // `added` tells the client which of the elements are the new ones.
+      return new Response(JSON.stringify({ ...updatedOverlay, added: result.added }), {
+        status: 201,
+        headers: {
+          ...corsHeaders,
+          ...revisionHeaders(updatedOverlay),
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      return json({ error: "Invalid request body" }, 400);
     }
   }
 
@@ -385,7 +603,7 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true, countdown: true },
+            include: { bingo: true, timer: true, countdown: true, subathon: true, cycleStack: true },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -415,7 +633,7 @@ export const handleElementsRoutes = async (
                     where: {
                       id: parentId,
                       overlayId: element.overlayId,
-                      type: { in: ["CONTAINER", "GROUP"] },
+                      type: { in: PARENT_TYPES },
                     },
                     select: { id: true },
                   })
@@ -441,6 +659,14 @@ export const handleElementsRoutes = async (
             }
             if (element.type === "IMAGE" && typeof data.src === "string") {
               elementUpdateData.image = { update: { src: data.src } };
+            }
+            if (
+              element.type === "PROGRESS" &&
+              (data.value !== undefined || data.max !== undefined || data.running !== undefined)
+            ) {
+              const patch = parseProgressPatch(data);
+              if (!patch) return { error: json({ error: "Invalid progress" }, 400) };
+              elementUpdateData.progress = { update: patch };
             }
             if (element.type === "ICON" && (data.library !== undefined || data.name !== undefined)) {
               if (!isIconLibrary(data.library) || !isIconName(data.name)) {
@@ -491,6 +717,38 @@ export const handleElementsRoutes = async (
               elementUpdateData.countdown = {
                 update: { mode, duration, remaining, endsAt, targetAt },
               };
+            }
+            if (element.type === "CYCLE_STACK") {
+              const parsed = parseCycleStackActions(data.actions);
+              if (!parsed || !current.cycleStack) {
+                return { error: json({ error: "Invalid cycle stack actions" }, 400) };
+              }
+              // Applied with the server's clock, so it doesn't matter whose clock is off.
+              const now = Date.now();
+              const { index, startedAt } = parsed.reduce(
+                (stack, action) => applyCycleStackAction(stack, action, now),
+                current.cycleStack as CycleStackState
+              );
+              elementUpdateData.cycleStack = { update: { index, startedAt } };
+            }
+            if (element.type === "SUBATHON" && (data.actions !== undefined || data.settings !== undefined)) {
+              if (!current.subathon) {
+                return { error: json({ error: "Subathon not found" }, 404) };
+              }
+              let next = current.subathon as SubathonState;
+              if (data.settings !== undefined) {
+                const settings = parseSubathonSettings(data.settings);
+                if (!settings) return { error: json({ error: "Invalid subathon settings" }, 400) };
+                next = applySubathonSettings(next, settings);
+              }
+              if (data.actions !== undefined) {
+                const parsed = parseSubathonActions(data.actions);
+                if (!parsed) return { error: json({ error: "Invalid subathon actions" }, 400) };
+                // Applied with the server's clock, so it doesn't matter whose clock is off.
+                const now = Date.now();
+                next = parsed.reduce((subathon, action) => applySubathonAction(subathon, action, now), next);
+              }
+              elementUpdateData.subathon = { update: subathonColumns(next) };
             }
             if (element.type === "BINGO") {
               if (!current.bingo) {
@@ -545,6 +803,8 @@ export const handleElementsRoutes = async (
           return { ok: true };
         });
         if ("error" in result) return result.error;
+        // Started, paused or moved to another channel: the channels listened to may change.
+        if (element.type === "SUBATHON" && data) syncSubathonListeners();
 
         const overlay = await publishOverlay(server, element.overlayId, writeIdOf(req));
         const updatedElement = overlay?.elements.find((el) => el.id === elementId) ?? null;

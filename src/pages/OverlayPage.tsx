@@ -20,7 +20,9 @@ import { VariablesProvider } from "@/components/variables/VariablesProvider";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { hasRole } from "@/lib/sharing";
+import { useCopyPaste } from "@/components/pages/overlay/useCopyPaste";
 import { DeleteElementDialog, UndoDeleteToast } from "@/components/pages/overlay/ElementDeletion";
+import { SaveComponentDialog } from "@/components/library/SaveComponentDialog";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -39,11 +41,15 @@ const OverlayPage: React.FC = () => {
     handleTitleChange,
     handleImageChange,
     handleIconChange,
+    handleProgressChange,
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerAddTime,
     handleCountdownAction,
+    handleSubathonAction,
+    handleSubathonSettings,
+    handleCycleStackAction,
     handleDeleteOverlay,
     handleBindingChange,
     variablesVersion,
@@ -61,12 +67,23 @@ const OverlayPage: React.FC = () => {
     setSelectedId(selection);
     if (selection) setPanel("editor");
   }, []);
+  // The element being saved as a component.
+  const [saveComponentId, setSaveComponentId] = useState<string | null>(null);
   // The element waiting for the user to confirm its deletion.
   const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
   // The latest deletion, while it can still be undone.
   const [lastDeletion, setLastDeletion] = useState<NonNullable<
     ReturnType<typeof handleDeleteElements>
   > | null>(null);
+
+  // Ctrl+C / Ctrl+V on the canvas and the layers panel, and the layers context menu.
+  const { copy, paste, canPaste } = useCopyPaste({
+    overlay,
+    selectedId,
+    enabled: !!role && hasRole(role, "EDITOR"),
+    onOverlayChange: handleOverlayChange,
+    onSelect: select,
+  });
 
   const content = useMemo<ContentHandlers>(
     () => ({
@@ -75,11 +92,15 @@ const OverlayPage: React.FC = () => {
       onTitleChange: handleTitleChange,
       onImageChange: handleImageChange,
       onIconChange: handleIconChange,
+      onProgressChange: handleProgressChange,
       onBingoDataChange: handleBingoDataChange,
       onTimerToggle: handleTimerToggle,
       onTimerReset: handleTimerReset,
       onTimerAddTime: handleTimerAddTime,
       onCountdownAction: handleCountdownAction,
+      onSubathonAction: handleSubathonAction,
+      onSubathonSettings: handleSubathonSettings,
+      onCycleStackAction: handleCycleStackAction,
     }),
     [
       handleCounterChange,
@@ -87,11 +108,15 @@ const OverlayPage: React.FC = () => {
       handleTitleChange,
       handleImageChange,
       handleIconChange,
+      handleProgressChange,
       handleBingoDataChange,
       handleTimerToggle,
       handleTimerReset,
       handleTimerAddTime,
       handleCountdownAction,
+      handleSubathonAction,
+      handleSubathonSettings,
+      handleCycleStackAction,
     ]
   );
 
@@ -206,6 +231,11 @@ const OverlayPage: React.FC = () => {
                 onStructureChange={handleStructureChange}
                 selectedId={selectedId}
                 onSelect={select}
+                canPaste={canPaste}
+                onCopy={copy}
+                onPaste={paste}
+                onRequestSaveAsComponent={setSaveComponentId}
+                onRequestDelete={setDeleteRequestId}
               />
             </aside>
             <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">
@@ -235,7 +265,7 @@ const OverlayPage: React.FC = () => {
                     content={content}
                   />
                 ) : (
-                  <VariablesPanel overlay={overlay} />
+                  <VariablesPanel overlay={overlay} isOwner={role === "OWNER"} />
                 )}
               </div>
             </aside>
@@ -246,6 +276,11 @@ const OverlayPage: React.FC = () => {
         elements={deleteRequest.length > 0 ? deleteRequest : null}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteRequestId(null)}
+      />
+      <SaveComponentDialog
+        overlayId={id}
+        element={overlay.elements.find((el) => el.id === saveComponentId) ?? null}
+        onClose={() => setSaveComponentId(null)}
       />
       {lastDeletion && (
         <UndoDeleteToast

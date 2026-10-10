@@ -126,13 +126,34 @@ export const TimerStyleEditor: React.FC<{
             onOpenChange={setIsPickingColor}
           />
         </BindableField>
-        <BindableField property="style.padding" label="Padding" htmlFor={id("padding")}>
+        <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
           <NumberField
-            id={id("padding")}
-            value={typeof style?.padding === "number" ? style.padding : 0}
+            id={id("padding-x")}
+            value={
+              typeof style?.paddingX === "number"
+                ? style.paddingX
+                : typeof style?.padding === "number"
+                  ? style.padding
+                  : 0
+            }
             min={0}
             unit="px"
-            onChange={(padding) => handleStyleChange({ padding })}
+            onChange={(paddingX) => handleStyleChange({ paddingX })}
+          />
+        </BindableField>
+        <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
+          <NumberField
+            id={id("padding-y")}
+            value={
+              typeof style?.paddingY === "number"
+                ? style.paddingY
+                : typeof style?.padding === "number"
+                  ? style.padding
+                  : 0
+            }
+            min={0}
+            unit="px"
+            onChange={(paddingY) => handleStyleChange({ paddingY })}
           />
         </BindableField>
         <BindableField property="style.radius" label="Corner Radius" htmlFor={id("radius")}>

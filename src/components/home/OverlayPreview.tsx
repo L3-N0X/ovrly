@@ -55,14 +55,13 @@ const OverlayPreview: React.FC<{
       aria-hidden={!interactive}
       // `inert` keeps bingo cells and the like out of the tab order and away from the pointer.
       inert={!interactive}
-      className={cn("relative w-full overflow-hidden bg-neutral-900 select-none", className)}
+      className={cn("relative w-full overflow-hidden bg-zinc-900 select-none", className)}
       style={{
         aspectRatio: `${width} / ${height}`,
-        // Transparent parts of an overlay are shown as a checkerboard, like in OBS or Figma.
+        // Overlays are mostly transparent and white text is common, so they sit on a dark,
+        // softly lit backdrop that reads like a stream behind them without competing with it.
         backgroundImage:
-          "linear-gradient(45deg, rgb(255 255 255 / 0.04) 25%, transparent 25%, transparent 75%, rgb(255 255 255 / 0.04) 75%), linear-gradient(45deg, rgb(255 255 255 / 0.04) 25%, transparent 25%, transparent 75%, rgb(255 255 255 / 0.04) 75%)",
-        backgroundSize: "24px 24px",
-        backgroundPosition: "0 0, 12px 12px",
+          "radial-gradient(120% 90% at 50% 0%, rgb(255 255 255 / 0.09), transparent 70%)",
       }}
     >
       {isVisible && scale > 0 && (

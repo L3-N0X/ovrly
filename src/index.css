@@ -211,3 +211,65 @@
     transform: scaleX(0);
   }
 }
+
+/* What a Twitch event added to a subathon, floating above it for a moment. */
+.subathon-added {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  font-size: 0.45em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  animation-name: subathon-added;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes subathon-added {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0.4em);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -0.4em);
+  }
+}
+
+/* The scroller's picture in the add element dialog: down to the end, wait, back up, wait. */
+@keyframes scroller-preview {
+  0%,
+  20% {
+    transform: translateY(0);
+  }
+  50%,
+  70% {
+    transform: translateY(-2.5rem);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* The cycle stack's picture in the add element dialog: each of three layers is up for a third
+   of the time, fading in and out. */
+@keyframes cycle-stack-preview {
+  0%,
+  33.3%,
+  100% {
+    opacity: 0;
+  }
+  5%,
+  28.3% {
+    opacity: 1;
+  }
+}

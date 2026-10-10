@@ -85,7 +85,8 @@ const ControlView: React.FC<ControlViewProps> = ({
         )}
 
         {canControl && panel === "variables" ? (
-          <VariablesPanel overlay={overlay} />
+          // Controllers never own the overlay; owners always get the editor.
+          <VariablesPanel overlay={overlay} isOwner={false} />
         ) : (
           <>
             {!canControl && (
@@ -115,7 +116,7 @@ const ControlView: React.FC<ControlViewProps> = ({
                       <span className="truncate">{element.name}</span>
                     </h3>
                     <BindingElementContext.Provider value={element}>
-                      <ElementContentControl element={element} handlers={content} />
+                      <ElementContentControl element={element} overlay={overlay} handlers={content} />
                     </BindingElementContext.Provider>
                   </section>
                 ))}

@@ -1,5 +1,6 @@
 import { normalizeBingoData } from "./bingo";
 import { DEFAULT_ICON } from "./icons";
+import { DEFAULT_PROGRESS } from "./progress";
 import {
   CanvasModeEnum,
   DEFAULT_CANVAS_HEIGHT,
@@ -23,10 +24,17 @@ export interface PresetElement {
   title?: { text: string };
   counter?: { value: number };
   countdown?: Partial<Pick<NonNullable<PrismaElement["countdown"]>, "mode" | "duration">>;
+  subathon?: Partial<
+    Pick<
+      NonNullable<PrismaElement["subathon"]>,
+      "duration" | "tier1Ms" | "tier2Ms" | "tier3Ms" | "bitsMs" | "maxRemaining" | "countWhilePaused"
+    >
+  >;
   // "twitch:@me" stands for the Twitch channel of whoever creates the overlay.
   bindings?: VariableBinding[];
   image?: { src: string };
   icon?: { library: IconLibrary; name: string };
+  progress?: { value?: number; max?: number; running?: boolean };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
   children?: PresetElement[];
 }
@@ -46,6 +54,26 @@ export interface OverlayPreset {
 // What a new countdown counts down from, as on the server (prisma/schema.prisma).
 const DEFAULT_COUNTDOWN_MS = 5 * 60 * 1000;
 
+// A new subathon, as on the server (prisma/schema.prisma).
+const DEFAULT_SUBATHON: Omit<NonNullable<PrismaElement["subathon"]>, "id"> = {
+  duration: 60 * 60 * 1000,
+  remaining: 60 * 60 * 1000,
+  endsAt: null,
+  channelId: null,
+  tier1Ms: 5 * 60 * 1000,
+  tier2Ms: 10 * 60 * 1000,
+  tier3Ms: 25 * 60 * 1000,
+  bitsMs: 60 * 1000,
+  multiplier: 1,
+  maxRemaining: null,
+  countWhilePaused: true,
+  subs: 0,
+  bits: 0,
+  addedMs: 0,
+  lastAddedMs: 0,
+  lastAddedAt: null,
+};
+
 export const fetchPresets = async (): Promise<OverlayPreset[]> => {
   const response = await fetch("/presets/overlay-presets.json");
   if (!response.ok) throw new Error("Failed to fetch presets");
@@ -53,13 +81,14 @@ export const fetchPresets = async (): Promise<OverlayPreset[]> => {
   return data.presets;
 };
 
-// The overlay a template turns into, so it can be previewed with the real renderer before
-// it is created. The ids are made up; nothing here is ever saved.
-export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
+// The elements a tree of seeds (a template's, or a component's) turns into, so they can be
+// previewed with the real renderer before they are created. The ids are made up from `idPrefix`;
+// nothing here is ever saved.
+export const seedsToElements = (seeds: PresetElement[], idPrefix: string): PrismaElement[] => {
   const elements: PrismaElement[] = [];
   const add = (seeds: PresetElement[], parentId: string | null, path: string) =>
     seeds.forEach((seed, position) => {
-      const id = `${preset.id}/${path}${position}`;
+      const id = `${idPrefix}/${path}${position}`;
       elements.push({
         id,
         name: seed.name,
@@ -82,11 +111,29 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
                 targetAt: null,
               }
             : null,
+        subathon:
+          seed.type === ElementTypeEnum.SUBATHON
+            ? {
+                id,
+                ...DEFAULT_SUBATHON,
+                ...seed.subathon,
+                remaining: seed.subathon?.duration ?? DEFAULT_SUBATHON.duration,
+              }
+            : null,
         // Previews have no variables, so bound fields show the template's own values.
         bindings: seed.bindings ?? [],
         icon:
           seed.type === ElementTypeEnum.ICON
             ? { id, ...(seed.icon ?? DEFAULT_ICON) }
+            : null,
+        progress:
+          seed.type === ElementTypeEnum.PROGRESS
+            ? { id, ...DEFAULT_PROGRESS, ...seed.progress }
+            : null,
+        // Cycle stacks cycle from the start, as they do once they are created.
+        cycleStack:
+          seed.type === ElementTypeEnum.CYCLE_STACK
+            ? { id, index: 0, startedAt: new Date(0).toISOString() }
             : null,
         image: seed.image ? { id, ...seed.image } : null,
         bingo: seed.bingo
@@ -95,7 +142,13 @@ export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
       });
       if (seed.children) add(seed.children, id, `${path}${position}/`);
     });
-  add(preset.elements, null, "");
+  add(seeds, null, "");
+  return elements;
+};
+
+// The overlay a template turns into, previewed like its elements are.
+export const presetToOverlay = (preset: OverlayPreset): PrismaOverlay => {
+  const elements = seedsToElements(preset.elements, preset.id);
 
   return {
     id: preset.id,

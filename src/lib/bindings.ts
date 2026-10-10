@@ -39,6 +39,9 @@ export const acceptsType = (kind: BindingKind, type: VariableType) => KIND_TYPES
 // Where an element sits in a group or on a free canvas.
 const POSITION = { "style.x": "number", "style.y": "number" } as const;
 
+// Whether the element is drawn at all; every element type has it.
+const VISIBILITY = { "style.visible": "boolean" } as const;
+
 const TEXT_STYLE = {
   "style.color": "color",
   "style.fontSize": "number",
@@ -51,19 +54,34 @@ const BOX_STYLE = {
   "style.radius": "number",
 } as const;
 
+const TIMER_STYLE = {
+  ...BOX_STYLE,
+  "style.paddingX": "number",
+  "style.paddingY": "number",
+} as const;
+
 export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind>> = {
-  TITLE: { text: "text", ...TEXT_STYLE, ...POSITION },
-  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION },
-  TIMER: { ...BOX_STYLE, ...POSITION },
-  COUNTDOWN: { ...BOX_STYLE, ...POSITION },
+  TITLE: {
+    text: "text",
+    ...TEXT_STYLE,
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    ...POSITION,
+    ...VISIBILITY,
+  },
+  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...VISIBILITY },
+  TIMER: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  COUNTDOWN: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  SUBATHON: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
   IMAGE: {
     src: "image",
     "style.width": "number",
     "style.height": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
   },
-  ICON: { "style.color": "color", "style.size": "number", ...POSITION },
+  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...VISIBILITY },
   BINGO: {
     "style.width": "number",
     "style.fontSize": "number",
@@ -83,6 +101,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.crossThickness": "number",
     "style.crossOpacity": "number",
     ...POSITION,
+    ...VISIBILITY,
   },
   CONTAINER: {
     "style.width": "number",
@@ -95,6 +114,36 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
+  },
+  SCROLLER: {
+    "style.width": "number",
+    "style.height": "number",
+    "style.speed": "number",
+    "style.pause": "number",
+    "style.gap": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
+  },
+  CYCLE_STACK: {
+    "style.interval": "number",
+    "style.transitionDuration": "number",
+    "style.width": "number",
+    "style.height": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
   },
   GROUP: {
     "style.width": "number",
@@ -105,6 +154,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderWidth": "number",
     "style.radius": "number",
     ...POSITION,
+    ...VISIBILITY,
   },
   RECTANGLE: {
     "style.width": "number",
@@ -114,6 +164,21 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
+  },
+  PROGRESS: {
+    value: "number",
+    max: "number",
+    running: "boolean",
+    "style.width": "number",
+    "style.height": "number",
+    "style.fillColor": "color",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
   },
 };
 
@@ -153,6 +218,11 @@ export const resolveElement = (
       resolved.title = { ...resolved.title, text: String(value) };
     } else if (binding.property === "value" && resolved.counter) {
       resolved.counter = { ...resolved.counter, value: Number(value) };
+    } else if (
+      (binding.property === "value" || binding.property === "max" || binding.property === "running") &&
+      resolved.progress
+    ) {
+      resolved.progress = { ...resolved.progress, [binding.property]: value };
     } else if (binding.property === "src" && resolved.image) {
       resolved.image = { ...resolved.image, src: String(value) };
     }

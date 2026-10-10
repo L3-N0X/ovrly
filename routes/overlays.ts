@@ -21,7 +21,9 @@ import {
 import { lockOverlay } from "../services/locks";
 import { isStyleObject, mergeStyle } from "../lib/style";
 import { countdownSeed } from "../lib/countdown";
+import { subathonSeed } from "../lib/subathon";
 import { iconSeed } from "../lib/icons";
+import { progressSeed } from "../lib/progress";
 import { bindingSeeds, OWN_TWITCH_SOURCE } from "../lib/bindings";
 import { ownTwitchSource } from "../services/twitch-variables";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
@@ -33,7 +35,7 @@ const MAX_CANVAS_SIZE = 7680;
 type CanvasMode = "AUTO" | "FREE";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ElementSeed = any;
+export type ElementSeed = any;
 
 // Someone who can open an overlay, as listed on the home page.
 interface OverlayMember {
@@ -48,7 +50,7 @@ interface OverlayMember {
 // nested writes, so each root element and its whole subtree go in with a single statement.
 // `ownTwitch` is the source of the creator's own Twitch channel, which presets bind to as
 // OWN_TWITCH_SOURCE; bindings to it are dropped when there is none.
-function buildElementCreates(
+export function buildElementCreates(
   overlayId: string,
   elements: ElementSeed[],
   ownTwitch: string | null
@@ -69,12 +71,19 @@ function buildElementCreates(
     if (element.counter) {
       data.counter = { create: { value: element.counter.value } };
     }
-    // Timers and countdowns start out stopped; only a countdown's settings are copied.
+    // Timers, countdowns and subathons start out stopped; only their settings are copied.
     if (element.type === "TIMER") {
       data.timer = { create: {} };
     }
     if (element.type === "COUNTDOWN") {
       data.countdown = { create: countdownSeed(element.countdown) };
+    }
+    if (element.type === "SUBATHON") {
+      data.subathon = { create: subathonSeed(element.subathon) };
+    }
+    // Cycle stacks, on the other hand, cycle right away, from their first child.
+    if (element.type === "CYCLE_STACK") {
+      data.cycleStack = { create: {} };
     }
     // Bound by name: in another account they show that account's variables of the same name.
     const bindings = bindingSeeds(element.type, element.bindings).flatMap((binding) =>
@@ -89,6 +98,9 @@ function buildElementCreates(
     }
     if (element.type === "ICON") {
       data.icon = { create: iconSeed(element.icon) };
+    }
+    if (element.type === "PROGRESS") {
+      data.progress = { create: progressSeed(element.progress) };
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };
@@ -122,7 +134,7 @@ async function createOverlayWithElements(
   });
 }
 
-const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
+export const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
   elements.some(
     (element) =>
       (Array.isArray(element.bindings) &&
@@ -131,7 +143,7 @@ const usesOwnTwitch = (elements: ElementSeed[]): boolean =>
   );
 
 // Turns the flat element list of an overlay back into a tree of seeds, whatever its depth.
-function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
+export function toElementTree<T extends { id: string; parentId: string | null; position: number | null }>(
   elements: T[]
 ): ElementSeed[] {
   const ids = new Set(elements.map((e) => e.id));

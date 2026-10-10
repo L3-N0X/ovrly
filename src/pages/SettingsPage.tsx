@@ -18,6 +18,7 @@ import { InviteForm } from "@/components/sharing/InviteForm";
 import { PendingBadge, RoleBadge } from "@/components/sharing/RoleBadge";
 import { RolePicker } from "@/components/sharing/RolePicker";
 import { TwitchConnections } from "@/components/settings/TwitchConnections";
+import { SpotifyConnection } from "@/components/settings/SpotifyConnection";
 import { ApiSettings } from "@/components/settings/ApiSettings";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,8 +48,8 @@ import {
 } from "@/lib/sharing";
 import { cn } from "@/lib/utils";
 
-type Tab = "people" | "incoming" | "twitch" | "api";
-const TABS: Tab[] = ["people", "incoming", "twitch", "api"];
+type Tab = "people" | "incoming" | "twitch" | "spotify" | "api";
+const TABS: Tab[] = ["people", "incoming", "twitch", "spotify", "api"];
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -90,6 +91,7 @@ export function SettingsPage() {
     { value: "people", label: "Your team", count: people?.people.length ?? null },
     { value: "incoming", label: "Shared with you", count: incomingCount },
     { value: "twitch", label: "Twitch", count: null },
+    { value: "spotify", label: "Spotify", count: null },
     { value: "api", label: "API", count: null },
   ];
 
@@ -99,7 +101,7 @@ export function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Decide who can view, run and edit your overlays, see what others shared with you,
-          connect Twitch channels, and let other apps send variables to your overlays.
+          connect Twitch channels and Spotify, and let other apps send variables to your overlays.
         </p>
       </header>
 
@@ -139,6 +141,8 @@ export function SettingsPage() {
         <IncomingTab data={incoming} onData={setIncoming} onError={setError} />
       ) : tab === "twitch" ? (
         <TwitchConnections connected={params.get("connected")} errorCode={params.get("error")} />
+      ) : tab === "spotify" ? (
+        <SpotifyConnection connected={params.get("connected")} errorCode={params.get("error")} />
       ) : (
         <ApiSettings />
       )}
