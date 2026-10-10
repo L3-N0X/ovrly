@@ -12,6 +12,8 @@ export interface CanvasEditing {
   onPlace: (elementId: string, placement: Placement, position: { x: number; y: number } | null) => void;
   // Whether dragged elements snap to the edges and centres around them. Alt bypasses it.
   snapping: boolean;
+  // Whether Shift snaps to a 10px grid. Off while holding Shift is what turned the move tool on.
+  shiftSnapsToGrid: boolean;
 }
 
 export const CanvasEditingContext = createContext<CanvasEditing | null>(null);

@@ -295,7 +295,8 @@ export const useCanvasGestures = ({
       const targets = [area, canvasBox(root), ...siblingBoxes(drag, parentId)].filter(
         (b): b is Box => b !== null
       );
-      const snapping = editing.snapping && !last.altKey && !last.shiftKey;
+      const grid = last.shiftKey && editing.shiftSnapsToGrid;
+      const snapping = editing.snapping && !last.altKey && !grid;
       let box = moved;
       if (snapping) {
         const { dx, dy } = snapOffset(box, targets, SNAP_DISTANCE / point.scale);
@@ -308,8 +309,8 @@ export const useCanvasGestures = ({
           ? { left: drag.startBox.left - drag.startPosition.x, top: drag.startBox.top - drag.startPosition.y }
           : { left: area.left, top: area.top };
       const position = {
-        x: snap(box.left - origin.left, last.shiftKey),
-        y: snap(box.top - origin.top, last.shiftKey),
+        x: snap(box.left - origin.left, grid),
+        y: snap(box.top - origin.top, grid),
       };
       box = { ...box, left: origin.left + position.x, top: origin.top + position.y };
 
@@ -554,7 +555,8 @@ export const useCanvasGestures = ({
       const { editing, overlay } = latest.current;
       const el = root && elementBox(root, groupId);
       const element = overlay.elements.find((e) => e.id === groupId);
-      if (!root || !el || !element || !editing?.snapping || modifiers.altKey || modifiers.shiftKey) {
+      const grid = modifiers.shiftKey && !!editing?.shiftSnapsToGrid;
+      if (!root || !el || !element || !editing?.snapping || modifiers.altKey || grid) {
         store.set({ feedback: NO_FEEDBACK });
         return size;
       }
