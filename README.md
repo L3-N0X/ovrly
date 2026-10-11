@@ -28,6 +28,7 @@ All Elements are editable to change their content.
 * **Countdown:** Count down from a set time, or to a date and time (e.g. your stream start).
 * **Subathon:** A countdown that Twitch subs and cheers of your connected channel add time to, with per-tier rates, a happy hour multiplier and an optional cap.
 * **Image:** Add player photos, logos, or more.
+* **Video:** Play an uploaded MP4 or WebM, a GIF, or a link to one, with play, pause, restart and stop in the controls. For a **transparent background use WebM with VP9 and an alpha channel** (MP4 has none); see [Video element](docs/video.md) for how to convert.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
 * **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.
@@ -126,6 +127,7 @@ You need to set the following environment variables in a `.env` file in the root
 | `S3_SECRET_ACCESS_KEY` | Secret key for the bucket.                                                  | `change-me-please`                    |
 | `S3_REGION`            | Optional. Region used for request signing.                                  | `us-east-1` (default)                 |
 | `MAX_UPLOAD_BYTES`     | Optional. Maximum image size in bytes.                                      | `10485760` (default, 10 MB)           |
+| `MAX_VIDEO_UPLOAD_BYTES` | Optional. Maximum video (MP4, WebM) size in bytes.                        | `104857600` (default, 100 MB)         |
 | `WS_ALLOWED_ORIGINS`   | Optional. Extra comma-separated origins allowed to open the live-update WebSocket (`APP_BASE_URL` is always allowed). | `https://overlays.example.com` |
 | `VITE_GOOGLE_FONTS_API_KEY` | Google Fonts API key used by the in-app font picker (optional).        | `your-google-fonts-api-key`           |
 
@@ -222,6 +224,7 @@ This will create an optimized production build in the `dist` directory.
 ## 📚 Further Documentation
 
 * [Bingo element](docs/bingo.md) — data model, API and rendering behaviour.
+* [Video element](docs/video.md) — supported formats, making transparent WebM videos, and how playback is synced.
 * [Public API](docs/public-api.md) — for apps sending variables to overlays: keys, endpoints, examples.
 * [Variables](docs/variables.md) — how variables, bindings, providers and the public API are built.
 

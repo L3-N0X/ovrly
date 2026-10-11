@@ -102,10 +102,10 @@ export const exportComponent = (component: OverlayComponent) => {
 export const countComponentElements = (elements: PresetElement[]): number =>
   elements.reduce((sum, element) => sum + 1 + countComponentElements(element.children ?? []), 0);
 
-// Said after saving or importing, when some images had to be left out.
+// Said after saving or importing, when some images (or videos) had to be left out.
 export const droppedImagesMessage = (count: number) =>
   count === 0
     ? null
-    : `${count === 1 ? "One image" : `${count} images`} couldn't be copied and ${
+    : `${count === 1 ? "One file" : `${count} files`} couldn't be copied and ${
         count === 1 ? "was" : "were"
       } left out. Pick ${count === 1 ? "it" : "them"} again once the component is in an overlay.`;

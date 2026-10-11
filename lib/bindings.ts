@@ -4,8 +4,8 @@ import { isSourceName, isVariableName } from "./variables";
 // what kind of value each one takes. Mirrored, with labels, by src/lib/bindings.ts.
 //
 // Properties are named the way the element stores them: "text" (a title's), "value" (a
-// counter's or progress bar's), "max" and "running" (a progress bar's) and "src" (an image's)
-// are content, anything under "style." is design.
+// counter's or progress bar's), "max" and "running" (a progress bar's) and "src" (an image's or
+// a video's) are content, anything under "style." is design.
 
 export type BindingKind = "text" | "number" | "color" | "image" | "boolean";
 
@@ -51,6 +51,17 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     "style.width": "number",
     "style.height": "number",
     "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
+  },
+  // Videos take image variables too: a URL either way, and a GIF is both.
+  VIDEO: {
+    src: "image",
+    "style.width": "number",
+    "style.height": "number",
+    "style.borderRadius": "number",
+    "style.volume": "number",
+    "style.muted": "boolean",
     ...POSITION,
     ...VISIBILITY,
   },

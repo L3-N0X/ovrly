@@ -9,6 +9,7 @@ import type { BingoDataUpdate } from "@/lib/bingo";
 import type { CountdownAction } from "@/lib/countdown";
 import type { CycleStackAction } from "@/lib/cycleStack";
 import type { SubathonAction, SubathonSettings } from "@/lib/subathon";
+import type { VideoAction } from "@/lib/video";
 import TimerControl from "./TimerControl";
 import CountdownControl from "./CountdownControl";
 import SubathonControl from "./SubathonControl";
@@ -16,6 +17,7 @@ import CounterControl from "./CounterControl";
 import TitleControl from "./TitleControl";
 import IconControl from "./IconControl";
 import ImageControl from "./ImageControl";
+import VideoControl from "./VideoControl";
 import BingoControl from "./BingoControl";
 import CycleStackControl from "./CycleStackControl";
 import ProgressControl, { type ProgressChange } from "./ProgressControl";
@@ -26,6 +28,8 @@ export interface ContentHandlers {
   onCounterIncrement: (elementId: string, increment: number) => void;
   onTitleChange: (elementId: string, text: string) => void;
   onImageChange: (elementId: string, src: string) => void;
+  onVideoChange: (elementId: string, src: string) => void;
+  onVideoAction: (elementId: string, action: VideoAction) => void;
   onIconChange: (elementId: string, icon: { library: IconLibrary; name: string }) => void;
   onBingoDataChange: (elementId: string, data: BingoDataUpdate) => void;
   onProgressChange: (elementId: string, change: ProgressChange) => void;
@@ -71,6 +75,14 @@ export const ElementContentControl: React.FC<{
       return <TitleControl element={element} handleTitleChange={handlers.onTitleChange} />;
     case ElementTypeEnum.IMAGE:
       return <ImageControl element={element} handleImageChange={handlers.onImageChange} />;
+    case ElementTypeEnum.VIDEO:
+      return (
+        <VideoControl
+          element={element}
+          onVideoChange={handlers.onVideoChange}
+          onAction={handlers.onVideoAction}
+        />
+      );
     case ElementTypeEnum.ICON:
       return <IconControl element={element} onIconChange={handlers.onIconChange} />;
     case ElementTypeEnum.PROGRESS:

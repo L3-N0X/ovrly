@@ -24,6 +24,7 @@ import { countdownSeed } from "../lib/countdown";
 import { subathonSeed } from "../lib/subathon";
 import { iconSeed } from "../lib/icons";
 import { progressSeed } from "../lib/progress";
+import { videoSeed } from "../lib/video";
 import { bindingSeeds, OWN_TWITCH_SOURCE } from "../lib/bindings";
 import { ownTwitchSource } from "../services/twitch-variables";
 import { nextDefaultName, UNTITLED_OVERLAY_NAME } from "../lib/naming";
@@ -104,6 +105,10 @@ export function buildElementCreates(
     }
     if (element.image) {
       data.image = { create: { src: element.image.src } };
+    }
+    // Copies play from the start, like new videos.
+    if (element.type === "VIDEO") {
+      data.video = { create: videoSeed(element.video) };
     }
     if (element.bingo || element.type === "BINGO") {
       // Presets and duplicates are user supplied data, so the bingo payload is

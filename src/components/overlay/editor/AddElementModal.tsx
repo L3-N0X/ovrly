@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Info,
   ChartNoAxesGantt,
+  Clapperboard,
   Frame,
   Grid3x3,
   Hash,
@@ -28,6 +29,7 @@ import {
   Hourglass,
   Image,
   Loader2,
+  Play,
   Plus,
   Rows3,
   ScrollText,
@@ -156,6 +158,23 @@ const CONTENT_OPTIONS: ElementOption[] = [
           <div className="absolute top-2 right-3 h-3 w-3 rounded-full bg-amber-300" />
           <div className="absolute -bottom-3 -left-2 h-10 w-14 rotate-45 bg-emerald-600" />
           <div className="absolute -right-4 -bottom-5 h-12 w-14 rotate-45 bg-emerald-700" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.VIDEO,
+    label: "Video",
+    description:
+      "A video or GIF from a link or an upload, also with a transparent background. Loops, or plays when you start it.",
+    icon: Clapperboard,
+    preview: (
+      <Stage>
+        <div className="relative flex h-14 w-24 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-700">
+          <Play className="size-6 fill-white text-white" />
+          <div className="absolute inset-x-1.5 bottom-1.5 h-1 overflow-hidden rounded-full bg-white/30">
+            <div className="h-full w-2/5 rounded-full bg-white" />
+          </div>
         </div>
       </Stage>
     ),

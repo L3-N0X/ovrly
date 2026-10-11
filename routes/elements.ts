@@ -29,6 +29,13 @@ import { ELEMENT_TYPE_NAMES, nextDefaultName } from "../lib/naming";
 import { isIconLibrary, isIconName } from "../lib/icons";
 import { parseProgressPatch } from "../lib/progress";
 import {
+  applyVideoAction,
+  isVideoSrc,
+  parseVideoActions,
+  withNewSource,
+  type VideoState,
+} from "../lib/video";
+import {
   applyCycleStackAction,
   parseCycleStackActions,
   type CycleStackState,
@@ -60,6 +67,7 @@ const ELEMENT_TYPES = [
   "SUBATHON",
   "SCROLLER",
   "CYCLE_STACK",
+  "VIDEO",
 ];
 const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"];
 // Copies are shifted by this much (when they are placed by x/y), so a pasted element doesn't
@@ -212,6 +220,9 @@ export const handleElementsRoutes = async (
         elementCreateData.progress = { create: {} };
       } else if (type === "IMAGE") {
         elementCreateData.image = { create: { src: "" } };
+      } else if (type === "VIDEO") {
+        // Plays as soon as it has something to play.
+        elementCreateData.video = { create: {} };
       } else if (type === "BINGO") {
         elementCreateData.bingo = { create: createBingoState() };
       } else if (type === "CONTAINER") {
@@ -603,7 +614,14 @@ export const handleElementsRoutes = async (
           await lockElement(tx, elementId);
           const current = await tx.element.findUnique({
             where: { id: elementId },
-            include: { bingo: true, timer: true, countdown: true, subathon: true, cycleStack: true },
+            include: {
+              bingo: true,
+              timer: true,
+              countdown: true,
+              subathon: true,
+              cycleStack: true,
+              video: true,
+            },
           });
           if (!current) {
             return { error: json({ error: "Element not found" }, 404) };
@@ -659,6 +677,28 @@ export const handleElementsRoutes = async (
             }
             if (element.type === "IMAGE" && typeof data.src === "string") {
               elementUpdateData.image = { update: { src: data.src } };
+            }
+            if (element.type === "VIDEO" && (data.src !== undefined || data.actions !== undefined)) {
+              if (!current.video) return { error: json({ error: "Video not found" }, 404) };
+              // Applied with the server's clock, so it doesn't matter whose clock is off.
+              const now = Date.now();
+              let next: VideoState & { src?: string } = current.video;
+              if (data.src !== undefined) {
+                if (!isVideoSrc(data.src)) return { error: json({ error: "Invalid video" }, 400) };
+                next = { ...withNewSource(next, now), src: data.src };
+              }
+              if (data.actions !== undefined) {
+                const parsed = parseVideoActions(data.actions);
+                if (!parsed) return { error: json({ error: "Invalid video actions" }, 400) };
+                next = { ...next, ...parsed.reduce((video, action) => applyVideoAction(video, action, now), next) };
+              }
+              elementUpdateData.video = {
+                update: {
+                  ...(data.src !== undefined && { src: next.src }),
+                  position: next.position,
+                  startedAt: next.startedAt,
+                },
+              };
             }
             if (
               element.type === "PROGRESS" &&

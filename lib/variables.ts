@@ -47,7 +47,8 @@ const COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const isImageUrl = (value: string) => {
   if (value === "") return true;
   if (value.length > MAX_IMAGE_URL_LENGTH) return false;
-  if (/^\/uploads\/[A-Za-z0-9._-]+$/.test(value)) return true;
+  // Uploads are stored as `<uuid>/<name>` (see isValidStorageKey in services/file-storage.ts).
+  if (/^\/uploads\/[0-9a-f-]{36}\/[A-Za-z0-9_-]+\.[a-z0-9]+$/.test(value)) return true;
   try {
     const url = new URL(value);
     return url.protocol === "https:" || url.protocol === "http:";

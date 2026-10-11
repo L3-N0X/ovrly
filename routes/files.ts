@@ -12,9 +12,22 @@ import { corsHeaders } from '../middleware/cors';
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
 
+// The byte range a Range header asks for ("bytes=0-499", "bytes=500-", "bytes=-500"), with an
+// exclusive end. Only single ranges are served; null for none (or several), which gets the whole
+// file, and "unsatisfiable" for one that lies outside it.
+const parseRange = (header: string | null, size: number) => {
+  const match = header?.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match || (!match[1] && !match[2])) return null;
+  const [start, end] = match[1]
+    ? [Number(match[1]), match[2] ? Math.min(Number(match[2]) + 1, size) : size]
+    : [Math.max(0, size - Number(match[2])), size];
+  return start < end ? { start, end } : ('unsatisfiable' as const);
+};
+
 // Uploaded files are public by URL (OBS has no session), but the keys are random UUIDs.
 // Object keys are immutable, so responses can be cached forever. The sandbox CSP keeps an
-// uploaded SVG from running scripts if someone opens its URL directly.
+// uploaded SVG from running scripts if someone opens its URL directly. Ranges are served too,
+// which browsers need to seek in videos (and to play them at all, in Safari).
 export const handleUploadsRoutes = async (req: Request, path: string) => {
   const match = path.match(/^\/uploads\/(.+)$/);
   if (!match || (req.method !== 'GET' && req.method !== 'HEAD')) return null;
@@ -34,6 +47,7 @@ export const handleUploadsRoutes = async (req: Request, path: string) => {
     const headers = {
       'Content-Type': contentTypeForKey(key),
       'Content-Length': String(stat.size),
+      'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
       'X-Content-Type-Options': 'nosniff',
@@ -41,6 +55,23 @@ export const handleUploadsRoutes = async (req: Request, path: string) => {
     };
     if (req.headers.get('if-none-match') === etag) {
       return new Response(null, { status: 304, headers: { ETag: etag } });
+    }
+    const range = parseRange(req.headers.get('range'), stat.size);
+    if (range === 'unsatisfiable') {
+      return new Response(null, {
+        status: 416,
+        headers: { 'Content-Range': `bytes */${stat.size}`, 'Accept-Ranges': 'bytes' },
+      });
+    }
+    if (range) {
+      return new Response(req.method === 'HEAD' ? null : file.slice(range.start, range.end).stream(), {
+        status: 206,
+        headers: {
+          ...headers,
+          'Content-Length': String(range.end - range.start),
+          'Content-Range': `bytes ${range.start}-${range.end - 1}/${stat.size}`,
+        },
+      });
     }
     return new Response(req.method === 'HEAD' ? null : file.stream(), { headers });
   } catch (error) {

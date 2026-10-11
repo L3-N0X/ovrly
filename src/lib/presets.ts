@@ -33,6 +33,7 @@ export interface PresetElement {
   // "twitch:@me" stands for the Twitch channel of whoever creates the overlay.
   bindings?: VariableBinding[];
   image?: { src: string };
+  video?: { src: string };
   icon?: { library: IconLibrary; name: string };
   progress?: { value?: number; max?: number; running?: boolean };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
@@ -136,6 +137,11 @@ export const seedsToElements = (seeds: PresetElement[], idPrefix: string): Prism
             ? { id, index: 0, startedAt: new Date(0).toISOString() }
             : null,
         image: seed.image ? { id, ...seed.image } : null,
+        // Videos play from the start, as they do once they are created.
+        video:
+          seed.type === ElementTypeEnum.VIDEO
+            ? { id, src: seed.video?.src ?? "", position: 0, startedAt: new Date().toISOString() }
+            : null,
         bingo: seed.bingo
           ? { id, ...normalizeBingoData(seed.bingo as PrismaElement["bingo"]) }
           : null,

@@ -15,7 +15,7 @@ import { handlePublicApiRoutes } from "./routes/publicApi";
 import { handleVariablesRoutes } from "./routes/variables";
 import { handleComponentsRoutes } from "./routes/components";
 import { authorizeWebSocket } from "./middleware/wsAuth";
-import { missingStorageConfig, MAX_UPLOAD_BYTES } from "./services/file-storage";
+import { missingStorageConfig, MAX_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES } from "./services/file-storage";
 import { refreshOpenedOverlay, startTwitchVariables } from "./services/twitch-variables";
 import { refreshOpenedSpotify, startSpotifyVariables } from "./services/spotify-variables";
 import { startTwitchEvents, syncSubathonListeners } from "./services/twitch-events";
@@ -74,7 +74,7 @@ const server = Bun.serve<WebSocketData>({
   // uses this); the documented deployments all rely on the default.
   port: Number(process.env.PORT ?? 3000),
   // The multipart envelope adds a little on top of the file itself.
-  maxRequestBodySize: MAX_UPLOAD_BYTES + 1024 * 1024,
+  maxRequestBodySize: Math.max(MAX_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES) + 1024 * 1024,
   async fetch(req, server) {
     const url = new URL(req.url);
     const reqPath = url.pathname;

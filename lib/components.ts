@@ -11,6 +11,7 @@ import { ELEMENT_TYPE_NAMES } from "./naming";
 import { progressSeed } from "./progress";
 import { isStyleObject } from "./style";
 import { subathonSeed } from "./subathon";
+import { videoSeed } from "./video";
 
 // What a component file says it is, so a random JSON file (or an overlay export) isn't taken
 // for one.
@@ -19,7 +20,7 @@ export const COMPONENT_FORMAT_VERSION = 1;
 
 export const MAX_COMPONENT_ELEMENTS = 500;
 export const MAX_COMPONENT_DEPTH = 32;
-// Images are copied into the account that adds the component, one upload each.
+// Images and videos are copied into the account that adds the component, one upload each.
 export const MAX_COMPONENT_IMAGES = 50;
 // The size of a component file, and of the elements of one stored component.
 export const MAX_COMPONENT_BYTES = 2 * 1024 * 1024;
@@ -41,6 +42,7 @@ export interface ComponentElement {
   subathon?: Json;
   bindings?: { property: string; source: string; key: string }[];
   image?: { src: string };
+  video?: { src: string };
   icon?: { library: string; name: string };
   progress?: { value: number; max: number; running: boolean };
   bingo?: ReturnType<typeof normalizeBingoState>;
@@ -112,7 +114,14 @@ export const parseComponentElements = (value: unknown): ComponentElement[] | str
         const src = asObject(node.image).src;
         element.image = { src: typeof src === "string" ? src : "" };
         if (element.image.src && ++images > MAX_COMPONENT_IMAGES) {
-          error = `A component can have at most ${MAX_COMPONENT_IMAGES} images`;
+          error = `A component can have at most ${MAX_COMPONENT_IMAGES} images and videos`;
+          return [];
+        }
+      }
+      if (type === "VIDEO") {
+        element.video = videoSeed(node.video);
+        if (element.video.src && ++images > MAX_COMPONENT_IMAGES) {
+          error = `A component can have at most ${MAX_COMPONENT_IMAGES} images and videos`;
           return [];
         }
       }

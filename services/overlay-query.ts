@@ -14,6 +14,7 @@ export const overlayElementsInclude = {
       countdown: true,
       subathon: true,
       image: true,
+      video: true,
       bingo: true,
       icon: true,
       progress: true,

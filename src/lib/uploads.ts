@@ -1,5 +1,5 @@
-/** Uploads an image to the user's files and returns its public URL. */
-export const uploadImage = async (file: File): Promise<string> => {
+/** Uploads an image or a video to the user's files and returns its public URL. */
+export const uploadFile = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -16,7 +16,7 @@ export const uploadImage = async (file: File): Promise<string> => {
 
   const body = await response.json().catch(() => null);
   if (!response.ok || typeof body?.url !== "string") {
-    throw new Error(typeof body?.error === "string" ? body.error : "Failed to upload the image");
+    throw new Error(typeof body?.error === "string" ? body.error : "Failed to upload the file");
   }
   return body.url;
 };

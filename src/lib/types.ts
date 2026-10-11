@@ -15,6 +15,7 @@ export const ElementTypeEnum = {
   SUBATHON: "SUBATHON",
   SCROLLER: "SCROLLER",
   CYCLE_STACK: "CYCLE_STACK",
+  VIDEO: "VIDEO",
 } as const;
 
 // Element types that hold other elements.
@@ -38,6 +39,7 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.COUNTDOWN ||
   type === ElementTypeEnum.SUBATHON ||
   type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.VIDEO ||
   type === ElementTypeEnum.ICON ||
   type === ElementTypeEnum.PROGRESS ||
   type === ElementTypeEnum.BINGO ||
@@ -139,6 +141,7 @@ export interface BaseElementStyle {
 export const canFill = (type: ElementType) =>
   type === ElementTypeEnum.TITLE ||
   type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.VIDEO ||
   type === ElementTypeEnum.CONTAINER ||
   type === ElementTypeEnum.GROUP ||
   type === ElementTypeEnum.SCROLLER ||
@@ -199,6 +202,23 @@ export interface ImageStyle extends BaseElementStyle {
   objectFit?: "cover" | "contain";
   imageRendering?: "pixelated" | "auto";
   borderRadius?: number;
+}
+
+// Specific style for a Video element, which also shows GIFs and other animated images (see
+// src/lib/video.ts).
+export interface VideoStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  objectFit?: "cover" | "contain";
+  borderRadius?: number;
+  /** Starts over at the end; on by default. Off, it stops on its last frame. */
+  loop?: boolean;
+  /** Off by default. Sound only ever plays in OBS, never in the editor. */
+  muted?: boolean;
+  /** 0–100; 100 by default. */
+  volume?: number;
+  /** Off by default; when on, it is only drawn while it plays (not paused, stopped or ended). */
+  hideWhenStopped?: boolean;
 }
 
 // Specific style for an Icon element. The icon is drawn in `color` at `size` by `size` pixels.
@@ -455,6 +475,7 @@ export type ElementStyle =
   | TimerStyle
   | SubathonStyle
   | ImageStyle
+  | VideoStyle
   | IconStyle
   | RectangleStyle
   | ProgressStyle
@@ -520,6 +541,9 @@ export interface PrismaElement {
     lastAddedAt: string | null;
   } | null;
   image?: { id: string; src: string } | null;
+  // Plays from `position` seconds on since `startedAt`, or is held at `position` while paused
+  // (src/lib/video.ts).
+  video?: { id: string; src: string; position: number; startedAt: string | null } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;
   // Which child a cycle stack shows (src/lib/cycleStack.ts): the one at `index`, and while it
   // cycles (`startedAt` set), the ones after it, one per interval since then.

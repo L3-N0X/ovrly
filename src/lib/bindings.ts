@@ -81,6 +81,17 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     ...POSITION,
     ...VISIBILITY,
   },
+  // Videos take image variables too: a URL either way, and a GIF is both.
+  VIDEO: {
+    src: "image",
+    "style.width": "number",
+    "style.height": "number",
+    "style.borderRadius": "number",
+    "style.volume": "number",
+    "style.muted": "boolean",
+    ...POSITION,
+    ...VISIBILITY,
+  },
   ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...VISIBILITY },
   BINGO: {
     "style.width": "number",
@@ -225,6 +236,8 @@ export const resolveElement = (
       resolved.progress = { ...resolved.progress, [binding.property]: value };
     } else if (binding.property === "src" && resolved.image) {
       resolved.image = { ...resolved.image, src: String(value) };
+    } else if (binding.property === "src" && resolved.video) {
+      resolved.video = { ...resolved.video, src: String(value) };
     }
   }
   return resolved;

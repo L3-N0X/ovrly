@@ -6,6 +6,7 @@ import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "
 import { applyTimerAction, type TimerAction } from "@/lib/timer";
 import { applyCountdownAction, type CountdownAction } from "@/lib/countdown";
 import { applyCycleStackAction, type CycleStackAction } from "@/lib/cycleStack";
+import { applyVideoAction, withNewSource, type VideoAction } from "@/lib/video";
 import {
   applySubathonAction,
   applySubathonSettings,
@@ -131,10 +132,13 @@ const combineCounter = (queued: object, next: object): object => {
 };
 
 type ActionsBody = {
-  data: { actions: (TimerAction | CountdownAction | SubathonAction | CycleStackAction)[] };
+  data: {
+    actions: (TimerAction | CountdownAction | SubathonAction | CycleStackAction | VideoAction)[];
+  };
 };
 
-// Timer, countdown, subathon and cycle stack actions waiting to be sent go out together, in the order they were made.
+// Timer, countdown, subathon, cycle stack and video actions waiting to be sent go out together,
+// in the order they were made.
 const combineActions = (queued: object, next: object): object => ({
   data: {
     actions: [...(queued as ActionsBody).data.actions, ...(next as ActionsBody).data.actions],
@@ -673,6 +677,18 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // A new video plays from the start, playing if the old one was.
+  const handleVideoChange = useCallback(
+    (elementId: string, src: string) => {
+      // Fixed now, so recomputing the local state later doesn't move the video.
+      const now = Date.now();
+      updateElement(elementId, "videoSrc", { data: { src } }, (el) => {
+        if (el.video) el.video = withNewSource(el.video, src, now);
+      });
+    },
+    [updateElement]
+  );
+
   // Binds a property of an element to a variable of the owner ({ source, key }), or detaches it
   // with null so the property shows its own value again.
   const handleBindingChange = useCallback(
@@ -837,6 +853,24 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Videos too: playing, pausing, restarting and stopping them.
+  const handleVideoAction = useCallback(
+    (elementId: string, action: VideoAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the video.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "video",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.video) el.video = applyVideoAction(el.video, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
   const handleSubathonSettings = useCallback(
     (elementId: string, settings: SubathonSettings) => {
       updateElement(
@@ -903,6 +937,8 @@ export const useOverlayData = () => {
     handleCounterIncrement,
     handleTitleChange,
     handleImageChange,
+    handleVideoChange,
+    handleVideoAction,
     handleIconChange,
     handleProgressChange,
     handleBindingChange,

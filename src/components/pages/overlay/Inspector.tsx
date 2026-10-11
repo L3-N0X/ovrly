@@ -102,8 +102,8 @@ const Inspector: React.FC<InspectorProps> = ({
       </PanelHeader>
       {contentElements.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          No elements with content yet. Add a title, counter, timer, image, icon, bingo card or cycle
-          stack in the layers panel.
+          No elements with content yet. Add a title, counter, timer, image, video, icon, bingo card or
+          cycle stack in the layers panel.
         </p>
       ) : (
         contentElements.map((element) => (

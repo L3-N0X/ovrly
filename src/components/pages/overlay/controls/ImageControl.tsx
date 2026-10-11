@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { BindableField } from "@/components/variables/BindableField";
 import type { PrismaElement } from "@/lib/types";
-import { uploadImage } from "@/lib/uploads";
+import { uploadFile } from "@/lib/uploads";
 import { Image } from "lucide-react";
 
 interface ImageControlProps {
@@ -18,7 +18,7 @@ const ImageControl: React.FC<ImageControlProps> = ({ element, handleImageChange 
     if (!file) return;
 
     try {
-      handleImageChange(element.id, await uploadImage(file));
+      handleImageChange(element.id, await uploadFile(file));
     } catch (error) {
       console.error("Error uploading image:", error);
     }

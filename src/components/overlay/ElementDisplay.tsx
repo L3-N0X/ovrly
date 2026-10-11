@@ -19,6 +19,7 @@ import Icon from "./Icon";
 import Rectangle from "./Rectangle";
 import ProgressBar from "./ProgressBar";
 import Image from "./Image";
+import Video from "./Video";
 import Bingo from "./Bingo";
 import Group from "./Group";
 import Scroller from "./Scroller";
@@ -96,6 +97,8 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         return <ProgressBar element={element} />;
       case "IMAGE":
         return <Image element={element} />;
+      case "VIDEO":
+        return <Video element={element} />;
       case "BINGO":
         // Only the editor preview provides a selection context; the public overlay is read only.
         return <Bingo element={element} isEditor={selection !== null} />;

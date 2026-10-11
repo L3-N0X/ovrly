@@ -1,6 +1,7 @@
 import { ElementTypeEnum, type ContainerStyle, type PrismaElement } from "@/lib/types";
 import {
   ChartNoAxesGantt,
+  Clapperboard,
   Columns3,
   Frame,
   Grid3x3,
@@ -39,6 +40,8 @@ export const ElementTypeIcon = ({
       return <Shapes className={className} />;
     case ElementTypeEnum.IMAGE:
       return <Image className={className} />;
+    case ElementTypeEnum.VIDEO:
+      return <Clapperboard className={className} />;
     case ElementTypeEnum.BINGO:
       return <Grid3x3 className={className} />;
     case ElementTypeEnum.GROUP:

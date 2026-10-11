@@ -43,6 +43,7 @@ export const ELEMENT_TYPE_NAMES: Record<string, string> = {
   SUBATHON: "Subathon",
   SCROLLER: "Scroller",
   CYCLE_STACK: "Cycle Stack",
+  VIDEO: "Video",
 };
 
 // What an overlay started from an empty canvas is called.

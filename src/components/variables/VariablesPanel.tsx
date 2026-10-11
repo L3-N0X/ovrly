@@ -40,7 +40,7 @@ import { Switch } from "@/components/ui/switch";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import type { PrismaOverlay, VariableType, VariableValue } from "@/lib/types";
-import { uploadImage } from "@/lib/uploads";
+import { uploadFile } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_VARIABLE_VALUES,
@@ -583,7 +583,7 @@ const ImageValueEditor: React.FC<{
     setUploading(true);
     setError(null);
     try {
-      onChange(await uploadImage(file));
+      onChange(await uploadFile(file));
     } catch (err) {
       setError(errorMessage(err));
     } finally {

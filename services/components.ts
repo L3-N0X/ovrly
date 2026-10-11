@@ -5,8 +5,8 @@ import { fileStorage, isValidStorageKey } from "./file-storage";
 
 const UPLOADS_PREFIX = "/uploads/";
 
-// The storage key of an image uploaded to ovrly, from its src: "/uploads/<key>", or the same
-// with this server's address in front. Null for anything else.
+// The storage key of an image (or video) uploaded to ovrly, from its src: "/uploads/<key>", or
+// the same with this server's address in front. Null for anything else.
 const uploadKeyOf = (src: string) => {
   const base = (process.env.APP_BASE_URL ?? "").replace(/\/$/, "");
   const path = src.startsWith(UPLOADS_PREFIX)
@@ -26,10 +26,11 @@ const uploadKeyOf = (src: string) => {
 const isWebLink = (src: string) => /^https?:\/\//i.test(src);
 
 /**
- * Makes the images of a component the user's own, so they keep working whatever happens to
- * the ones they came from: uploads of someone else are copied into the user's files. Other
- * links are kept only with `keepLinks` (saving from an overlay the user edits); anything that
- * can't be copied is left out, for the user to add again. Answers with how many were left out.
+ * Makes the images (and videos) of a component the user's own, so they keep working whatever
+ * happens to the ones they came from: uploads of someone else are copied into the user's files.
+ * Other links are kept only with `keepLinks` (saving from an overlay the user edits); anything
+ * that can't be copied is left out, for the user to add again. Answers with how many were left
+ * out.
  */
 export const adoptComponentImages = async (
   elements: ComponentElement[],
@@ -39,6 +40,7 @@ export const adoptComponentImages = async (
   const images: { src: string }[] = [];
   forEachComponentElement(elements, (element) => {
     if (element.image?.src) images.push(element.image);
+    if (element.video?.src) images.push(element.video);
   });
 
   // The same picture used twice is copied once.

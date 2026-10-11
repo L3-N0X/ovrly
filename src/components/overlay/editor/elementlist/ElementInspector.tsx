@@ -22,6 +22,7 @@ import { ScrollerEditor } from "../ScrollerEditor";
 import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
+import VideoStyleEditor from "../VideoStyleEditor";
 
 // Updates the selected element's style. onOverlayChange persists it itself (debounced per
 // element).
@@ -110,6 +111,8 @@ export const ElementStyleEditor = ({
       return <IconStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
       return <ImageStyleEditor {...editorProps} />;
+    case ElementTypeEnum.VIDEO:
+      return <VideoStyleEditor {...editorProps} />;
     case ElementTypeEnum.BINGO:
       return <BingoEditor {...editorProps} onDataChange={onBingoDataChange} />;
     case ElementTypeEnum.CONTAINER:
