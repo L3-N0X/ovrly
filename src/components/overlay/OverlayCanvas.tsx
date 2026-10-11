@@ -50,9 +50,11 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
   const [store] = useState(createDragStore);
   const gestures = useCanvasGestures({ rootRef, overlay, editing, selection, hoveredIdRef, store });
   const { snapResize } = gestures;
+  // The selection outline, which resize handles are drawn into.
+  const [handleHost, setHandleHost] = useState<HTMLDivElement | null>(null);
   const interaction = useMemo(
-    () => (editing ? { store, snapResize } : null),
-    [editing, store, snapResize]
+    () => (editing ? { store, snapResize, handleHost } : null),
+    [editing, store, snapResize, handleHost]
   );
 
   // For backward compatibility, we check for new property names first, then fallback to old ones
@@ -149,6 +151,7 @@ const OverlayCanvas: React.FC<OverlayCanvasProps> = ({
                 selectedId={selection.selectedId}
                 selectedName={elements.find((e) => e.id === selection.selectedId)?.name}
                 hoveredIdRef={hoveredIdRef}
+                onSelectedBox={setHandleHost}
               />
             )}
             {editing && <DragLayer store={store} ghostLayerRef={gestures.ghostLayerRef} />}

@@ -5,8 +5,12 @@ import type { Placement } from "./editor/elementlist/tree";
 // provides it, so overlays rendered there are always static.
 export interface CanvasEditing {
   onMove: (elementId: string, position: { x: number; y: number }) => void;
-  // Only the sides that changed: an element can have one side sized automatically.
-  onResize: (elementId: string, size: { width?: number; height?: number }) => void;
+  // Only the sides that changed: an element can have one side sized automatically. A freely
+  // placed element resized from its left or top side gets a new x/y as well.
+  onResize: (
+    elementId: string,
+    patch: { width?: number; height?: number; x?: number; y?: number }
+  ) => void;
   // Moves the element into another parent (or to another index in its own). `position` is its
   // new x/y, for parents that place their children freely.
   onPlace: (elementId: string, placement: Placement, position: { x: number; y: number } | null) => void;
