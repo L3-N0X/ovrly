@@ -15,6 +15,7 @@ import { CanvasInteractionContext } from "./canvasDrag";
 import { CanvasSelectionContext } from "./canvasSelection";
 import { ParentLayoutContext, useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
+import { shadowStyle } from "./shadow";
 
 const MIN_SCROLLER_SIZE = 20;
 
@@ -179,6 +180,7 @@ const Scroller: React.FC<ScrollerProps> = ({ element, children }) => {
             ? `${borderWidth}px solid ${style.borderColor || DEFAULT_BORDER_COLOR}`
             : undefined,
         ...fill.style,
+        ...shadowStyle(style, { box: !!style.backgroundColor }),
       }}
       className={
         editing ? "outline-1 -outline-offset-1 outline-dashed outline-white/40" : undefined

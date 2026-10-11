@@ -11,6 +11,7 @@ import {
 import FreeItem from "./FreeItem";
 import { useCanvasEditing } from "./canvasEditing";
 import { ParentLayoutContext, useFill } from "./fill";
+import { shadowStyle } from "./shadow";
 import { useElementResize } from "./useElementResize";
 
 const MIN_GROUP_SIZE = 20;
@@ -64,6 +65,7 @@ const Group: React.FC<GroupProps> = ({
         // Keeps the border inside the group's size, so adding one doesn't shift its children.
         boxSizing: "border-box",
         ...fill.style,
+        ...shadowStyle(style, { box: !!style.backgroundColor }),
       }}
       className={
         editing

@@ -42,6 +42,15 @@ const POSITION = { "style.x": "number", "style.y": "number" } as const;
 // Whether the element is drawn at all; every element type has it.
 const VISIBILITY = { "style.visible": "boolean" } as const;
 
+// The drop shadow every element can have.
+const SHADOW = {
+  "style.shadowColor": "color",
+  "style.shadowX": "number",
+  "style.shadowY": "number",
+  "style.shadowBlur": "number",
+  "style.shadowSpread": "number",
+} as const;
+
 const TEXT_STYLE = {
   "style.color": "color",
   "style.fontSize": "number",
@@ -68,11 +77,12 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.paddingY": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
-  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...VISIBILITY },
-  TIMER: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
-  COUNTDOWN: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
-  SUBATHON: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY },
+  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
+  TIMER: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
+  COUNTDOWN: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
+  SUBATHON: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
   IMAGE: {
     src: "image",
     "style.width": "number",
@@ -80,6 +90,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   // Videos take image variables too: a URL either way, and a GIF is both.
   VIDEO: {
@@ -91,8 +102,9 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.muted": "boolean",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
-  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...VISIBILITY },
+  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...VISIBILITY, ...SHADOW },
   BINGO: {
     "style.width": "number",
     "style.fontSize": "number",
@@ -113,6 +125,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.crossOpacity": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   CONTAINER: {
     "style.width": "number",
@@ -126,6 +139,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   SCROLLER: {
     "style.width": "number",
@@ -141,6 +155,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   CYCLE_STACK: {
     "style.interval": "number",
@@ -155,6 +170,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   GROUP: {
     "style.width": "number",
@@ -166,6 +182,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.radius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   RECTANGLE: {
     "style.width": "number",
@@ -176,6 +193,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
   PROGRESS: {
     value: "number",
@@ -190,6 +208,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderRadius": "number",
     ...POSITION,
     ...VISIBILITY,
+    ...SHADOW,
   },
 };
 

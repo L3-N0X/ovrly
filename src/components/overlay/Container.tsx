@@ -9,6 +9,7 @@ import {
   type PrismaElement,
 } from "@/lib/types";
 import { flexLayout, ParentLayoutContext, useFill } from "./fill";
+import { shadowStyle } from "./shadow";
 import { useElementResize } from "./useElementResize";
 
 const MIN_CONTAINER_SIZE = 20;
@@ -79,6 +80,7 @@ const Container: React.FC<ContainerProps> = ({ element, children, style }) => {
         ? `${borderWidth}px solid ${safeStyle.borderColor || DEFAULT_BORDER_COLOR}`
         : undefined,
     ...fill.style,
+    ...shadowStyle(safeStyle, { box: !!safeStyle.backgroundColor }),
   };
 
   return (

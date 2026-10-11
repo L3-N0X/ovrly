@@ -13,7 +13,8 @@ import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
 import { CycleStackEditor } from "../CycleStackEditor";
-import { GroupEditor, GroupPositionEditor } from "../GroupEditor";
+import { FieldHint, InspectorSection } from "../fields";
+import { GroupEditor, PositionFields } from "../GroupEditor";
 import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
 import { ProgressEditor } from "../ProgressEditor";
@@ -23,6 +24,7 @@ import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import VideoStyleEditor from "../VideoStyleEditor";
+import { isPlacedFreely } from "./tree";
 
 // Updates the selected element's style. onOverlayChange persists it itself (debounced per
 // element).
@@ -36,8 +38,10 @@ const styleUpdater =
       ),
     });
 
-// X/Y of an element inside a group.
-export const ElementPositionEditor = ({
+// Where the element sits. Always the first section, so it is found in the same place for every
+// element: X/Y for elements placed freely (in a group or on a free canvas), otherwise a note
+// that their parent lays them out.
+export const ElementPositionSection = ({
   element,
   overlay,
   onOverlayChange,
@@ -47,16 +51,29 @@ export const ElementPositionEditor = ({
   onOverlayChange: OnOverlayChange;
 }) => {
   const updateStyle = styleUpdater(element, overlay, onOverlayChange);
+  const parent = element.parentId
+    ? overlay.elements.find((candidate) => candidate.id === element.parentId)
+    : undefined;
   return (
-    <GroupPositionEditor
-      element={element}
-      onChange={(position) => updateStyle({ ...(element.style || {}), ...position })}
-    />
+    <InspectorSection title="Position">
+      {isPlacedFreely(overlay, element) ? (
+        <PositionFields
+          element={element}
+          onChange={(position) => updateStyle({ ...(element.style || {}), ...position })}
+        />
+      ) : (
+        <FieldHint>
+          Placed by the auto layout of{" "}
+          {parent ? <strong className="font-medium">{parent.name}</strong> : "the canvas"}. Its
+          order is changed in the layers panel.
+        </FieldHint>
+      )}
+    </InspectorSection>
   );
 };
 
 // Whether the element is drawn. Bound to a yes/no variable, apps and providers can show and hide it.
-export const ElementVisibilityEditor = ({
+export const ElementVisibilitySection = ({
   element,
   overlay,
   onOverlayChange,
@@ -67,22 +84,25 @@ export const ElementVisibilityEditor = ({
 }) => {
   const updateStyle = styleUpdater(element, overlay, onOverlayChange);
   return (
-    <BindableField
-      property="style.visible"
-      inline
-      htmlFor={`${element.id}-visible`}
-      label="Visible"
-    >
-      <Switch
-        id={`${element.id}-visible`}
-        checked={isElementVisible(element)}
-        onCheckedChange={(visible) => updateStyle({ ...(element.style || {}), visible })}
-      />
-    </BindableField>
+    <InspectorSection title="Visibility">
+      <BindableField
+        property="style.visible"
+        inline
+        htmlFor={`${element.id}-visible`}
+        label="Visible"
+      >
+        <Switch
+          id={`${element.id}-visible`}
+          checked={isElementVisible(element)}
+          onCheckedChange={(visible) => updateStyle({ ...(element.style || {}), visible })}
+        />
+      </BindableField>
+    </InspectorSection>
   );
 };
 
-// The appearance settings of the selected element.
+// The design sections of the selected element (Layout, Appearance, Text, Fill, Stroke, Effects
+// and its own), each editor rendering them in that order.
 export const ElementStyleEditor = ({
   element,
   overlay,

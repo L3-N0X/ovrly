@@ -1,10 +1,7 @@
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { BindableField } from "@/components/variables/BindableField";
 import {
-  BORDER_RADIUS_RANGE,
   BORDER_WIDTH_RANGE,
   DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_RADIUS,
@@ -19,11 +16,23 @@ import {
   type ScrollerMode,
   type ScrollerStyle,
 } from "@/lib/types";
-import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
-import React, { useMemo, useState } from "react";
+import { BetweenHorizontalStart, BetweenVerticalStart, Clock, Gauge } from "lucide-react";
+import React from "react";
 import { alignOptions } from "./alignment";
-import { ColorInput, PixelInput, SizeField } from "./appearance";
-import { FIXED_OR_FILL, fixedOrFill, sizeModePatch } from "./sizing";
+import {
+  CornerRadiusProp,
+  EffectsSection,
+  Field,
+  FieldGrid,
+  FieldHint,
+  FillSection,
+  InspectorSection,
+  Letter,
+  NumberProp,
+  SizeModeFields,
+  StrokeSection,
+} from "./fields";
+import { spreadFor, useStyleDraft } from "./useStyleDraft";
 
 const DIRECTION_OPTIONS = [
   { value: "vertical", label: "Vertical" },
@@ -39,196 +48,170 @@ export const ScrollerEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: ScrollerStyle) => void;
 }> = ({ element, onChange }) => {
-  const [isPickingColor, setIsPickingColor] = useState(false);
-  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
-  // new value to mean the server sent a new one.
-  const serverStyle = useMemo(
-    () => (element.style || {}) as ScrollerStyle,
-    [element.style],
-  );
-  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(
-    serverStyle,
-    isPickingColor,
-  );
-  const updateStyle = (patch: Partial<ScrollerStyle>) => {
-    const updatedStyle = { ...style, ...patch };
-    setStyle(updatedStyle);
-    onChange(updatedStyle);
-  };
+  const { style, update, colorProps } = useStyleDraft(element, onChange);
 
   const vertical = style.direction !== "horizontal";
   const mode: ScrollerMode = style.mode === "loop" ? "loop" : "bounce";
-  const id = (name: string) => `${element.id}-scroller-${name}`;
+  const id = `${element.id}-scroller`;
   const pixels = (key: "gap" | "paddingX" | "paddingY") =>
     typeof style[key] === "number" ? style[key] : 0;
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Lines up the elements inside it and scrolls through them by itself
-        once they are longer than the box. It holds still while the Move tool
-        (M) is on, so pick hidden children from the element list.
-      </p>
-      <div className="space-y-2">
-        <Label htmlFor={id("direction")}>Direction</Label>
-        <SegmentedControl
-          id={id("direction")}
-          aria-label="Scroll direction"
-          value={vertical ? "vertical" : "horizontal"}
-          onValueChange={(direction) => updateStyle({ direction })}
-          options={DIRECTION_OPTIONS}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("mode")}>Scrolling</Label>
-        <SegmentedControl
-          id={id("mode")}
-          aria-label="Scrolling"
-          value={mode}
-          onValueChange={(mode) => updateStyle({ mode })}
-          options={MODE_OPTIONS}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <BindableField property="style.speed" label="Speed" htmlFor={id("speed")}>
-          <NumberField
-            id={id("speed")}
-            value={style.speed ?? DEFAULT_SCROLLER_SPEED}
+    <>
+      <InspectorSection title="Scrolling">
+        <FieldGrid>
+          <Field label="Direction" htmlFor={`${id}-direction`}>
+            <SegmentedControl
+              id={`${id}-direction`}
+              aria-label="Scroll direction"
+              size="sm"
+              stretch
+              value={vertical ? "vertical" : "horizontal"}
+              onValueChange={(direction) => update({ direction })}
+              options={DIRECTION_OPTIONS}
+            />
+          </Field>
+          <Field label="Mode" htmlFor={`${id}-mode`}>
+            <SegmentedControl
+              id={`${id}-mode`}
+              aria-label="Scrolling"
+              size="sm"
+              stretch
+              value={mode}
+              onValueChange={(mode) => update({ mode })}
+              options={MODE_OPTIONS}
+            />
+          </Field>
+        </FieldGrid>
+        <FieldGrid>
+          <NumberProp
+            id={`${id}-speed`}
+            label="Speed"
+            prefix={<Gauge />}
+            property="style.speed"
             min={SCROLLER_SPEED_RANGE.min}
             max={SCROLLER_SPEED_RANGE.max}
             unit="px/s"
-            onChange={(speed) => updateStyle({ speed })}
+            value={style.speed ?? DEFAULT_SCROLLER_SPEED}
+            onChange={(speed) => update({ speed })}
           />
-        </BindableField>
-        {mode === "bounce" && (
-          <BindableField property="style.pause" label="Pause at Ends" htmlFor={id("pause")}>
-            <NumberField
-              id={id("pause")}
-              value={style.pause ?? DEFAULT_SCROLLER_PAUSE}
+          {mode === "bounce" && (
+            <NumberProp
+              id={`${id}-pause`}
+              label="Pause at the ends"
+              prefix={<Clock />}
+              property="style.pause"
               min={SCROLLER_PAUSE_RANGE.min}
               max={SCROLLER_PAUSE_RANGE.max}
               step={0.5}
               unit="s"
-              onChange={(pause) => updateStyle({ pause })}
+              value={style.pause ?? DEFAULT_SCROLLER_PAUSE}
+              onChange={(pause) => update({ pause })}
             />
-          </BindableField>
-        )}
-      </div>
-      <SizeField
-        id={id("width")}
-        label={vertical ? "Width" : "Max Width"}
-        property="style.width"
-        modes={FIXED_OR_FILL}
-        mode={fixedOrFill(style, "width")}
-        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_SCROLLER_WIDTH))}
-        min={1}
-        value={style.width ?? DEFAULT_SCROLLER_WIDTH}
-        onChange={(width) => updateStyle({ width })}
-      />
-      <SizeField
-        id={id("height")}
-        label={vertical ? "Max Height" : "Height"}
-        property="style.height"
-        modes={FIXED_OR_FILL}
-        mode={fixedOrFill(style, "height")}
-        onModeChange={(mode) => updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_SCROLLER_HEIGHT))}
-        min={1}
-        value={style.height ?? DEFAULT_SCROLLER_HEIGHT}
-        onChange={(height) => updateStyle({ height })}
-      />
-      <div className="flex items-center space-x-2">
-        <Switch
-          id={id("fit-content")}
-          checked={style.fitContent === true}
-          onCheckedChange={(fitContent) => updateStyle({ fitContent })}
-        />
-        <Label htmlFor={id("fit-content")}>
-          Shrink to the content while it fits
-        </Label>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <BindableField property="style.gap" label="Gap" htmlFor={id("gap")}>
-          <NumberField
-            id={id("gap")}
-            value={pixels("gap")}
-            min={0}
-            unit="px"
-            onChange={(v) => updateStyle({ gap: v })}
-          />
-        </BindableField>
-        <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
-          <NumberField
-            id={id("padding-x")}
-            value={pixels("paddingX")}
-            min={0}
-            unit="px"
-            onChange={(v) => updateStyle({ paddingX: v })}
-          />
-        </BindableField>
-        <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
-          <NumberField
-            id={id("padding-y")}
-            value={pixels("paddingY")}
-            min={0}
-            unit="px"
-            onChange={(v) => updateStyle({ paddingY: v })}
-          />
-        </BindableField>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("align")}>Align Items</Label>
-        <SegmentedControl
-          id={id("align")}
-          aria-label="Align items"
-          value={style.alignItems || "stretch"}
-          onValueChange={(v) =>
-            updateStyle({ alignItems: v as ScrollerStyle["alignItems"] })
-          }
-          options={alignOptions(!vertical, { stretch: true }).filter(
-            (option) => option.value !== "baseline",
           )}
+        </FieldGrid>
+        <FieldHint>
+          Lines up the elements inside it and scrolls through them by itself once they are longer
+          than the box. It holds still while the Move tool (M) is on, so pick hidden children from
+          the element list.
+        </FieldHint>
+      </InspectorSection>
+      <InspectorSection title="Layout">
+        <SizeModeFields
+          elementId={element.id}
+          style={style}
+          defaultSize={{ width: DEFAULT_SCROLLER_WIDTH, height: DEFAULT_SCROLLER_HEIGHT }}
+          onChange={update}
         />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <ColorInput
-          id={id("background")}
-          label="Background"
-          property="style.backgroundColor"
-          value={style.backgroundColor || ""}
-          defaultColor="#000000"
-          onChange={(backgroundColor) => updateStyle({ backgroundColor })}
-          onClear={() => updateStyle({ backgroundColor: "" })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={id("border-radius")}
-          label="Corner Radius"
-          property="style.borderRadius"
-          min={BORDER_RADIUS_RANGE.min}
-          max={BORDER_RADIUS_RANGE.max}
-          value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
-          onChange={(borderRadius) => updateStyle({ borderRadius })}
-        />
-        <ColorInput
-          id={id("border-color")}
-          label="Stroke"
-          property="style.borderColor"
-          value={style.borderColor || DEFAULT_BORDER_COLOR}
-          defaultColor={DEFAULT_BORDER_COLOR}
-          onChange={(borderColor) => updateStyle({ borderColor })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={id("border-width")}
-          label="Stroke Width"
-          property="style.borderWidth"
-          min={BORDER_WIDTH_RANGE.min}
-          max={BORDER_WIDTH_RANGE.max}
-          value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
-          onChange={(borderWidth) => updateStyle({ borderWidth })}
-        />
-      </div>
-    </div>
+        <FieldHint>
+          {vertical ? "The height" : "The width"} is the most the box grows to.
+        </FieldHint>
+        <BindableField inline htmlFor={`${id}-fit-content`} label="Shrink to the content while it fits">
+          <Switch
+            id={`${id}-fit-content`}
+            checked={style.fitContent === true}
+            onCheckedChange={(fitContent) => update({ fitContent })}
+          />
+        </BindableField>
+        <FieldGrid>
+          <NumberProp
+            id={`${id}-gap`}
+            label="Gap between items"
+            prefix={vertical ? <BetweenHorizontalStart /> : <BetweenVerticalStart />}
+            property="style.gap"
+            min={0}
+            unit="px"
+            value={pixels("gap")}
+            onChange={(gap) => update({ gap })}
+          />
+          <span />
+          <NumberProp
+            id={`${id}-padding-x`}
+            label="Horizontal padding"
+            prefix={<Letter>X</Letter>}
+            property="style.paddingX"
+            min={0}
+            unit="px"
+            value={pixels("paddingX")}
+            onChange={(paddingX) => update({ paddingX })}
+          />
+          <NumberProp
+            id={`${id}-padding-y`}
+            label="Vertical padding"
+            prefix={<Letter>Y</Letter>}
+            property="style.paddingY"
+            min={0}
+            unit="px"
+            value={pixels("paddingY")}
+            onChange={(paddingY) => update({ paddingY })}
+          />
+        </FieldGrid>
+        <Field label="Align items" htmlFor={`${id}-align`}>
+          <SegmentedControl
+            id={`${id}-align`}
+            aria-label="Align items"
+            size="sm"
+            stretch
+            value={style.alignItems || "stretch"}
+            onValueChange={(v) => update({ alignItems: v as ScrollerStyle["alignItems"] })}
+            options={alignOptions(!vertical, { stretch: true }).filter(
+              (option) => option.value !== "baseline"
+            )}
+          />
+        </Field>
+      </InspectorSection>
+      <InspectorSection title="Appearance">
+        <FieldGrid>
+          <CornerRadiusProp
+            id={`${id}-radius`}
+            property="borderRadius"
+            value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
+            onChange={(borderRadius) => update({ borderRadius })}
+          />
+        </FieldGrid>
+      </InspectorSection>
+      <FillSection
+        id={id}
+        value={style.backgroundColor}
+        colorProps={colorProps}
+        onChange={(backgroundColor) => update({ backgroundColor })}
+      />
+      <StrokeSection
+        id={id}
+        color={style.borderColor}
+        width={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
+        defaultColor={DEFAULT_BORDER_COLOR}
+        range={BORDER_WIDTH_RANGE}
+        colorProps={colorProps}
+        onChange={update}
+      />
+      <EffectsSection
+        id={id}
+        style={style}
+        spread={spreadFor(style.backgroundColor)}
+        colorProps={colorProps}
+        onChange={update}
+      />
+    </>
   );
 };

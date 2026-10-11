@@ -5,6 +5,7 @@ import { useCanvasEditing } from "./canvasEditing";
 import { useFill } from "./fill";
 import { useOverlayAudio } from "./overlayAudio";
 import { useElementResize } from "./useElementResize";
+import { shadowStyle } from "./shadow";
 
 const MIN_VIDEO_SIZE = 8;
 // How far (in seconds) a video may be from where it should be before it is moved there. Seeking
@@ -128,6 +129,7 @@ const Video: React.FC<VideoProps> = ({ element }) => {
         height: height !== undefined ? `${height}px` : undefined,
         flexShrink: 0,
         ...fill.style,
+        ...shadowStyle(videoStyle),
       }}
       className={
         !shown && editing ? "outline-1 -outline-offset-1 outline-dashed outline-white/40" : undefined

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { PrismaElement, ImageStyle } from '@/lib/types';
 import { useCanvasEditing } from './canvasEditing';
 import { useFill } from './fill';
+import { shadowStyle } from './shadow';
 import { useElementResize } from './useElementResize';
 
 const MIN_IMAGE_SIZE = 8;
@@ -36,6 +37,7 @@ const Image: React.FC<ImageProps> = ({ element }) => {
         height: height !== undefined ? `${height}px` : undefined,
         flexShrink: 0,
         ...fill.style,
+        ...shadowStyle(imageStyle),
       }}
       // Without an image there is nothing to draw, so it keeps its place in the layout but stays
       // empty. The editor outlines it, so it can still be found and picked.

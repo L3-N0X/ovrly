@@ -650,6 +650,7 @@ function ColorField({
   defaultColor = "#ffffff",
   onOpenChange,
   onClear,
+  size = "default",
   className,
   "aria-label": ariaLabel,
 }: {
@@ -662,6 +663,8 @@ function ColorField({
   onOpenChange?: (open: boolean) => void;
   /** Shows a button that removes the colour. */
   onClear?: () => void;
+  /** `sm` matches the small number fields of the inspector. */
+  size?: "default" | "sm";
   className?: string;
   "aria-label"?: string;
 }) {
@@ -682,6 +685,7 @@ function ColorField({
   const rgba = value ? parseColor(value) : null;
   const alpha = rgba ? Math.round(rgba.a * 100) : null;
   const clearable = Boolean(onClear && value);
+  const small = size === "sm";
 
   return (
     <div className={cn("relative min-w-0", className)}>
@@ -692,22 +696,33 @@ function ColorField({
             type="button"
             aria-label={ariaLabel}
             className={cn(
-              "flex h-10 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-md border border-input bg-input/30 pr-3 pl-1.5 text-sm shadow-xs transition-[border-color,box-shadow] outline-none hover:border-ring/60 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:border-ring",
-              clearable && "pr-9"
+              "flex w-full min-w-0 cursor-pointer items-center rounded-md border border-input bg-input/30 shadow-xs transition-[border-color,box-shadow] outline-none hover:border-ring/60 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:border-ring",
+              small ? "h-7 gap-2 pr-2 pl-1 text-xs" : "h-10 gap-2.5 pr-3 pl-1.5 text-sm",
+              clearable && (small ? "pr-7" : "pr-9")
             )}
           >
-            <span className="bg-checkerboard size-7 shrink-0 overflow-hidden rounded-[5px] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)]">
+            <span
+              className={cn(
+                "bg-checkerboard shrink-0 overflow-hidden shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)]",
+                small ? "size-5 rounded-[4px]" : "size-7 rounded-[5px]"
+              )}
+            >
               <span className="block size-full" style={{ background: rgba ? value : undefined }} />
             </span>
             {rgba ? (
-              <span className="truncate font-mono text-xs tracking-wide">
+              <span className={cn("truncate font-mono tracking-wide", small ? "text-[11px]" : "text-xs")}>
                 {rgbaToHex({ ...rgba, a: 1 }).slice(1).toUpperCase()}
               </span>
             ) : (
               <span className="truncate text-muted-foreground">None</span>
             )}
             {alpha !== null && alpha < 100 && (
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
+              <span
+                className={cn(
+                  "ml-auto shrink-0 text-muted-foreground tabular-nums",
+                  small ? "text-[11px]" : "text-xs"
+                )}
+              >
                 {alpha}%
               </span>
             )}
@@ -732,7 +747,10 @@ function ColorField({
           title="Remove color"
           aria-label="Remove color"
           onClick={onClear}
-          className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          className={cn(
+            "absolute top-1/2 flex -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+            small ? "right-0.5 size-6" : "right-1.5 size-7"
+          )}
         >
           <X className="size-3.5" />
         </button>

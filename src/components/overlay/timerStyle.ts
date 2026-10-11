@@ -1,5 +1,6 @@
 import type React from "react";
 import type { TimerStyle } from "@/lib/types";
+import { shadowStyle } from "./shadow";
 import { textStyle } from "./textStyle";
 
 // How timers and countdowns look on the canvas.
@@ -17,5 +18,6 @@ export const timerStyle = (style: TimerStyle | null | undefined): React.CSSPrope
     paddingTop: paddingY === undefined ? undefined : `${paddingY}px`,
     paddingBottom: paddingY === undefined ? undefined : `${paddingY}px`,
     transition: "all 0.2s ease-in-out",
+    ...shadowStyle(style, { box: !!style?.backgroundColor }),
   };
 };

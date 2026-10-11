@@ -1,18 +1,5 @@
-import { Label } from "@/components/ui/label";
-import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { BindableField } from "@/components/variables/BindableField";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  BORDER_RADIUS_RANGE,
-  BORDER_WIDTH_RANGE,
-  DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_RADIUS,
   DEFAULT_BORDER_WIDTH,
   DEFAULT_CONTAINER_HEIGHT,
@@ -20,53 +7,56 @@ import {
   type ContainerStyle,
   type PrismaElement,
 } from "@/lib/types";
-import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
-import React, { useMemo, useState } from "react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  BetweenHorizontalStart,
+  BetweenVerticalStart,
+} from "lucide-react";
+import React from "react";
 import { alignOptions, isRowDirection, justifyOptions } from "./alignment";
-import { ColorInput, PixelInput, SizeField } from "./appearance";
-import { sizeModePatch, type SizeMode } from "./sizing";
+import {
+  CornerRadiusProp,
+  EffectsSection,
+  Field,
+  FieldGrid,
+  FillSection,
+  InspectorSection,
+  NumberProp,
+  SizeModeFields,
+  StrokeSection,
+} from "./fields";
+import { spreadFor, useStyleDraft } from "./useStyleDraft";
 
 const SIZE_MODES = ["fixed", "hug", "fill"] as const;
+
+const DIRECTIONS = [
+  { value: "column", label: "Vertical", icon: ArrowDown },
+  { value: "row", label: "Horizontal", icon: ArrowRight },
+  { value: "column-reverse", label: "Vertical, reversed", icon: ArrowUp },
+  { value: "row-reverse", label: "Horizontal, reversed", icon: ArrowLeft },
+] as const;
+
+// A square with its left and right (or top and bottom) sides drawn heavier, like Figma's
+// padding icons.
+const PaddingIcon = ({ axis }: { axis: "x" | "y" }) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden>
+    <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeOpacity="0.45" />
+    {axis === "x" ? (
+      <path d="M2.5 4v8M13.5 4v8" strokeWidth="2" strokeLinecap="round" />
+    ) : (
+      <path d="M4 2.5h8M4 13.5h8" strokeWidth="2" strokeLinecap="round" />
+    )}
+  </svg>
+);
 
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: ContainerStyle) => void;
 }> = ({ element, onChange }) => {
-  const [isPickingColor, setIsPickingColor] = useState(false);
-
-  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
-  // new value to mean the server sent a new one.
-  const serverStyle = useMemo(
-    () => (element.style || {}) as ContainerStyle,
-    [element.style],
-  );
-  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(
-    serverStyle,
-    isPickingColor,
-  );
-
-  const updateStyle = (patch: Partial<ContainerStyle>) => {
-    const updatedStyle = { ...style, ...patch };
-    setStyle(updatedStyle);
-    onChange(updatedStyle);
-  };
-
-  const sizeMode = (side: "width" | "height"): SizeMode => {
-    if ((side === "width" ? style.fillWidth : style.fillHeight) === true) return "fill";
-    return (side === "width" ? style.autoWidth : style.autoHeight) === true ? "hug" : "fixed";
-  };
-  const setSizeMode = (side: "width" | "height", mode: SizeMode) =>
-    updateStyle(
-      sizeModePatch(
-        element.id,
-        style,
-        side,
-        mode,
-        side === "width" ? DEFAULT_CONTAINER_WIDTH : DEFAULT_CONTAINER_HEIGHT,
-        side === "width" ? "autoWidth" : "autoHeight",
-      ),
-    );
+  const { style, update, colorProps } = useStyleDraft(element, onChange);
 
   const row = isRowDirection(style.flexDirection);
   const id = (name: string) => `${element.id}-container-${name}`;
@@ -74,142 +64,114 @@ export const ContainerEditor: React.FC<{
     typeof style[key] === "number" ? style[key] : 0;
 
   return (
-    <div className="space-y-4">
-      <SizeField
-        id={id("width")}
-        label="Width"
-        property="style.width"
-        modes={SIZE_MODES}
-        mode={sizeMode("width")}
-        onModeChange={(mode) => setSizeMode("width", mode)}
-        min={1}
-        value={style.width ?? DEFAULT_CONTAINER_WIDTH}
-        onChange={(width) => updateStyle({ width })}
-      />
-      <SizeField
-        id={id("height")}
-        label="Height"
-        property="style.height"
-        modes={SIZE_MODES}
-        mode={sizeMode("height")}
-        onModeChange={(mode) => setSizeMode("height", mode)}
-        min={1}
-        value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
-        onChange={(height) => updateStyle({ height })}
-      />
-      <div className="space-y-2">
-        <Label>Direction</Label>
-        <Select
-          value={style?.flexDirection || "column"}
-          onValueChange={(v) =>
-            updateStyle({ flexDirection: v as ContainerStyle["flexDirection"] })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="column">Column</SelectItem>
-            <SelectItem value="row">Row</SelectItem>
-            <SelectItem value="column-reverse">Column Reversed</SelectItem>
-            <SelectItem value="row-reverse">Row Reversed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <BindableField property="style.gap" label="Gap" htmlFor={id("gap")}>
-          <NumberField
+    <>
+      <InspectorSection title="Layout">
+        <SizeModeFields
+          elementId={element.id}
+          style={style}
+          defaultSize={{ width: DEFAULT_CONTAINER_WIDTH, height: DEFAULT_CONTAINER_HEIGHT }}
+          modes={SIZE_MODES}
+          hugKeys={{ width: "autoWidth", height: "autoHeight" }}
+          onChange={update}
+        />
+        <FieldGrid className="items-end">
+          <Field label="Direction" htmlFor={id("direction")}>
+            <SegmentedControl
+              id={id("direction")}
+              aria-label="Direction"
+              size="sm"
+              stretch
+              value={style.flexDirection || "column"}
+              onValueChange={(flexDirection) => update({ flexDirection })}
+              options={DIRECTIONS}
+            />
+          </Field>
+          <NumberProp
             id={id("gap")}
+            label="Gap between items"
+            prefix={row ? <BetweenVerticalStart /> : <BetweenHorizontalStart />}
+            property="style.gap"
+            min={0}
+            unit="px"
             value={pixels("gap")}
-            min={0}
-            unit="px"
-            onChange={(v) => updateStyle({ gap: v })}
+            onChange={(gap) => update({ gap })}
           />
-        </BindableField>
-        <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
-          <NumberField
+          <NumberProp
             id={id("padding-x")}
+            label="Horizontal padding"
+            prefix={<PaddingIcon axis="x" />}
+            property="style.paddingX"
+            min={0}
+            unit="px"
             value={pixels("paddingX")}
-            min={0}
-            unit="px"
-            onChange={(v) => updateStyle({ paddingX: v })}
+            onChange={(paddingX) => update({ paddingX })}
           />
-        </BindableField>
-        <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
-          <NumberField
+          <NumberProp
             id={id("padding-y")}
-            value={pixels("paddingY")}
+            label="Vertical padding"
+            prefix={<PaddingIcon axis="y" />}
+            property="style.paddingY"
             min={0}
             unit="px"
-            onChange={(v) => updateStyle({ paddingY: v })}
+            value={pixels("paddingY")}
+            onChange={(paddingY) => update({ paddingY })}
           />
-        </BindableField>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("align")}>Align Items</Label>
-        <SegmentedControl
-          id={id("align")}
-          aria-label="Align items"
-          value={style?.alignItems || "stretch"}
-          onValueChange={(v) =>
-            updateStyle({ alignItems: v as ContainerStyle["alignItems"] })
-          }
-          options={alignOptions(row, { stretch: true })}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("justify")}>Justify Content</Label>
-        <SegmentedControl
-          id={id("justify")}
-          aria-label="Justify content"
-          value={style?.justifyContent || "flex-start"}
-          onValueChange={(v) =>
-            updateStyle({
-              justifyContent: v as ContainerStyle["justifyContent"],
-            })
-          }
-          options={justifyOptions(row)}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <ColorInput
-          id={id("background")}
-          label="Background"
-          property="style.backgroundColor"
-          value={style.backgroundColor || ""}
-          defaultColor="#000000"
-          onChange={(backgroundColor) => updateStyle({ backgroundColor })}
-          onClear={() => updateStyle({ backgroundColor: "" })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={id("border-radius")}
-          label="Corner Radius"
-          property="style.borderRadius"
-          min={BORDER_RADIUS_RANGE.min}
-          max={BORDER_RADIUS_RANGE.max}
-          value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
-          onChange={(borderRadius) => updateStyle({ borderRadius })}
-        />
-        <ColorInput
-          id={id("border-color")}
-          label="Stroke"
-          property="style.borderColor"
-          value={style.borderColor || DEFAULT_BORDER_COLOR}
-          defaultColor={DEFAULT_BORDER_COLOR}
-          onChange={(borderColor) => updateStyle({ borderColor })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={id("border-width")}
-          label="Stroke Width"
-          property="style.borderWidth"
-          min={BORDER_WIDTH_RANGE.min}
-          max={BORDER_WIDTH_RANGE.max}
-          value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
-          onChange={(borderWidth) => updateStyle({ borderWidth })}
-        />
-      </div>
-    </div>
+        </FieldGrid>
+        <Field label="Align items" htmlFor={id("align")}>
+          <SegmentedControl
+            id={id("align")}
+            aria-label="Align items"
+            size="sm"
+            stretch
+            value={style.alignItems || "stretch"}
+            onValueChange={(v) => update({ alignItems: v as ContainerStyle["alignItems"] })}
+            options={alignOptions(row, { stretch: true })}
+          />
+        </Field>
+        <Field label="Justify content" htmlFor={id("justify")}>
+          <SegmentedControl
+            id={id("justify")}
+            aria-label="Justify content"
+            size="sm"
+            stretch
+            value={style.justifyContent || "flex-start"}
+            onValueChange={(v) =>
+              update({ justifyContent: v as ContainerStyle["justifyContent"] })
+            }
+            options={justifyOptions(row)}
+          />
+        </Field>
+      </InspectorSection>
+      <InspectorSection title="Appearance">
+        <FieldGrid>
+          <CornerRadiusProp
+            id={id("border-radius")}
+            property="borderRadius"
+            value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
+            onChange={(borderRadius) => update({ borderRadius })}
+          />
+        </FieldGrid>
+      </InspectorSection>
+      <FillSection
+        id={id("fill")}
+        value={style.backgroundColor}
+        colorProps={colorProps}
+        onChange={(backgroundColor) => update({ backgroundColor })}
+      />
+      <StrokeSection
+        id={id("stroke")}
+        color={style.borderColor}
+        width={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
+        colorProps={colorProps}
+        onChange={update}
+      />
+      <EffectsSection
+        id={id("effects")}
+        style={style}
+        spread={spreadFor(style.backgroundColor)}
+        colorProps={colorProps}
+        onChange={update}
+      />
+    </>
   );
 };

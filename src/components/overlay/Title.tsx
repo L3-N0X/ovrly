@@ -1,5 +1,6 @@
 import React from "react";
 import { ElementTypeEnum, type TitleStyle } from "@/lib/types";
+import { shadowStyle } from "./shadow";
 import { textStyle } from "./textStyle";
 import { useFill } from "./fill";
 
@@ -33,6 +34,7 @@ const Title: React.FC<TitleProps> = ({ text, style }) => {
         whiteSpace: "nowrap",
         boxSizing: "border-box",
         ...fill.style,
+        ...shadowStyle(style),
       }}
     >
       {/* A zero-width space keeps an empty title's line box, so bound text can disappear

@@ -9,6 +9,7 @@ import {
 import { useBingoDataChange } from "@/lib/bingoDataContext";
 import { fontFamilyOf, fontWeightOf } from "@/lib/fonts";
 import BingoCell, { type BingoCrossOptions } from "./BingoCell";
+import { shadowStyle } from "./shadow";
 
 interface BingoProps {
   element: PrismaElement;
@@ -111,6 +112,7 @@ const Bingo: FC<BingoProps> = ({ element, isEditor = false }) => {
         fontFamily: fontFamilyOf(bingoStyle),
         fontWeight: fontWeightOf(bingoStyle),
         color: bingoStyle.color,
+        ...shadowStyle(bingoStyle, { box: !!bingoStyle.backgroundColor }),
       }}
     >
       {backgroundImage && (

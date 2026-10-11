@@ -14,6 +14,7 @@ import {
 import { progressFraction, progressMode, progressOf } from "@/lib/progress";
 import { useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
+import { shadowStyle } from "./shadow";
 
 const MIN_PROGRESS_SIZE = 1;
 // How often a running bar moves on; its width glides between the steps.
@@ -120,6 +121,7 @@ const ProgressBar: React.FC<{ element: PrismaElement }> = ({ element }) => {
         height: `${size.height}px`,
         flexShrink: 0,
         ...fill.style,
+        ...shadowStyle(style, { box: true }),
       }}
     >
       {/* Clipped on its own, so the resize handle can stick out of the bar. */}

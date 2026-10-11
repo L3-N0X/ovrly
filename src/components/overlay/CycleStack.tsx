@@ -16,6 +16,7 @@ import { useCanvasEditing } from "./canvasEditing";
 import { useCanvasSelection } from "./canvasSelection";
 import { ParentLayoutContext, useFill } from "./fill";
 import { useElementResize } from "./useElementResize";
+import { shadowStyle } from "./shadow";
 
 const MIN_CYCLE_STACK_SIZE = 20;
 
@@ -100,6 +101,7 @@ const CycleStack: React.FC<CycleStackProps> = ({ element, elements, renderChild 
             ? `${borderWidth}px solid ${style.borderColor || DEFAULT_BORDER_COLOR}`
             : undefined,
         ...fill.style,
+        ...shadowStyle(style, { box: !!style.backgroundColor }),
       }}
       className={
         editing ? "outline-1 -outline-offset-1 outline-dashed outline-white/40" : undefined

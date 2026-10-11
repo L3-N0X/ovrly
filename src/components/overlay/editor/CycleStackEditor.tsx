@@ -5,16 +5,15 @@ import {
   AlignEndVertical,
   AlignStartHorizontal,
   AlignStartVertical,
+  Clock,
   StretchHorizontal,
   StretchVertical,
+  Timer,
 } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { BindableField } from "@/components/variables/BindableField";
 import {
-  BORDER_RADIUS_RANGE,
   BORDER_WIDTH_RANGE,
   CYCLE_STACK_INTERVAL_RANGE,
   CYCLE_STACK_TRANSITION_RANGE,
@@ -29,10 +28,22 @@ import {
   type CycleStackTransition,
   type PrismaElement,
 } from "@/lib/types";
-import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
-import React, { useMemo, useState } from "react";
-import { ColorInput, PixelInput, SizeField } from "./appearance";
-import { FIXED_OR_FILL, HUG_OR_FILL, sizeModePatch, type SizeMode } from "./sizing";
+import React from "react";
+import {
+  CornerRadiusProp,
+  EffectsSection,
+  Field,
+  FieldGrid,
+  FieldHint,
+  FillSection,
+  InspectorSection,
+  Letter,
+  NumberProp,
+  SizeModeFields,
+  StrokeSection,
+} from "./fields";
+import { FIXED_OR_FILL, HUG_OR_FILL } from "./sizing";
+import { spreadFor, useStyleDraft } from "./useStyleDraft";
 
 const TRANSITION_OPTIONS = [
   { value: "fade", label: "Fade" },
@@ -57,197 +68,156 @@ export const CycleStackEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: CycleStackStyle) => void;
 }> = ({ element, onChange }) => {
-  const [isPickingColor, setIsPickingColor] = useState(false);
-  // Memoized so the identity only changes when the element's style does: `useLocalCopy` takes a
-  // new value to mean the server sent a new one.
-  const serverStyle = useMemo(
-    () => (element.style || {}) as CycleStackStyle,
-    [element.style],
-  );
-  // Held while the colour picker is open, which would otherwise snap the swatch back mid-drag.
-  const { value: style, setValue: setStyle } = useLocalCopy(
-    serverStyle,
-    isPickingColor,
-  );
-  const updateStyle = (patch: Partial<CycleStackStyle>) => {
-    const updatedStyle = { ...style, ...patch };
-    setStyle(updatedStyle);
-    onChange(updatedStyle);
-  };
+  const { style, update, colorProps } = useStyleDraft(element, onChange);
 
   const transition: CycleStackTransition = style.transition === "none" ? "none" : "fade";
   const fitContent = style.fitContent === true;
-  const sizeMode = (side: "width" | "height"): SizeMode =>
-    (side === "width" ? style.fillWidth : style.fillHeight) === true
-      ? "fill"
-      : fitContent
-        ? "hug"
-        : "fixed";
-  const id = (name: string) => `${element.id}-cycle-stack-${name}`;
+  const id = `${element.id}-cycle-stack`;
   const pixels = (key: "paddingX" | "paddingY") =>
     typeof style[key] === "number" ? style[key] : 0;
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Puts the elements inside it on top of each other and shows one at a
-        time. Selecting a layer (or something in it) shows it here in the
-        editor; pause the stack under Content to keep one up in OBS too.
-      </p>
-      <div className="grid grid-cols-2 gap-4">
-        <BindableField property="style.interval" label="Show Each For" htmlFor={id("interval")}>
-          <NumberField
-            id={id("interval")}
-            value={style.interval ?? DEFAULT_CYCLE_STACK_INTERVAL}
+    <>
+      <InspectorSection title="Cycling">
+        <FieldGrid>
+          <NumberProp
+            id={`${id}-interval`}
+            label="Show each layer for"
+            prefix={<Timer />}
+            property="style.interval"
             min={CYCLE_STACK_INTERVAL_RANGE.min}
             max={CYCLE_STACK_INTERVAL_RANGE.max}
             step={0.5}
             unit="s"
-            onChange={(interval) => updateStyle({ interval })}
+            value={style.interval ?? DEFAULT_CYCLE_STACK_INTERVAL}
+            onChange={(interval) => update({ interval })}
           />
-        </BindableField>
-        {transition === "fade" && (
-          <BindableField
-            property="style.transitionDuration"
-            label="Fade Duration"
-            htmlFor={id("transition-duration")}
-          >
-            <NumberField
-              id={id("transition-duration")}
-              value={style.transitionDuration ?? DEFAULT_CYCLE_STACK_TRANSITION_DURATION}
+          {transition === "fade" && (
+            <NumberProp
+              id={`${id}-transition-duration`}
+              label="Fade duration"
+              prefix={<Clock />}
+              property="style.transitionDuration"
               min={CYCLE_STACK_TRANSITION_RANGE.min}
               max={CYCLE_STACK_TRANSITION_RANGE.max}
               step={0.1}
               unit="s"
-              onChange={(transitionDuration) => updateStyle({ transitionDuration })}
+              value={style.transitionDuration ?? DEFAULT_CYCLE_STACK_TRANSITION_DURATION}
+              onChange={(transitionDuration) => update({ transitionDuration })}
             />
-          </BindableField>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("transition")}>Transition</Label>
-        <SegmentedControl
-          id={id("transition")}
-          aria-label="Transition"
-          value={transition}
-          onValueChange={(transition) => updateStyle({ transition })}
-          options={TRANSITION_OPTIONS}
+          )}
+        </FieldGrid>
+        <Field label="Transition" htmlFor={`${id}-transition`}>
+          <SegmentedControl
+            id={`${id}-transition`}
+            aria-label="Transition"
+            size="sm"
+            stretch
+            value={transition}
+            onValueChange={(transition) => update({ transition })}
+            options={TRANSITION_OPTIONS}
+          />
+        </Field>
+        <FieldHint>
+          Puts the elements inside it on top of each other and shows one at a time. Selecting a
+          layer (or something in it) shows it here in the editor; pause the stack under Content to
+          keep one up in OBS too.
+        </FieldHint>
+      </InspectorSection>
+      <InspectorSection title="Layout">
+        <BindableField inline htmlFor={`${id}-fit-content`} label="Size to the biggest layer">
+          <Switch
+            id={`${id}-fit-content`}
+            checked={fitContent}
+            onCheckedChange={(fitContent) => update({ fitContent })}
+          />
+        </BindableField>
+        {/* Sized to the biggest layer, a side hugs it unless it fills the parent. */}
+        <SizeModeFields
+          elementId={element.id}
+          style={style}
+          defaultSize={{ width: DEFAULT_CYCLE_STACK_WIDTH, height: DEFAULT_CYCLE_STACK_HEIGHT }}
+          modes={fitContent ? HUG_OR_FILL : FIXED_OR_FILL}
+          hugging={fitContent}
+          onChange={update}
         />
-      </div>
-      <div className="flex items-center space-x-2">
-        <Switch
-          id={id("fit-content")}
-          checked={fitContent}
-          onCheckedChange={(fitContent) => updateStyle({ fitContent })}
-        />
-        <Label htmlFor={id("fit-content")}>Size to the biggest layer</Label>
-      </div>
-      {/* Sized to the biggest layer, a side hugs it unless it fills the parent. */}
-      <SizeField
-        id={id("width")}
-        label="Width"
-        property="style.width"
-        modes={fitContent ? HUG_OR_FILL : FIXED_OR_FILL}
-        mode={sizeMode("width")}
-        onModeChange={(mode) =>
-          updateStyle(sizeModePatch(element.id, style, "width", mode, DEFAULT_CYCLE_STACK_WIDTH))
-        }
-        min={1}
-        value={style.width ?? DEFAULT_CYCLE_STACK_WIDTH}
-        onChange={(width) => updateStyle({ width })}
-      />
-      <SizeField
-        id={id("height")}
-        label="Height"
-        property="style.height"
-        modes={fitContent ? HUG_OR_FILL : FIXED_OR_FILL}
-        mode={sizeMode("height")}
-        onModeChange={(mode) =>
-          updateStyle(sizeModePatch(element.id, style, "height", mode, DEFAULT_CYCLE_STACK_HEIGHT))
-        }
-        min={1}
-        value={style.height ?? DEFAULT_CYCLE_STACK_HEIGHT}
-        onChange={(height) => updateStyle({ height })}
-      />
-      <div className="space-y-2">
-        <Label htmlFor={id("justify")}>Horizontal Alignment</Label>
-        <SegmentedControl
-          id={id("justify")}
-          aria-label="Horizontal alignment"
-          value={style.justifyItems || "center"}
-          onValueChange={(justifyItems) => updateStyle({ justifyItems })}
-          options={HORIZONTAL_OPTIONS}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("align")}>Vertical Alignment</Label>
-        <SegmentedControl
-          id={id("align")}
-          aria-label="Vertical alignment"
-          value={style.alignItems || "center"}
-          onValueChange={(alignItems) => updateStyle({ alignItems })}
-          options={VERTICAL_OPTIONS}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <BindableField property="style.paddingX" label="Padding X" htmlFor={id("padding-x")}>
-          <NumberField
-            id={id("padding-x")}
+        <FieldGrid>
+          <NumberProp
+            id={`${id}-padding-x`}
+            label="Horizontal padding"
+            prefix={<Letter>X</Letter>}
+            property="style.paddingX"
+            min={0}
+            unit="px"
             value={pixels("paddingX")}
+            onChange={(paddingX) => update({ paddingX })}
+          />
+          <NumberProp
+            id={`${id}-padding-y`}
+            label="Vertical padding"
+            prefix={<Letter>Y</Letter>}
+            property="style.paddingY"
             min={0}
             unit="px"
-            onChange={(v) => updateStyle({ paddingX: v })}
-          />
-        </BindableField>
-        <BindableField property="style.paddingY" label="Padding Y" htmlFor={id("padding-y")}>
-          <NumberField
-            id={id("padding-y")}
             value={pixels("paddingY")}
-            min={0}
-            unit="px"
-            onChange={(v) => updateStyle({ paddingY: v })}
+            onChange={(paddingY) => update({ paddingY })}
           />
-        </BindableField>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <ColorInput
-          id={id("background")}
-          label="Background"
-          property="style.backgroundColor"
-          value={style.backgroundColor || ""}
-          defaultColor="#000000"
-          onChange={(backgroundColor) => updateStyle({ backgroundColor })}
-          onClear={() => updateStyle({ backgroundColor: "" })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={id("border-radius")}
-          label="Corner Radius"
-          property="style.borderRadius"
-          min={BORDER_RADIUS_RANGE.min}
-          max={BORDER_RADIUS_RANGE.max}
-          value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
-          onChange={(borderRadius) => updateStyle({ borderRadius })}
-        />
-        <ColorInput
-          id={id("border-color")}
-          label="Stroke"
-          property="style.borderColor"
-          value={style.borderColor || DEFAULT_BORDER_COLOR}
-          defaultColor={DEFAULT_BORDER_COLOR}
-          onChange={(borderColor) => updateStyle({ borderColor })}
-          onOpenChange={setIsPickingColor}
-        />
-        <PixelInput
-          id={id("border-width")}
-          label="Stroke Width"
-          property="style.borderWidth"
-          min={BORDER_WIDTH_RANGE.min}
-          max={BORDER_WIDTH_RANGE.max}
-          value={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
-          onChange={(borderWidth) => updateStyle({ borderWidth })}
-        />
-      </div>
-    </div>
+        </FieldGrid>
+        <Field label="Horizontal alignment" htmlFor={`${id}-justify`}>
+          <SegmentedControl
+            id={`${id}-justify`}
+            aria-label="Horizontal alignment"
+            size="sm"
+            stretch
+            value={style.justifyItems || "center"}
+            onValueChange={(justifyItems) => update({ justifyItems })}
+            options={HORIZONTAL_OPTIONS}
+          />
+        </Field>
+        <Field label="Vertical alignment" htmlFor={`${id}-align`}>
+          <SegmentedControl
+            id={`${id}-align`}
+            aria-label="Vertical alignment"
+            size="sm"
+            stretch
+            value={style.alignItems || "center"}
+            onValueChange={(alignItems) => update({ alignItems })}
+            options={VERTICAL_OPTIONS}
+          />
+        </Field>
+      </InspectorSection>
+      <InspectorSection title="Appearance">
+        <FieldGrid>
+          <CornerRadiusProp
+            id={`${id}-radius`}
+            property="borderRadius"
+            value={style.borderRadius ?? DEFAULT_BORDER_RADIUS}
+            onChange={(borderRadius) => update({ borderRadius })}
+          />
+        </FieldGrid>
+      </InspectorSection>
+      <FillSection
+        id={id}
+        value={style.backgroundColor}
+        colorProps={colorProps}
+        onChange={(backgroundColor) => update({ backgroundColor })}
+      />
+      <StrokeSection
+        id={id}
+        color={style.borderColor}
+        width={style.borderWidth ?? DEFAULT_BORDER_WIDTH}
+        defaultColor={DEFAULT_BORDER_COLOR}
+        range={BORDER_WIDTH_RANGE}
+        colorProps={colorProps}
+        onChange={update}
+      />
+      <EffectsSection
+        id={id}
+        style={style}
+        spread={spreadFor(style.backgroundColor)}
+        colorProps={colorProps}
+        onChange={update}
+      />
+    </>
   );
 };

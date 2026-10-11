@@ -1,15 +1,13 @@
-import { Label } from "@/components/ui/label";
-import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { type PrismaOverlay, type OnOverlayChange } from "@/lib/types";
 import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  BetweenHorizontalStart,
+  BetweenVerticalStart,
+  Scan,
   AlignHorizontalJustifyCenter,
   AlignHorizontalJustifyEnd,
   AlignHorizontalJustifyStart,
@@ -20,6 +18,14 @@ import {
 import React from "react";
 import { handleValueChange } from "./helper";
 import { alignOptions, isRowDirection } from "./alignment";
+import { Field, FieldGrid, InspectorSection, NumberProp } from "./fields";
+
+const DIRECTIONS = [
+  { value: "column", label: "Vertical", icon: ArrowDown },
+  { value: "row", label: "Horizontal", icon: ArrowRight },
+  { value: "column-reverse", label: "Vertical, reversed", icon: ArrowUp },
+  { value: "row-reverse", label: "Horizontal, reversed", icon: ArrowLeft },
+];
 
 interface GlobalStyleEditorProps {
   overlay: PrismaOverlay;
@@ -68,73 +74,69 @@ export const GlobalStyleEditor: React.FC<GlobalStyleEditorProps> = ({
   const row = isRowDirection(globalStyle?.flexDirection);
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Arrangement</Label>
-        <Select
-          value={globalStyle?.flexDirection || "column"}
-          onValueChange={(v) => updateGlobalStyle("flexDirection", v)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="column">Column</SelectItem>
-            <SelectItem value="row">Row</SelectItem>
-            <SelectItem value="column-reverse">Column Reversed</SelectItem>
-            <SelectItem value="row-reverse">Row Reversed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="global-gap">Gap</Label>
-          <NumberField
-            id="global-gap"
-            value={typeof globalStyle?.gap === "number" ? globalStyle.gap : 16}
-            min={0}
-            unit="px"
-            onChange={(v) => updateGlobalStyle("gap", v)}
+    <InspectorSection title="Auto layout">
+      <FieldGrid className="items-end">
+        <Field label="Direction" htmlFor="global-direction">
+          <SegmentedControl
+            id="global-direction"
+            aria-label="Direction"
+            size="sm"
+            stretch
+            value={globalStyle?.flexDirection || "column"}
+            onValueChange={(v) => updateGlobalStyle("flexDirection", v)}
+            options={DIRECTIONS}
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="global-padding">Padding</Label>
-          <NumberField
-            id="global-padding"
-            value={typeof globalStyle?.padding === "number" ? globalStyle.padding : 0}
-            min={0}
-            unit="px"
-            onChange={(v) => updateGlobalStyle("padding", v)}
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Position on Canvas</Label>
-        <div className="flex flex-wrap gap-2">
+        </Field>
+        <NumberProp
+          id="global-gap"
+          label="Gap between items"
+          prefix={row ? <BetweenVerticalStart /> : <BetweenHorizontalStart />}
+          min={0}
+          unit="px"
+          value={typeof globalStyle?.gap === "number" ? globalStyle.gap : 16}
+          onChange={(v) => updateGlobalStyle("gap", v)}
+        />
+        <NumberProp
+          id="global-padding"
+          label="Padding"
+          prefix={<Scan />}
+          min={0}
+          unit="px"
+          value={typeof globalStyle?.padding === "number" ? globalStyle.padding : 0}
+          onChange={(v) => updateGlobalStyle("padding", v)}
+        />
+      </FieldGrid>
+      <Field label="Position on canvas">
+        <FieldGrid>
           <SegmentedControl
             aria-label="Horizontal position on the canvas"
+            size="sm"
+            stretch
             value={globalStyle?.outerJustifyContent || "center"}
             onValueChange={(v) => updateGlobalStyle("outerJustifyContent", v)}
             options={OUTER_HORIZONTAL}
           />
           <SegmentedControl
             aria-label="Vertical position on the canvas"
+            size="sm"
+            stretch
             value={globalStyle?.outerAlignItems || "center"}
             onValueChange={(v) => updateGlobalStyle("outerAlignItems", v)}
             options={OUTER_VERTICAL}
           />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Element Alignment</Label>
+        </FieldGrid>
+      </Field>
+      <Field label="Align items">
         <SegmentedControl
           aria-label="Element alignment"
+          size="sm"
+          stretch
           // Same fallbacks as the canvas.
           value={globalStyle?.innerAlignItems || globalStyle?.alignItems || "center"}
           onValueChange={(v) => updateGlobalStyle("innerAlignItems", v)}
           options={alignOptions(row)}
         />
-      </div>
-    </div>
+      </Field>
+    </InspectorSection>
   );
 };
