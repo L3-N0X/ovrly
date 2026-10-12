@@ -30,7 +30,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   COMPONENTS_QUERY_KEY,
   countComponentElements,
@@ -46,11 +45,12 @@ import { focusSearchOnType } from "@/lib/typeToSearch";
 import { cn, timeAgo } from "@/lib/utils";
 import { ComponentDetailsForm } from "./ComponentDetailsForm";
 import ComponentPreview from "./ComponentPreview";
+import { LibraryHeader, SearchField } from "./LibraryHeader";
 
 // The "Components" tab of the home page: the user's components, which they rename, export as
 // files to share, delete, and import files of others into. They are added to overlays from the
 // editor's "Add element" dialog.
-export const ComponentLibrary: React.FC = () => {
+export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) => {
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: COMPONENTS_QUERY_KEY, queryFn: fetchComponents });
   const components = useMemo(() => query.data ?? [], [query.data]);
@@ -155,36 +155,22 @@ export const ComponentLibrary: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-4">
+        <LibraryHeader tabs={tabs}>
+          {components.length > 0 && (
+            <SearchField
+              ref={searchRef}
+              value={search}
+              onChange={setSearch}
+              placeholder="Search components…"
+            />
+          )}
+          {importButton}
+        </LibraryHeader>
         <p className="text-sm text-muted-foreground">
           Elements you saved to reuse. Add them to any overlay from “Add element”, or export them
           as files to share.
         </p>
-        <div className="flex items-center gap-2">
-          {components.length > 0 && (
-            <div className="relative flex-1 sm:w-64 sm:flex-none">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search components…"
-                className="pr-8 pl-9"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  aria-label="Clear search"
-                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
-          )}
-          {importButton}
-        </div>
       </div>
 
       {notice && (

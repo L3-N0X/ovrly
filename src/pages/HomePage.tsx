@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,7 +21,6 @@ import {
   Search,
   Trash2,
   Users,
-  X,
   Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
@@ -32,6 +30,7 @@ import OverlayCard from "@/components/OverlayCard";
 import CreateOverlayModal from "@/components/CreateOverlayModal";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { ComponentLibrary } from "@/components/library/ComponentLibrary";
+import { LibraryHeader, SearchField } from "@/components/library/LibraryHeader";
 
 type Filter = "all" | "mine" | "shared";
 type Sort = "newest" | "oldest" | "name";
@@ -206,6 +205,34 @@ const HomePage: React.FC = () => {
     { value: "shared", label: "Shared with me", count: sharedCount },
   ];
 
+  const tabs = (
+    <div role="tablist" aria-label="Library" className="flex gap-6">
+      {(
+        [
+          { value: "overlays", label: "Overlays", icon: Layers },
+          { value: "components", label: "Components", icon: Blocks },
+        ] as const
+      ).map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="tab"
+          aria-selected={view === value}
+          onClick={() => setSearchParams(value === "components" ? { view: value } : {})}
+          className={cn(
+            "-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors outline-none focus-visible:text-foreground",
+            view === value
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Icon className="size-4" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-8 pb-16">
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -238,83 +265,17 @@ const HomePage: React.FC = () => {
         <CreateOverlayModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       </header>
 
-      <div role="tablist" aria-label="Library" className="flex gap-6 border-b">
-        {(
-          [
-            { value: "overlays", label: "Overlays", icon: Layers },
-            { value: "components", label: "Components", icon: Blocks },
-          ] as const
-        ).map(({ value, label, icon: Icon }) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            aria-selected={view === value}
-            onClick={() => setSearchParams(value === "components" ? { view: value } : {})}
-            className={cn(
-              "-mb-px flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-medium transition-colors outline-none focus-visible:text-foreground",
-              view === value
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Icon className="size-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
       {view === "components" ? (
-        <ComponentLibrary />
+        <ComponentLibrary tabs={tabs} />
       ) : (
-        <>
-          <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
-            <nav className="flex gap-1 overflow-x-auto" aria-label="Filter overlays">
-              {filters.map(({ value, label, count }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setFilter(value)}
-                  aria-pressed={filter === value}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    filter === value
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                >
-                  {label}
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 text-xs tabular-nums",
-                      filter === value ? "bg-primary-foreground/20" : "bg-muted"
-                    )}
-                  >
-                    {count}
-                  </span>
-                </button>
-              ))}
-            </nav>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 lg:w-72 lg:flex-none">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search overlays or people…"
-                  className="pr-8 pl-9"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    aria-label="Clear search"
-                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-4" />
-                  </button>
-                )}
-              </div>
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <LibraryHeader tabs={tabs}>
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Search overlays or people…"
+              />
               <Select value={sort} onValueChange={(value) => setSort(value as Sort)}>
                 <SelectTrigger className="w-40 shrink-0" aria-label="Sort overlays">
                   <SelectValue />
@@ -337,7 +298,33 @@ const HomePage: React.FC = () => {
               >
                 <RefreshCw className={cn(isLoading && "animate-spin")} />
               </Button>
-            </div>
+            </LibraryHeader>
+            <nav className="flex flex-wrap gap-2" aria-label="Filter overlays">
+              {filters.map(({ value, label, count }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFilter(value)}
+                  aria-pressed={filter === value}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    filter === value
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  {label}
+                  <span
+                    className={cn(
+                      "tabular-nums",
+                      filter === value ? "text-primary-foreground/70" : "text-muted-foreground/70"
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </nav>
           </div>
 
           {displayedError && (
@@ -406,7 +393,7 @@ const HomePage: React.FC = () => {
               )}
             </div>
           ) : null}
-        </>
+        </div>
       )}
 
       <ConfirmDialog
