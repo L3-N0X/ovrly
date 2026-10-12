@@ -462,8 +462,8 @@ const EmptyState: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
       </span>
       <h2 className="text-xl font-semibold">Create your first overlay</h2>
       <p className="text-muted-foreground">
-        Start from an empty canvas or a template with a timer, counter or bingo card, then add
-        it to OBS as a browser source.
+        Start from an empty canvas or a template, like a corner layout around your camera or a
+        starting soon screen, then add it to OBS as a browser source.
       </p>
       <Button size="lg" className="mt-2" onClick={onCreate}>
         <Plus />

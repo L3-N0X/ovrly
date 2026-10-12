@@ -1,178 +1,355 @@
 {
   "presets": [
     {
-      "id": "timer",
-      "name": "Timer",
-      "description": "A stopwatch that counts up. You start and pause it while live.",
+      "id": "corners",
+      "name": "Corner layout",
+      "description": "Your camera goes top left; the other corners each hold a container that keeps what's in it 48 px from the edges. Add elements to any corner, or drag them to another.",
       "width": 1920,
       "height": 1080,
       "canvasMode": "FREE",
       "globalStyle": {},
       "elements": [
         {
-          "name": "Timer",
-          "type": "TIMER",
-          "style": {
-            "fontFamily": "Roboto Mono",
-            "fontSize": 96,
-            "backgroundColor": "#000000b3",
-            "padding": 24,
-            "radius": 20,
-            "x": 48,
-            "y": 48
-          }
-        }
-      ]
-    },
-    {
-      "id": "countdown",
-      "name": "Countdown",
-      "description": "A “Starting soon” screen counting down to your stream, or from a few minutes.",
-      "width": 1920,
-      "height": 1080,
-      "canvasMode": "FREE",
-      "globalStyle": {},
-      "elements": [
-        {
-          "name": "Countdown column",
+          "name": "Bottom right",
           "type": "CONTAINER",
           "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "fillHeight": true,
             "flexDirection": "column",
+            "justifyContent": "flex-end",
+            "alignItems": "flex-end",
             "gap": 16,
-            "alignItems": "center",
-            "x": 660,
-            "y": 380
+            "paddingX": 48,
+            "paddingY": 48
           },
           "children": [
             {
-              "name": "Label",
-              "type": "TITLE",
+              "name": "Socials",
+              "type": "CYCLE_STACK",
               "style": {
-                "fontFamily": "Roboto",
-                "fontSize": 64
+                "fitContent": true,
+                "interval": 6,
+                "transition": "fade",
+                "transitionDuration": 0.5,
+                "justifyItems": "end",
+                "alignItems": "center",
+                "paddingX": 20,
+                "paddingY": 14,
+                "backgroundColor": "#000000a6",
+                "borderRadius": 16
               },
-              "title": {
-                "text": "Starting soon"
-              }
-            },
-            {
-              "name": "Countdown",
-              "type": "COUNTDOWN",
-              "style": {
-                "fontFamily": "Roboto Mono",
-                "fontSize": 128,
-                "backgroundColor": "#000000b3",
-                "padding": 24,
-                "radius": 20,
-                "format": "mm:ss"
-              },
-              "countdown": {
-                "mode": "DURATION",
-                "duration": 300000
-              }
+              "children": [
+                {
+                  "name": "Twitch",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "row",
+                    "alignItems": "center",
+                    "gap": 12
+                  },
+                  "children": [
+                    {
+                      "name": "Twitch icon",
+                      "type": "ICON",
+                      "style": { "size": 28, "color": "#bf94ff" },
+                      "icon": { "library": "lucide", "name": "twitch" }
+                    },
+                    {
+                      "name": "Channel",
+                      "type": "TITLE",
+                      "style": { "fontSize": 26, "fontWeight": 600 },
+                      "title": { "text": "yourchannel" },
+                      "bindings": [{ "property": "text", "source": "twitch:@me", "key": "name" }]
+                    }
+                  ]
+                },
+                {
+                  "name": "YouTube",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "row",
+                    "alignItems": "center",
+                    "gap": 12
+                  },
+                  "children": [
+                    {
+                      "name": "YouTube icon",
+                      "type": "ICON",
+                      "style": { "size": 28, "color": "#ff4e45" },
+                      "icon": { "library": "lucide", "name": "youtube" }
+                    },
+                    {
+                      "name": "Handle",
+                      "type": "TITLE",
+                      "style": { "fontSize": 26, "fontWeight": 600 },
+                      "title": { "text": "@yourchannel" }
+                    }
+                  ]
+                },
+                {
+                  "name": "Instagram",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "row",
+                    "alignItems": "center",
+                    "gap": 12
+                  },
+                  "children": [
+                    {
+                      "name": "Instagram icon",
+                      "type": "ICON",
+                      "style": { "size": 28, "color": "#f77737" },
+                      "icon": { "library": "lucide", "name": "instagram" }
+                    },
+                    {
+                      "name": "Handle",
+                      "type": "TITLE",
+                      "style": { "fontSize": 26, "fontWeight": 600 },
+                      "title": { "text": "@yourname" }
+                    }
+                  ]
+                }
+              ]
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "counter",
-      "name": "Counter",
-      "description": "One labeled number, like deaths or wins, that you count live.",
-      "width": 1920,
-      "height": 1080,
-      "canvasMode": "FREE",
-      "globalStyle": {},
-      "elements": [
+        },
         {
-          "name": "Counter row",
+          "name": "Bottom left",
           "type": "CONTAINER",
           "style": {
-            "flexDirection": "row",
-            "gap": 24,
-            "alignItems": "center",
-            "x": 48,
-            "y": 48
+            "x": 0,
+            "y": 0,
+            "autoWidth": true,
+            "fillHeight": true,
+            "flexDirection": "column",
+            "justifyContent": "flex-end",
+            "alignItems": "flex-start",
+            "gap": 16,
+            "paddingX": 48,
+            "paddingY": 48
           },
           "children": [
             {
-              "name": "Label",
-              "type": "TITLE",
+              "name": "Now playing",
+              "type": "CONTAINER",
               "style": {
-                "fontFamily": "Roboto",
-                "fontSize": 72
-              },
-              "title": {
-                "text": "Deaths"
-              }
-            },
-            {
-              "name": "Counter",
-              "type": "COUNTER",
-              "style": {
-                "fontFamily": "Roboto Mono",
-                "fontSize": 72,
-                "backgroundColor": "#ffffff26",
-                "padding": 20,
-                "radius": 16
-              },
-              "counter": {
-                "value": 0
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "twitch-followers",
-      "name": "Followers",
-      "description": "The follower count of your Twitch channel, updated live while you stream.",
-      "width": 1920,
-      "height": 1080,
-      "canvasMode": "FREE",
-      "globalStyle": {},
-      "elements": [
-        {
-          "name": "Followers row",
-          "type": "CONTAINER",
-          "style": {
-            "flexDirection": "row",
-            "gap": 24,
-            "alignItems": "center",
-            "x": 48,
-            "y": 48
-          },
-          "children": [
-            {
-              "name": "Label",
-              "type": "TITLE",
-              "style": {
-                "fontFamily": "Roboto",
-                "fontSize": 72
-              },
-              "title": {
-                "text": "Followers"
-              }
-            },
-            {
-              "name": "Followers",
-              "type": "COUNTER",
-              "style": {
-                "fontFamily": "Roboto Mono",
-                "fontSize": 72,
-                "backgroundColor": "#9146ff",
-                "padding": 20,
-                "radius": 16
-              },
-              "counter": {
-                "value": 0
+                "autoWidth": true,
+                "autoHeight": true,
+                "flexDirection": "row",
+                "alignItems": "center",
+                "gap": 16,
+                "paddingX": 16,
+                "paddingY": 16,
+                "backgroundColor": "#000000a6",
+                "borderRadius": 16
               },
               "bindings": [
+                { "property": "style.visible", "source": "spotify:player", "key": "playing" },
+                { "property": "style.backgroundColor", "source": "spotify:player", "key": "accent-darker" }
+              ],
+              "children": [
                 {
-                  "property": "value",
-                  "source": "twitch:@me",
-                  "key": "followers"
+                  "name": "Cover",
+                  "type": "GROUP",
+                  "style": {
+                    "width": 72,
+                    "height": 72,
+                    "clip": true,
+                    "radius": 10,
+                    "backgroundColor": "#ffffff1a"
+                  },
+                  "children": [
+                    {
+                      "name": "Music icon",
+                      "type": "ICON",
+                      "style": { "x": 20, "y": 20, "size": 32, "color": "#ffffff80" },
+                      "icon": { "library": "lucide", "name": "music" }
+                    },
+                    {
+                      "name": "Album cover",
+                      "type": "IMAGE",
+                      "style": { "x": 0, "y": 0, "width": 72, "height": 72, "objectFit": "cover" },
+                      "image": { "src": "" },
+                      "bindings": [{ "property": "src", "source": "spotify:player", "key": "cover" }]
+                    }
+                  ]
+                },
+                {
+                  "name": "Song",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "column",
+                    "alignItems": "flex-start",
+                    "gap": 8
+                  },
+                  "children": [
+                    {
+                      "name": "Track",
+                      "type": "TITLE",
+                      "style": { "fontSize": 24, "fontWeight": 600 },
+                      "title": { "text": "Song title" },
+                      "bindings": [{ "property": "text", "source": "spotify:player", "key": "track" }]
+                    },
+                    {
+                      "name": "Artist",
+                      "type": "TITLE",
+                      "style": { "fontSize": 20, "color": "#ffffffb3" },
+                      "title": { "text": "Artist" },
+                      "bindings": [{ "property": "text", "source": "spotify:player", "key": "artist" }]
+                    },
+                    {
+                      "name": "Song progress",
+                      "type": "PROGRESS",
+                      "style": {
+                        "mode": "values",
+                        "width": 280,
+                        "height": 6,
+                        "fillColor": "#ffffff",
+                        "backgroundColor": "#ffffff33",
+                        "borderRadius": 3
+                      },
+                      "progress": { "value": 72, "max": 200, "running": false },
+                      "bindings": [
+                        { "property": "value", "source": "spotify:player", "key": "progress" },
+                        { "property": "max", "source": "spotify:player", "key": "duration" },
+                        { "property": "running", "source": "spotify:player", "key": "playing" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Top right",
+          "type": "CONTAINER",
+          "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "autoHeight": true,
+            "flexDirection": "column",
+            "justifyContent": "flex-start",
+            "alignItems": "flex-end",
+            "gap": 16,
+            "paddingX": 48,
+            "paddingY": 48
+          },
+          "children": [
+            {
+              "name": "Follower goal",
+              "type": "CONTAINER",
+              "style": {
+                "autoWidth": true,
+                "autoHeight": true,
+                "flexDirection": "column",
+                "alignItems": "stretch",
+                "gap": 12,
+                "paddingX": 20,
+                "paddingY": 16,
+                "backgroundColor": "#000000a6",
+                "borderRadius": 16
+              },
+              "children": [
+                {
+                  "name": "Goal header",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "row",
+                    "alignItems": "center",
+                    "gap": 10
+                  },
+                  "children": [
+                    {
+                      "name": "Heart",
+                      "type": "ICON",
+                      "style": { "size": 24, "color": "#bf94ff" },
+                      "icon": { "library": "lucide", "name": "heart" }
+                    },
+                    {
+                      "name": "Goal label",
+                      "type": "TITLE",
+                      "style": { "fontSize": 22, "fontWeight": 600 },
+                      "title": { "text": "Follower goal" }
+                    },
+                    {
+                      "name": "Followers",
+                      "type": "COUNTER",
+                      "style": { "fontSize": 22, "fontWeight": 700, "color": "#bf94ff" },
+                      "counter": { "value": 640 },
+                      "bindings": [{ "property": "value", "source": "twitch:@me", "key": "followers" }]
+                    },
+                    {
+                      "name": "Goal",
+                      "type": "TITLE",
+                      "style": { "fontSize": 22, "color": "#ffffff99" },
+                      "title": { "text": "/ 1000" }
+                    }
+                  ]
+                },
+                {
+                  "name": "Goal progress",
+                  "type": "PROGRESS",
+                  "style": {
+                    "mode": "values",
+                    "fillWidth": true,
+                    "width": 320,
+                    "height": 10,
+                    "fillColor": "#bf94ff",
+                    "backgroundColor": "#ffffff26",
+                    "borderRadius": 5
+                  },
+                  "progress": { "value": 640, "max": 1000, "running": false },
+                  "bindings": [{ "property": "value", "source": "twitch:@me", "key": "followers" }]
+                }
+              ]
+            },
+            {
+              "name": "Viewers",
+              "type": "CONTAINER",
+              "style": {
+                "autoWidth": true,
+                "autoHeight": true,
+                "flexDirection": "row",
+                "alignItems": "center",
+                "gap": 10,
+                "paddingX": 16,
+                "paddingY": 10,
+                "backgroundColor": "#000000a6",
+                "borderRadius": 12
+              },
+              "children": [
+                {
+                  "name": "Eye",
+                  "type": "ICON",
+                  "style": { "size": 22, "color": "#ff4e45" },
+                  "icon": { "library": "lucide", "name": "eye" }
+                },
+                {
+                  "name": "Viewer count",
+                  "type": "COUNTER",
+                  "style": { "fontSize": 22, "fontWeight": 700 },
+                  "counter": { "value": 42 },
+                  "bindings": [{ "property": "value", "source": "twitch:@me", "key": "viewers" }]
+                },
+                {
+                  "name": "Viewers label",
+                  "type": "TITLE",
+                  "style": { "fontSize": 22, "color": "#ffffffb3" },
+                  "title": { "text": "watching" }
                 }
               ]
             }
@@ -181,78 +358,370 @@
       ]
     },
     {
-      "id": "bingo",
-      "name": "Bingo",
-      "description": "A bingo card with a title. Fill in the fields and mark them live.",
+      "id": "starting-soon",
+      "name": "Starting soon",
+      "description": "A full-screen countdown to your stream, with your stream title, rotating tips and the song that's playing.",
       "width": 1920,
       "height": 1080,
       "canvasMode": "FREE",
       "globalStyle": {},
       "elements": [
         {
-          "name": "Bingo column",
+          "name": "Screen",
           "type": "CONTAINER",
           "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "fillHeight": true,
             "flexDirection": "column",
-            "gap": 20,
-            "alignItems": "flex-start",
-            "x": 48,
-            "y": 48
+            "justifyContent": "center",
+            "alignItems": "center",
+            "gap": 32,
+            "backgroundColor": "#0e0e12"
           },
           "children": [
             {
-              "name": "Title",
+              "name": "Label",
               "type": "TITLE",
-              "style": {
-                "fontFamily": "Roboto",
-                "fontSize": 56
-              },
-              "title": {
-                "text": "Stream Bingo"
-              }
+              "style": { "fontSize": 36, "fontWeight": 700, "color": "#bf94ff" },
+              "title": { "text": "STARTING SOON" }
             },
             {
-              "name": "Bingo card",
-              "type": "BINGO",
+              "name": "Countdown",
+              "type": "COUNTDOWN",
               "style": {
-                "width": 520,
-                "height": 520,
-                "fontSize": 40,
-                "gridLines": true,
-                "padding": 0
+                "fontFamily": "Roboto Mono",
+                "fontSize": 200,
+                "fontWeight": 700,
+                "format": "mm:ss"
               },
-              "bingo": {
-                "rows": 5,
-                "columns": 5,
-                "freeMiddle": true,
-                "fields": [
-                  "Chat says W",
-                  "First death",
-                  "Technical difficulties",
-                  "Talking while muted",
-                  "Raid incoming",
-                  "New sub",
-                  "Backseating in chat",
-                  "Rage moment",
-                  "Forgot to drink",
-                  "Lag spike",
-                  "Pet cameo",
-                  "Emote spam",
-                  "",
-                  "“One more game”",
-                  "Hype train",
-                  "Gifted subs",
-                  "“Clip it!”",
-                  "Snack break",
-                  "Wrong scene",
-                  "“I meant to do that”",
-                  "Fall damage",
-                  "New follower",
-                  "Song request",
-                  "Chat was right",
-                  "Lost track of time"
-                ]
-              }
+              "countdown": { "mode": "DURATION", "duration": 300000 }
+            },
+            {
+              "name": "Stream title",
+              "type": "TITLE",
+              "style": { "fontSize": 40, "fontWeight": 500, "color": "#ffffffe6" },
+              "title": { "text": "Today's stream title" },
+              "bindings": [{ "property": "text", "source": "twitch:@me", "key": "title" }]
+            },
+            {
+              "name": "Tips",
+              "type": "CYCLE_STACK",
+              "style": {
+                "fitContent": true,
+                "interval": 5,
+                "transition": "fade",
+                "transitionDuration": 0.8
+              },
+              "children": [
+                {
+                  "name": "Tip 1",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "color": "#ffffff80" },
+                  "title": { "text": "Grab a drink and get comfy" }
+                },
+                {
+                  "name": "Tip 2",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "color": "#ffffff80" },
+                  "title": { "text": "Say hi in chat while you wait" }
+                },
+                {
+                  "name": "Tip 3",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "color": "#ffffff80" },
+                  "title": { "text": "Turn on notifications so you never miss a stream" }
+                }
+              ]
+            },
+            {
+              "name": "Now playing",
+              "type": "CONTAINER",
+              "style": {
+                "autoWidth": true,
+                "autoHeight": true,
+                "flexDirection": "row",
+                "alignItems": "center",
+                "gap": 12,
+                "paddingX": 20,
+                "paddingY": 12,
+                "backgroundColor": "#ffffff14",
+                "borderRadius": 12
+              },
+              "bindings": [{ "property": "style.visible", "source": "spotify:player", "key": "playing" }],
+              "children": [
+                {
+                  "name": "Music icon",
+                  "type": "ICON",
+                  "style": { "size": 24, "color": "#1ed760" },
+                  "icon": { "library": "lucide", "name": "music" }
+                },
+                {
+                  "name": "Track",
+                  "type": "TITLE",
+                  "style": { "fontSize": 24, "fontWeight": 600 },
+                  "title": { "text": "Song title" },
+                  "bindings": [{ "property": "text", "source": "spotify:player", "key": "track" }]
+                },
+                {
+                  "name": "Artist",
+                  "type": "TITLE",
+                  "style": { "fontSize": 24, "color": "#ffffff99" },
+                  "title": { "text": "Artist" },
+                  "bindings": [{ "property": "text", "source": "spotify:player", "key": "artist" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "be-right-back",
+      "name": "Be right back",
+      "description": "A break screen that shows how long you've been away, with a ticker scrolling along the bottom.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Screen",
+          "type": "CONTAINER",
+          "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "fillHeight": true,
+            "flexDirection": "column",
+            "alignItems": "stretch",
+            "backgroundColor": "#0e0e12"
+          },
+          "children": [
+            {
+              "name": "Message",
+              "type": "CONTAINER",
+              "style": {
+                "fillWidth": true,
+                "fillHeight": true,
+                "flexDirection": "column",
+                "justifyContent": "center",
+                "alignItems": "center",
+                "gap": 28
+              },
+              "children": [
+                {
+                  "name": "Coffee",
+                  "type": "ICON",
+                  "style": { "size": 96, "color": "#bf94ff" },
+                  "icon": { "library": "lucide", "name": "coffee" }
+                },
+                {
+                  "name": "Heading",
+                  "type": "TITLE",
+                  "style": { "fontSize": 128, "fontWeight": 800 },
+                  "title": { "text": "Be right back" }
+                },
+                {
+                  "name": "Away",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "row",
+                    "alignItems": "center",
+                    "gap": 16
+                  },
+                  "children": [
+                    {
+                      "name": "Away label",
+                      "type": "TITLE",
+                      "style": { "fontSize": 36, "color": "#ffffff99" },
+                      "title": { "text": "Away for" }
+                    },
+                    {
+                      "name": "Break timer",
+                      "type": "TIMER",
+                      "style": {
+                        "fontFamily": "Roboto Mono",
+                        "fontSize": 36,
+                        "fontWeight": 600,
+                        "format": "mm:ss"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Ticker",
+              "type": "SCROLLER",
+              "style": {
+                "fillWidth": true,
+                "height": 72,
+                "direction": "horizontal",
+                "mode": "loop",
+                "speed": 80,
+                "gap": 48,
+                "alignItems": "center",
+                "backgroundColor": "#9146ff"
+              },
+              "children": [
+                {
+                  "name": "Message 1",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "fontWeight": 600 },
+                  "title": { "text": "Thanks for hanging out" }
+                },
+                {
+                  "name": "Separator 1",
+                  "type": "ICON",
+                  "style": { "size": 24, "color": "#ffffffb3" },
+                  "icon": { "library": "lucide", "name": "sparkles" }
+                },
+                {
+                  "name": "Message 2",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "fontWeight": 600 },
+                  "title": { "text": "Follow so you don't miss the next stream" }
+                },
+                {
+                  "name": "Separator 2",
+                  "type": "ICON",
+                  "style": { "size": 24, "color": "#ffffffb3" },
+                  "icon": { "library": "lucide", "name": "sparkles" }
+                },
+                {
+                  "name": "Message 3",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "fontWeight": 600 },
+                  "title": { "text": "Chat is still open, keep it going" }
+                },
+                {
+                  "name": "Separator 3",
+                  "type": "ICON",
+                  "style": { "size": 24, "color": "#ffffffb3" },
+                  "icon": { "library": "lucide", "name": "sparkles" }
+                },
+                {
+                  "name": "Message 4",
+                  "type": "TITLE",
+                  "style": { "fontSize": 28, "fontWeight": 600 },
+                  "title": { "text": "Back in a few minutes" }
+                },
+                {
+                  "name": "Separator 4",
+                  "type": "ICON",
+                  "style": { "size": 24, "color": "#ffffffb3" },
+                  "icon": { "library": "lucide", "name": "sparkles" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subathon",
+      "name": "Subathon",
+      "description": "A subathon timer in the top right corner that Twitch subs and bits add time to, with the rates below it.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Top right",
+          "type": "CONTAINER",
+          "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "autoHeight": true,
+            "flexDirection": "column",
+            "alignItems": "flex-end",
+            "gap": 16,
+            "paddingX": 48,
+            "paddingY": 48
+          },
+          "children": [
+            {
+              "name": "Subathon card",
+              "type": "CONTAINER",
+              "style": {
+                "autoWidth": true,
+                "autoHeight": true,
+                "flexDirection": "column",
+                "alignItems": "center",
+                "gap": 16,
+                "paddingX": 28,
+                "paddingY": 24,
+                "backgroundColor": "#000000b3",
+                "borderRadius": 20
+              },
+              "children": [
+                {
+                  "name": "Label",
+                  "type": "TITLE",
+                  "style": { "fontSize": 24, "fontWeight": 700, "color": "#bf94ff" },
+                  "title": { "text": "SUBATHON" }
+                },
+                {
+                  "name": "Subathon",
+                  "type": "SUBATHON",
+                  "style": {
+                    "fontFamily": "Roboto Mono",
+                    "fontSize": 88,
+                    "fontWeight": 700,
+                    "format": "HH:mm:ss"
+                  },
+                  "subathon": {
+                    "duration": 3600000,
+                    "tier1Ms": 300000,
+                    "tier2Ms": 600000,
+                    "tier3Ms": 1500000,
+                    "bitsMs": 60000
+                  }
+                },
+                {
+                  "name": "Rates",
+                  "type": "CONTAINER",
+                  "style": {
+                    "autoWidth": true,
+                    "autoHeight": true,
+                    "flexDirection": "row",
+                    "alignItems": "center",
+                    "gap": 24
+                  },
+                  "children": [
+                    {
+                      "name": "Tier 1",
+                      "type": "TITLE",
+                      "style": { "fontSize": 20, "color": "#ffffffb3" },
+                      "title": { "text": "Sub +5 min" }
+                    },
+                    {
+                      "name": "Tier 2",
+                      "type": "TITLE",
+                      "style": { "fontSize": 20, "color": "#ffffffb3" },
+                      "title": { "text": "Tier 2 +10 min" }
+                    },
+                    {
+                      "name": "Tier 3",
+                      "type": "TITLE",
+                      "style": { "fontSize": 20, "color": "#ffffffb3" },
+                      "title": { "text": "Tier 3 +25 min" }
+                    },
+                    {
+                      "name": "Bits",
+                      "type": "TITLE",
+                      "style": { "fontSize": 20, "color": "#ffffffb3" },
+                      "title": { "text": "100 bits +1 min" }
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
@@ -261,92 +730,185 @@
     {
       "id": "scoreboard",
       "name": "Scoreboard",
-      "description": "Two players and their scores, for versus matches.",
+      "description": "Two players and their scores, centred at the top of the screen for versus matches.",
       "width": 1920,
       "height": 1080,
       "canvasMode": "FREE",
       "globalStyle": {},
       "elements": [
         {
-          "name": "Scoreboard",
+          "name": "Top center",
           "type": "CONTAINER",
           "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "autoHeight": true,
             "flexDirection": "column",
-            "gap": 16,
-            "x": 48,
-            "y": 48
+            "alignItems": "center",
+            "gap": 12,
+            "paddingX": 48,
+            "paddingY": 40
           },
           "children": [
             {
-              "name": "Player 1 row",
+              "name": "Scoreboard",
               "type": "CONTAINER",
               "style": {
+                "autoWidth": true,
+                "autoHeight": true,
                 "flexDirection": "row",
-                "gap": 32,
                 "alignItems": "center",
-                "justifyContent": "space-between"
+                "gap": 20,
+                "paddingX": 28,
+                "paddingY": 14,
+                "backgroundColor": "#000000b3",
+                "borderRadius": 20
               },
               "children": [
                 {
                   "name": "Player 1",
                   "type": "TITLE",
-                  "style": {
-                    "fontFamily": "Roboto",
-                    "fontSize": 64
-                  },
-                  "title": {
-                    "text": "Player 1"
-                  }
+                  "style": { "fontSize": 40, "fontWeight": 700 },
+                  "title": { "text": "Player 1" }
                 },
                 {
                   "name": "Score 1",
                   "type": "COUNTER",
                   "style": {
                     "fontFamily": "Roboto Mono",
-                    "fontSize": 64,
-                    "backgroundColor": "#ffffff26",
-                    "padding": 20,
-                    "radius": 16
+                    "fontSize": 56,
+                    "fontWeight": 700,
+                    "backgroundColor": "#e5484d",
+                    "padding": 14,
+                    "radius": 12
                   },
-                  "counter": {
-                    "value": 0
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Player 2 row",
-              "type": "CONTAINER",
-              "style": {
-                "flexDirection": "row",
-                "gap": 32,
-                "alignItems": "center",
-                "justifyContent": "space-between"
-              },
-              "children": [
+                  "counter": { "value": 0 }
+                },
                 {
-                  "name": "Player 2",
+                  "name": "Versus",
                   "type": "TITLE",
-                  "style": {
-                    "fontFamily": "Roboto",
-                    "fontSize": 64
-                  },
-                  "title": {
-                    "text": "Player 2"
-                  }
+                  "style": { "fontSize": 24, "fontWeight": 600, "color": "#ffffff80" },
+                  "title": { "text": "VS" }
                 },
                 {
                   "name": "Score 2",
                   "type": "COUNTER",
                   "style": {
                     "fontFamily": "Roboto Mono",
-                    "fontSize": 64,
-                    "backgroundColor": "#ffffff26",
-                    "padding": 20,
-                    "radius": 16
+                    "fontSize": 56,
+                    "fontWeight": 700,
+                    "backgroundColor": "#3e63dd",
+                    "padding": 14,
+                    "radius": 12
                   },
-                  "counter": {
-                    "value": 0
+                  "counter": { "value": 0 }
+                },
+                {
+                  "name": "Player 2",
+                  "type": "TITLE",
+                  "style": { "fontSize": 40, "fontWeight": 700 },
+                  "title": { "text": "Player 2" }
+                }
+              ]
+            },
+            {
+              "name": "Match info",
+              "type": "TITLE",
+              "style": { "fontSize": 22, "fontWeight": 600, "color": "#ffffffb3" },
+              "title": { "text": "Best of 5" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bingo",
+      "name": "Stream bingo",
+      "description": "A bingo card in the top right corner for chat to follow along. Fill in the fields and mark them live.",
+      "width": 1920,
+      "height": 1080,
+      "canvasMode": "FREE",
+      "globalStyle": {},
+      "elements": [
+        {
+          "name": "Top right",
+          "type": "CONTAINER",
+          "style": {
+            "x": 0,
+            "y": 0,
+            "fillWidth": true,
+            "autoHeight": true,
+            "flexDirection": "column",
+            "alignItems": "flex-end",
+            "gap": 16,
+            "paddingX": 48,
+            "paddingY": 48
+          },
+          "children": [
+            {
+              "name": "Bingo card",
+              "type": "CONTAINER",
+              "style": {
+                "autoWidth": true,
+                "autoHeight": true,
+                "flexDirection": "column",
+                "alignItems": "flex-start",
+                "gap": 16,
+                "paddingX": 24,
+                "paddingY": 20,
+                "backgroundColor": "#000000b3",
+                "borderRadius": 20
+              },
+              "children": [
+                {
+                  "name": "Title",
+                  "type": "TITLE",
+                  "style": { "fontSize": 36, "fontWeight": 700 },
+                  "title": { "text": "Stream Bingo" }
+                },
+                {
+                  "name": "Bingo",
+                  "type": "BINGO",
+                  "style": {
+                    "width": 460,
+                    "fontSize": 40,
+                    "gridLines": true,
+                    "gridLineColor": "#ffffff40",
+                    "checkedCrossColor": "#bf94ff",
+                    "padding": 0
+                  },
+                  "bingo": {
+                    "rows": 5,
+                    "columns": 5,
+                    "freeMiddle": true,
+                    "fields": [
+                      "Chat says W",
+                      "First death",
+                      "Technical difficulties",
+                      "Talking while muted",
+                      "Raid incoming",
+                      "New sub",
+                      "Backseating in chat",
+                      "Rage moment",
+                      "Forgot to drink",
+                      "Lag spike",
+                      "Pet cameo",
+                      "Emote spam",
+                      "",
+                      "“One more game”",
+                      "Hype train",
+                      "Gifted subs",
+                      "“Clip it!”",
+                      "Snack break",
+                      "Wrong scene",
+                      "“I meant to do that”",
+                      "Fall damage",
+                      "New follower",
+                      "Song request",
+                      "Chat was right",
+                      "Lost track of time"
+                    ]
                   }
                 }
               ]
