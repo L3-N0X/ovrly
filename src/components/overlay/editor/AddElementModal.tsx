@@ -29,6 +29,7 @@ import {
   Hourglass,
   Image,
   Loader2,
+  MessagesSquare,
   Play,
   Plus,
   Rows3,
@@ -143,6 +144,30 @@ const CONTENT_OPTIONS: ElementOption[] = [
             +5m
           </span>
           <span className="text-2xl font-bold tabular-nums">12:34:56</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.CHAT,
+    label: "Chat",
+    description:
+      "Your Twitch chat, live, with 7TV, BetterTTV and FrankerFaceZ emotes and a message format of your own.",
+    icon: MessagesSquare,
+    preview: (
+      <Stage>
+        <div className="w-36 space-y-1 text-[10px] leading-tight">
+          {[
+            ["L3_N0X", "text-orange-400", "welcome in!"],
+            ["PixelPal", "text-sky-400", "so clean 🔥"],
+            ["night_owl", "text-emerald-400", "first stream VoHiYo"],
+          ].map(([name, color, text]) => (
+            <div key={name} className="truncate">
+              <span className={cn("font-bold", color)}>{name}</span>
+              <span className="text-white/60">: </span>
+              <span className="text-white/90">{text}</span>
+            </div>
+          ))}
         </div>
       </Stage>
     ),

@@ -68,6 +68,7 @@ const ELEMENT_TYPES = [
   "SCROLLER",
   "CYCLE_STACK",
   "VIDEO",
+  "CHAT",
 ];
 const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"];
 // Copies are shifted by this much (when they are placed by x/y), so a pasted element doesn't
@@ -239,6 +240,10 @@ export const handleElementsRoutes = async (
       } else if (type === "RECTANGLE") {
         // Nothing to draw yet; the size falls back to the defaults until it is styled.
         elementCreateData.style = {};
+      } else if (type === "CHAT") {
+        // Shows the owner's channel until another one is picked. Chat reads best at a regular
+        // weight, and the names stand out at bold (the default every renderer falls back to).
+        elementCreateData.style = { fontWeight: 500 };
       } else {
         return new Response(JSON.stringify({ error: "Invalid element type" }), {
           status: 400,

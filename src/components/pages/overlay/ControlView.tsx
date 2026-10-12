@@ -52,7 +52,7 @@ const ControlView: React.FC<ControlViewProps> = ({
             maxWidth: `min(100%, calc((100dvh - 10rem) * ${width} / ${height}))`,
           }}
         >
-          <OverlayPreview overlay={overlay} interactive={canControl} />
+          <OverlayPreview overlay={overlay} interactive={canControl} liveChat />
         </div>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="relative flex size-2">

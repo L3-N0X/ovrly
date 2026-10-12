@@ -198,6 +198,7 @@ enum ElementType {
   SCROLLER
   CYCLE_STACK
   VIDEO
+  CHAT
 }
 
 model Title {

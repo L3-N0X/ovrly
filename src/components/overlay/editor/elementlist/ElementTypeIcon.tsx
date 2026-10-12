@@ -9,6 +9,7 @@ import {
   Hourglass,
   HeartPulse,
   Image,
+  MessagesSquare,
   Rows3,
   ScrollText,
   Shapes,
@@ -54,6 +55,8 @@ export const ElementTypeIcon = ({
       return <SquareStack className={className} />;
     case ElementTypeEnum.PROGRESS:
       return <ChartNoAxesGantt className={className} />;
+    case ElementTypeEnum.CHAT:
+      return <MessagesSquare className={className} />;
     case ElementTypeEnum.CONTAINER: {
       // Mirrors the container's layout direction
       const direction = (element.style as ContainerStyle | null)?.flexDirection ?? "column";

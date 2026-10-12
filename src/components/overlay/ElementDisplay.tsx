@@ -24,6 +24,7 @@ import Bingo from "./Bingo";
 import Group from "./Group";
 import Scroller from "./Scroller";
 import CycleStack from "./CycleStack";
+import Chat from "./Chat";
 import { CANVAS_ELEMENT_ATTRIBUTE, useCanvasSelection } from "./canvasSelection";
 
 interface ElementDisplayProps {
@@ -99,6 +100,8 @@ const ElementDisplay: React.FC<ElementDisplayProps> = ({ element, elements }) =>
         return <Image element={element} />;
       case "VIDEO":
         return <Video element={element} />;
+      case "CHAT":
+        return <Chat element={element} />;
       case "BINGO":
         // Only the editor preview provides a selection context; the public overlay is read only.
         return <Bingo element={element} isEditor={selection !== null} />;

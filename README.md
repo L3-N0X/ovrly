@@ -29,6 +29,7 @@ All Elements are editable to change their content.
 * **Subathon:** A countdown that Twitch subs and cheers of your connected channel add time to, with per-tier rates, a happy hour multiplier and an optional cap.
 * **Image:** Add player photos, logos, or more.
 * **Video:** Play an uploaded MP4 or WebM, a GIF, or a link to one, with play, pause, restart and stop in the controls. For a **transparent background use WebM with VP9 and an alpha channel** (MP4 has none); see [Video element](docs/video.md) for how to convert.
+* **Chat:** Your Twitch chat (or any channel's), live, with Twitch, 7TV, BetterTTV and FrankerFaceZ emotes and badges. Write messages in your own format (`<{name}> | {message}`), style names separately, pick where new messages come in and how they animate, and optionally remove them after a while.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
 * **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.

@@ -84,6 +84,8 @@ export const parseComponentElements = (value: unknown): ComponentElement[] | str
         delete style.x;
         delete style.y;
       }
+      // A chat picked to show another channel; wherever it is added, it shows that owner's.
+      if (type === "CHAT") delete style.channel;
       const name =
         typeof node.name === "string" && node.name.trim()
           ? node.name.trim().slice(0, MAX_ELEMENT_NAME_LENGTH)

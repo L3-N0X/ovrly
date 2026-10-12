@@ -188,6 +188,38 @@ export const getViewerCounts = async (channelIds: string[]) => {
   return viewers;
 };
 
+// A chat badge, as chat messages name it: "<set>/<version>" ("subscriber/12").
+export interface ChatBadge {
+  title: string;
+  // 36x36 and 72x72.
+  url: string;
+  largeUrl: string;
+}
+
+interface HelixBadgeSet {
+  set_id: string;
+  versions: { id: string; title: string; image_url_2x: string; image_url_4x: string }[];
+}
+
+// The badges every chat shows (moderator, VIP, ...), or with `channelId` the ones of that channel
+// (its subscriber and bits badges), by "<set>/<version>".
+export const getChatBadges = async (channelId?: string) => {
+  const { data } = await helix<{ data: HelixBadgeSet[] }>(
+    channelId ? `/chat/badges?broadcaster_id=${encodeURIComponent(channelId)}` : "/chat/badges/global"
+  );
+  const badges: Record<string, ChatBadge> = {};
+  for (const set of data) {
+    for (const version of set.versions) {
+      badges[`${set.set_id}/${version.id}`] = {
+        title: version.title,
+        url: version.image_url_2x,
+        largeUrl: version.image_url_4x,
+      };
+    }
+  }
+  return badges;
+};
+
 // With a token of the channel itself (channel:read:subscriptions). `total` includes the
 // broadcaster's own subscription, as on Twitch.
 export const getSubscriptions = async (channelId: string, userToken: string) => {

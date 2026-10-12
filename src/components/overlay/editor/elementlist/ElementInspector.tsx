@@ -9,6 +9,7 @@ import {
   type OnOverlayChange,
 } from "@/lib/types";
 import { BingoEditor } from "../BingoEditor";
+import { ChatEditor } from "../ChatEditor";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
@@ -147,5 +148,7 @@ export const ElementStyleEditor = ({
       return <CycleStackEditor {...editorProps} />;
     case ElementTypeEnum.PROGRESS:
       return <ProgressEditor {...editorProps} />;
+    case ElementTypeEnum.CHAT:
+      return <ChatEditor {...editorProps} />;
   }
 };

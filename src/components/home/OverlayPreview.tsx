@@ -1,17 +1,20 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import OverlayCanvas from "@/components/overlay/OverlayCanvas";
+import { ChatPreviewContext } from "@/components/overlay/chatPreview";
 import { fontFamilyOf, fontWeightOf, loadFont } from "@/lib/fonts";
 import { canvasSize, type BaseElementStyle, type PrismaOverlay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // A live, scaled down rendering of an overlay. It is only rendered once it scrolls into
 // view, so a long list doesn't mount (and tick the timers of) every overlay at once. It is
-// read-only unless `interactive` is set (bingo cells can then be clicked, for example).
+// read-only unless `interactive` is set (bingo cells can then be clicked, for example). Chats show
+// sample messages unless `liveChat` is set, so a page of cards doesn't connect to every chat.
 const OverlayPreview: React.FC<{
   overlay: PrismaOverlay;
   className?: string;
   interactive?: boolean;
-}> = ({ overlay, className, interactive = false }) => {
+  liveChat?: boolean;
+}> = ({ overlay, className, interactive = false, liveChat = false }) => {
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -69,7 +72,9 @@ const OverlayPreview: React.FC<{
           className="absolute top-0 left-0 origin-top-left"
           style={{ width, height, transform: `scale(${scale})` }}
         >
-          <OverlayCanvas overlay={overlay} />
+          <ChatPreviewContext.Provider value={!liveChat}>
+            <OverlayCanvas overlay={overlay} />
+          </ChatPreviewContext.Provider>
         </div>
       )}
     </div>

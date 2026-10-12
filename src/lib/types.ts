@@ -16,6 +16,7 @@ export const ElementTypeEnum = {
   SCROLLER: "SCROLLER",
   CYCLE_STACK: "CYCLE_STACK",
   VIDEO: "VIDEO",
+  CHAT: "CHAT",
 } as const;
 
 // Element types that hold other elements.
@@ -157,6 +158,7 @@ export const canFill = (type: ElementType) =>
   type === ElementTypeEnum.SCROLLER ||
   type === ElementTypeEnum.CYCLE_STACK ||
   type === ElementTypeEnum.RECTANGLE ||
+  type === ElementTypeEnum.CHAT ||
   type === ElementTypeEnum.PROGRESS;
 
 // Whether an element fills its parent along each side.
@@ -430,6 +432,94 @@ export interface RectangleStyle extends BaseElementStyle {
   borderRadius?: number;
 }
 
+// Where a chat's messages sit, and which end new ones come in at.
+export type ChatEdge = "top" | "bottom";
+
+// How a new chat message comes in (and an old one leaves): the others always make room smoothly.
+export type ChatAnimation = "slide-left" | "slide-right" | "rise" | "fade" | "pop" | "none";
+
+export type ChatTimeFormat = "24h" | "24h-seconds" | "12h";
+
+// Specific style for a Chat element: the live Twitch chat of a channel, with Twitch, 7TV, BTTV
+// and FFZ emotes (see src/lib/chat). The message font is the base `fontFamily`/`fontSize`/
+// `fontWeight`/`color`; names have their own.
+export interface ChatStyle extends BaseElementStyle {
+  /** The Twitch channel (login name); empty for the overlay owner's own. */
+  channel?: string;
+  width?: number;
+  height?: number;
+  /**
+   * How a message is written, with placeholders (see `CHAT_PLACEHOLDERS` in src/lib/chat):
+   * `DEFAULT_CHAT_FORMAT` by default. Anything else is shown as written, in `dividerColor`.
+   */
+  format?: string;
+  timeFormat?: ChatTimeFormat;
+  /** The text between the placeholders; the message color by default. */
+  dividerColor?: string;
+  /** The timestamp; a dimmed message color by default. */
+  timeColor?: string;
+  /** Names fall back to the message font. */
+  nameFontFamily?: string;
+  nameFontSize?: number;
+  nameFontWeight?: number;
+  /** On by default: names in the color each chatter picked on Twitch, `nameColor` for the rest. */
+  useUserColors?: boolean;
+  nameColor?: string;
+  /** The height of emotes in pixels; 1.6 times the font size by default. */
+  emoteSize?: number;
+  /** Which emote providers are used besides Twitch; all of them by default. */
+  sevenTv?: boolean;
+  bttv?: boolean;
+  ffz?: boolean;
+  /** "bottom" by default: messages sit at the bottom of the box while they don't fill it. */
+  align?: ChatEdge;
+  /** "bottom" by default: new messages come in below the older ones. */
+  newestAt?: ChatEdge;
+  /** Off by default: messages stay until they are pushed out. On, they leave after `hideAfter`. */
+  hideMessages?: boolean;
+  /** Seconds a message is shown for while `hideMessages` is on. */
+  hideAfter?: number;
+  /** The most messages kept; older ones leave. */
+  maxMessages?: number;
+  animation?: ChatAnimation;
+  /** Seconds a message takes to come in or leave. */
+  animationDuration?: number;
+  /** Fades messages out towards the edge where they are cut off. Off by default. */
+  fadeEdge?: boolean;
+  textAlign?: "left" | "center" | "right";
+  /** Pixels between two messages. */
+  gap?: number;
+  /** Leaves out messages starting with "!" (bot commands). Off by default. */
+  hideCommands?: boolean;
+  /** Login names whose messages are left out (bots), separated by commas or spaces. */
+  hiddenUsers?: string;
+  /** Each message on a background of its own; none by default. */
+  messageBackgroundColor?: string;
+  messageRadius?: number;
+  messagePaddingX?: number;
+  messagePaddingY?: number;
+  /** The box around all messages. */
+  paddingX?: number;
+  paddingY?: number;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+}
+
+export const DEFAULT_CHAT_WIDTH = 420;
+export const DEFAULT_CHAT_HEIGHT = 560;
+export const DEFAULT_CHAT_FONT_SIZE = 22;
+export const DEFAULT_CHAT_FORMAT = "{badges}{name}: {message}";
+export const DEFAULT_CHAT_HIDE_AFTER = 30;
+export const DEFAULT_CHAT_MAX_MESSAGES = 50;
+export const DEFAULT_CHAT_ANIMATION_DURATION = 0.35;
+export const DEFAULT_CHAT_GAP = 8;
+export const DEFAULT_CHAT_NAME_COLOR = "#a970ff";
+export const CHAT_MAX_MESSAGES_RANGE = { min: 1, max: 200 };
+export const CHAT_HIDE_AFTER_RANGE = { min: 1, max: 3600 };
+export const CHAT_ANIMATION_DURATION_RANGE = { min: 0, max: 5 };
+
 // How a progress bar reads its value: as a percentage, or as a value out of a maximum (a song's
 // progress out of its length).
 export type ProgressMode = "percent" | "values";
@@ -503,6 +593,7 @@ export type ElementStyle =
   | BingoStyle
   | ScrollerStyle
   | CycleStackStyle
+  | ChatStyle
   | GroupStyle;
 
 // The generic Element object from the backend
