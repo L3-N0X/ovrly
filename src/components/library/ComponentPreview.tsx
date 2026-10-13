@@ -15,7 +15,7 @@ const MAX_SCALE = 2;
 // previews it is only rendered once it scrolls into view, and it is read only. With `variables`
 // (the ones of the overlay it is about to be added to), bound properties show their values.
 const ComponentPreview: React.FC<{
-  component: OverlayComponent;
+  component: Pick<OverlayComponent, "id" | "elements">;
   variables?: OverlayVariable[];
   className?: string;
 }> = ({ component, variables, className }) => {

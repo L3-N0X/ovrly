@@ -53,7 +53,7 @@ export const TwitchConnections: React.FC<{
   return (
     <div className="space-y-8">
       {connected && !error && (
-        <p className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+        <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
           <CheckCircle2 className="size-4 shrink-0" />
           {connected} is connected. Its subscriber stats show up in your overlays within a minute,
           and its subs and cheers count in your subathons.
@@ -112,7 +112,7 @@ export const TwitchConnections: React.FC<{
             <ul className="divide-y">
               {data.connections.map((connection) => (
                 <li key={connection.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#9146ff] text-sm font-semibold text-white">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-twitch text-sm font-semibold text-brand-twitch-foreground">
                     {connection.displayName.charAt(0).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -123,7 +123,7 @@ export const TwitchConnections: React.FC<{
                       twitch.tv/{connection.login} · since {formatDate(connection.createdAt)}
                     </span>
                     {!connection.bits && (
-                      <span className="block text-xs text-amber-600 dark:text-amber-400">
+                      <span className="block text-xs text-warning">
                         Connected before cheers could be read: connect it again to count them in
                         subathons.
                       </span>

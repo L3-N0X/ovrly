@@ -11,8 +11,9 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { authClient } from "@/lib/auth-client";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ModeToggle } from "./toggle";
+import { TwitchSignInButton } from "./landing/TwitchSignInButton";
 import { Button } from "./ui/button";
 
 import { LogOut, Settings, User } from "lucide-react";
@@ -20,9 +21,12 @@ import ovrlyLogo from "../assets/ovrly-logo.png";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 
 const Navbar = () => {
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  // Signed out on the home page, which is the landing page then.
+  const onLanding = !isPending && !user && pathname === "/";
 
   const handleSignOut = async () => {
     await authClient.signOut().then(() => {
@@ -31,13 +35,13 @@ const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background: px-4 md:px-6 z-50 backdrop-blur-xl ">
+    <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-xl md:px-6">
       <NavigationMenu>
         <NavigationMenuList>
           <NavigationMenuItem>
             <Link
               to="/"
-              className="flex items-center gap-2 text-lg font-semibold md:text-base font-mono"
+              className="flex items-center gap-2 font-display text-xl font-bold tracking-tight"
             >
               <img src={ovrlyLogo} alt="Ovrly Logo" className="h-8 w-8 dark:invert" />
               Ovrly
@@ -46,8 +50,26 @@ const Navbar = () => {
         </NavigationMenuList>
       </NavigationMenu>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
+        {onLanding && (
+          <nav className="ml-8 hidden gap-6 text-sm text-muted-foreground md:flex">
+            <a href="#features" className="transition-colors hover:text-foreground">
+              Features
+            </a>
+            <a href="#integrations" className="transition-colors hover:text-foreground">
+              Integrations
+            </a>
+            <a href="#faq" className="transition-colors hover:text-foreground">
+              FAQ
+            </a>
+          </nav>
+        )}
         <div className="ml-auto flex-1 sm:flex-initial"></div>
         <ModeToggle></ModeToggle>
+        {onLanding && (
+          <TwitchSignInButton size="sm" className="shadow-none">
+            Sign in
+          </TwitchSignInButton>
+        )}
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

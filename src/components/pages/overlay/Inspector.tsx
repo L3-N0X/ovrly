@@ -222,7 +222,7 @@ const ElementPanel = ({
 };
 
 const PanelHeader = ({ children }: { children: React.ReactNode }) => (
-  <div className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b bg-background px-3">
+  <div className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b bg-card px-3">
     {children}
   </div>
 );

@@ -115,7 +115,7 @@ const OverlayCard: React.FC<OverlayCardProps> = ({
               aria-label="Copy browser source URL for OBS"
               onClick={() => onCopyPublicUrl(overlay.id)}
             >
-              {isCopied ? <Check className="text-emerald-500" /> : <Link2 />}
+              {isCopied ? <Check className="text-success" /> : <Link2 />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

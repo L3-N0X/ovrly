@@ -56,7 +56,7 @@ export const SpotifyConnection: React.FC<{
   return (
     <div className="space-y-8">
       {connected && !error && (
-        <p className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+        <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
           <CheckCircle2 className="size-4 shrink-0" />
           {connected} is connected. What you play shows up in the Variables tab of your overlays.
         </p>
@@ -85,7 +85,7 @@ export const SpotifyConnection: React.FC<{
             <p className="text-sm text-muted-foreground">Spotify is not set up on this server.</p>
           ) : connection ? (
             <div className="flex items-center gap-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1db954] text-white">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-spotify text-brand-spotify-foreground">
                 <Music className="size-4" />
               </span>
               <span className="min-w-0 flex-1">

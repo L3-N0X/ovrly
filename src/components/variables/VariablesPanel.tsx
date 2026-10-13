@@ -323,9 +323,9 @@ const VariableGroup: React.FC<{
             className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")}
           />
           {spotify ? (
-            <Music className="size-3.5 shrink-0 text-[#1db954]" />
+            <Music className="size-3.5 shrink-0 text-brand-spotify" />
           ) : provider ? (
-            <Tv className="size-3.5 shrink-0 text-violet-500" />
+            <Tv className="size-3.5 shrink-0 text-brand-twitch dark:text-primary" />
           ) : (
             <Braces className="size-3.5 shrink-0 text-muted-foreground" />
           )}
@@ -356,7 +356,7 @@ const VariableGroup: React.FC<{
       {open && (
         <>
           {problem && (
-            <p className="mx-4 mb-2 flex gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <p className="mx-4 mb-2 flex gap-1.5 text-xs text-warning">
               <AlertCircle className="mt-px size-3.5 shrink-0" />
               <span>{problem}</span>
             </p>
@@ -456,7 +456,7 @@ const VariableRow: React.FC<{ variable: Variable; usedBy: string[] }> = ({ varia
         </span>
         {usedBy.length > 0 && (
           <span
-            className="shrink-0 rounded-full bg-violet-500/15 px-1.5 text-[10px] font-medium text-violet-600 tabular-nums dark:text-violet-300"
+            className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-medium text-primary tabular-nums"
             title={`Used by ${usedBy.join(", ")}`}
           >
             {usedBy.length}

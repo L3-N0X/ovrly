@@ -15,13 +15,10 @@ import {
   Blocks,
   Layers,
   Loader2,
-  MonitorPlay,
   Plus,
   RefreshCw,
   Search,
   Trash2,
-  Users,
-  Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +28,7 @@ import CreateOverlayModal from "@/components/CreateOverlayModal";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { ComponentLibrary } from "@/components/library/ComponentLibrary";
 import { LibraryHeader, SearchField } from "@/components/library/LibraryHeader";
+import Landing from "@/components/landing/Landing";
 
 type Filter = "all" | "mine" | "shared";
 type Sort = "newest" | "oldest" | "name";
@@ -52,7 +50,6 @@ const HomePage: React.FC = () => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -173,20 +170,6 @@ const HomePage: React.FC = () => {
 
   const openCreate = () => setIsCreateOpen(true);
 
-  const handleTwitchSignIn = async () => {
-    // Every sign-in attempt overwrites the OAuth state cookie, so a second click
-    // while the first redirect is in flight makes the callback fail with state_mismatch.
-    if (isSigningIn) return;
-    setIsSigningIn(true);
-    try {
-      const { error } = await authClient.signIn.social({ provider: "twitch" });
-      if (error) setIsSigningIn(false);
-    } catch (error) {
-      setIsSigningIn(false);
-      throw error;
-    }
-  };
-
   if (isSessionPending) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
@@ -196,7 +179,7 @@ const HomePage: React.FC = () => {
   }
 
   if (!user) {
-    return <Landing onSignIn={handleTwitchSignIn} isSigningIn={isSigningIn} />;
+    return <Landing />;
   }
 
   const filters: { value: Filter; label: string; count: number }[] = [
@@ -245,7 +228,7 @@ const HomePage: React.FC = () => {
             />
           )}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
               Welcome back, {user.user.name}
             </h1>
             <p className="mt-1 text-muted-foreground">
@@ -309,7 +292,7 @@ const HomePage: React.FC = () => {
                   className={cn(
                     "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
                     filter === value
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "border-primary/40 bg-primary/15 text-primary"
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                 >
@@ -317,7 +300,7 @@ const HomePage: React.FC = () => {
                   <span
                     className={cn(
                       "tabular-nums",
-                      filter === value ? "text-primary-foreground/70" : "text-muted-foreground/70"
+                      filter === value ? "text-primary/70" : "text-muted-foreground/70"
                     )}
                   >
                     {count}
@@ -460,7 +443,7 @@ const EmptyState: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
       <span className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <Layers className="size-8" />
       </span>
-      <h2 className="text-xl font-semibold">Create your first overlay</h2>
+      <h2 className="font-display text-xl font-semibold">Create your first overlay</h2>
       <p className="text-muted-foreground">
         Start from an empty canvas or a template, like a corner layout around your camera or a
         starting soon screen, then add it to OBS as a browser source.
@@ -469,59 +452,6 @@ const EmptyState: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
         <Plus />
         New overlay
       </Button>
-    </div>
-  </div>
-);
-
-const FEATURES = [
-  {
-    icon: Zap,
-    title: "Live updates",
-    text: "Change counters, timers and text mid-stream. OBS picks it up instantly.",
-  },
-  {
-    icon: Users,
-    title: "Built for teams",
-    text: "Share overlays with your mods so they can keep things up to date.",
-  },
-  {
-    icon: MonitorPlay,
-    title: "Drop into OBS",
-    text: "Every overlay has a browser source URL. Paste it in and you're done.",
-  },
-];
-
-const Landing: React.FC<{ onSignIn: () => void; isSigningIn: boolean }> = ({
-  onSignIn,
-  isSigningIn,
-}) => (
-  <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-16 py-16 text-center sm:py-24">
-    <div className="flex flex-col items-center gap-6">
-      <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
-        Overlays your whole team can{" "}
-        <span className="bg-gradient-to-r from-primary to-fuchsia-500 bg-clip-text text-transparent">
-          update live
-        </span>
-      </h1>
-      <p className="max-w-xl text-lg text-muted-foreground">
-        Design titles, counters, timers and bingo cards, then control them from anywhere while
-        you stream.
-      </p>
-      <Button size="lg" onClick={onSignIn} disabled={isSigningIn} className="mt-2 min-w-60">
-        {isSigningIn && <Loader2 className="animate-spin" />}
-        Sign in with Twitch
-      </Button>
-    </div>
-    <div className="grid w-full gap-4 text-left sm:grid-cols-3">
-      {FEATURES.map(({ icon: Icon, title, text }) => (
-        <div key={title} className="rounded-xl border bg-card p-5">
-          <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="size-5" />
-          </span>
-          <h3 className="font-semibold">{title}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-        </div>
-      ))}
     </div>
   </div>
 );

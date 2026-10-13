@@ -22,7 +22,7 @@ export function PanelTabs<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className="flex h-11 shrink-0 items-center gap-1 border-b bg-background px-2"
+      className="flex h-11 shrink-0 items-center gap-1 border-b bg-card px-2"
     >
       {tabs.map((tab) => (
         <button

@@ -178,8 +178,8 @@ export const SubathonStatusLine = ({
       <span
         className={cn(
           "mt-1 size-2 shrink-0 rounded-full",
-          tone === "ok" && "bg-emerald-500",
-          tone === "wait" && "animate-pulse bg-amber-500",
+          tone === "ok" && "bg-success",
+          tone === "wait" && "animate-pulse bg-warning",
           tone === "problem" && "bg-destructive"
         )}
       />

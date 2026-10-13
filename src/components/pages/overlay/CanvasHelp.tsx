@@ -82,7 +82,7 @@ export function CanvasHelp() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="absolute bottom-3 left-3 rounded-full border bg-background/90 shadow-md backdrop-blur"
+          className="absolute bottom-3 left-3 rounded-full border bg-popover/90 shadow-md backdrop-blur"
           title="How the canvas works"
           aria-label="How the canvas works"
           onPointerDown={(e) => e.stopPropagation()}

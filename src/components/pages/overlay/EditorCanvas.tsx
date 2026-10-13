@@ -491,7 +491,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const grabbing = isPanning || spaceHeld;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-neutral-200 select-none dark:bg-neutral-950">
+    <div className="relative h-full w-full overflow-hidden bg-pasteboard select-none">
       <div
         ref={viewportRef}
         className={cn(
@@ -552,7 +552,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
             ].map((rect, i) => (
               <div
                 key={i}
-                className="absolute bg-neutral-200/75 dark:bg-neutral-950/75"
+                className="absolute bg-pasteboard/75"
                 style={rect}
               />
             ))}
@@ -561,7 +561,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
             aria-hidden
             className={cn(
               "pointer-events-none absolute top-0 left-0 z-[6] outline-solid",
-              frameSelected ? "outline-sky-400" : "outline-neutral-400/60 dark:outline-neutral-600"
+              frameSelected ? "outline-sky-400" : "outline-input"
             )}
             style={{
               width: canvasWidth,
@@ -594,7 +594,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
         </button>
       </div>
 
-      <div className="absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">
+      <div className="absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border bg-popover/90 p-1 shadow-md backdrop-blur">
         <ToolButton
           active={activeTool === "select"}
           onClick={() => setTool("select")}
@@ -639,7 +639,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
       <CanvasHelp />
 
-      <div className="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border bg-background/90 p-1 shadow-md backdrop-blur">
+      <div className="absolute right-3 bottom-3 flex items-center gap-0.5 rounded-lg border bg-popover/90 p-1 shadow-md backdrop-blur">
         <Button
           variant="ghost"
           size="icon-sm"

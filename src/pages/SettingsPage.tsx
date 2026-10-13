@@ -98,7 +98,7 @@ export function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-4xl pb-20">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Decide who can view, run and edit your overlays, see what others shared with you,
           connect Twitch channels and Spotify, and let other apps send variables to your overlays.

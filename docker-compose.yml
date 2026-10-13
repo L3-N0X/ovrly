@@ -27,6 +27,8 @@ services:
     image: rustfs/rustfs:latest
     container_name: ovrly-s3
     command: /data
+    ports:
+      - 9000:9000
     environment:
       RUSTFS_ACCESS_KEY: ${OVRLY_S3_ACCESS_KEY:-ovrly}
       RUSTFS_SECRET_KEY: ${OVRLY_S3_SECRET_KEY:-change-me-please}

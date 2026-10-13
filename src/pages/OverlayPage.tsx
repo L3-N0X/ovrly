@@ -229,7 +229,7 @@ const OverlayPage: React.FC = () => {
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <aside
               aria-label="Layers"
-              className="order-3 shrink-0 border-t bg-background lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
+              className="order-3 shrink-0 border-t bg-card lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
             >
               <ElementListEditor
                 overlay={overlay}
@@ -257,7 +257,7 @@ const OverlayPage: React.FC = () => {
             </main>
             <aside
               aria-label="Inspector"
-              className="order-2 flex shrink-0 flex-col border-t bg-background lg:order-3 lg:w-[340px] lg:border-t-0 lg:border-l xl:w-[360px]"
+              className="order-2 flex shrink-0 flex-col border-t bg-card lg:order-3 lg:w-[340px] lg:border-t-0 lg:border-l xl:w-[360px]"
             >
               <PanelTabs label="Panel" tabs={PANEL_TABS} value={panel} onValueChange={setPanel} />
               <div ref={inspectorRef} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">

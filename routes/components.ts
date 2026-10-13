@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "../auth";
 import { authenticate, requireOverlayRole } from "../middleware/authMiddleware";
 import { corsHeaders, json } from "../middleware/cors";
@@ -14,11 +15,15 @@ import {
 import { toElementTree, type ElementSeed } from "./overlays";
 import type { Prisma } from "../src/generated/prisma/client";
 
-// A user's components: saved from an element of an overlay they edit, or imported from a
-// component file someone exported. Only their owner sees them; adding one to an overlay is
+// A user's components: saved from an element of an overlay they edit, imported from a
+// component file someone exported, or added from a share link. Only their owner sees them,
+// unless they share one by link; adding one to an overlay is
 // POST /api/overlays/:id/elements/component (routes/elements.ts).
 
 const IMPORTED_COMPONENT_NAME = "Imported component";
+
+// 144 random bits, URL safe: the link is all it takes to see a shared component.
+const newShareToken = () => randomBytes(18).toString("base64url");
 
 const findOwnComponent = (userId: string, id: string) =>
   prisma.component.findFirst({ where: { id, userId } });
@@ -35,8 +40,47 @@ const findInTree = (nodes: ElementSeed[], id: string): ElementSeed | null => {
 export const handleComponentsRoutes = async (req: Request, path: string) => {
   if (!path.startsWith("/api/components")) return null;
   const session = await authenticate(req);
+
+  // A component shared by link: anyone with it may look, signed in or not.
+  const sharedMatch = path.match(/^\/api\/components\/shared\/([a-zA-Z0-9_-]+)$/);
+  if (sharedMatch && req.method === "GET") {
+    const component = await prisma.component.findUnique({
+      where: { shareToken: sharedMatch[1] },
+      include: { user: { select: { name: true, image: true } } },
+    });
+    if (!component) return json({ error: "This link doesn't work anymore" }, 404);
+    return json({
+      name: component.name,
+      description: component.description,
+      elements: component.elements,
+      updatedAt: component.updatedAt,
+      owner: component.user,
+      own: component.userId === session?.user.id,
+    });
+  }
+
   if (!session) return json({ error: "Unauthorized" }, 401);
   const userId = session.user.id;
+
+  // Adds a copy of a component shared by link to the user's own.
+  if (sharedMatch && req.method === "POST") {
+    const shared = await prisma.component.findUnique({ where: { shareToken: sharedMatch[1] } });
+    if (!shared) return json({ error: "This link doesn't work anymore" }, 404);
+    if (shared.userId === userId) return json({ error: "This is one of your components already" }, 400);
+    const elements = parseComponentElements(shared.elements);
+    if (typeof elements === "string") return json({ error: elements }, 400);
+    // Links are kept like when saving: its owner chose them in an overlay they edit.
+    const droppedImages = await adoptComponentImages(elements, userId, { keepLinks: true });
+    const component = await prisma.component.create({
+      data: {
+        userId,
+        name: shared.name,
+        description: shared.description,
+        elements: elements as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return json({ ...component, droppedImages }, 201);
+  }
 
   if (path === "/api/components" && req.method === "GET") {
     const components = await prisma.component.findMany({
@@ -152,6 +196,21 @@ export const handleComponentsRoutes = async (req: Request, path: string) => {
       console.error(e);
       return json({ error: "Invalid request body" }, 400);
     }
+  }
+
+  // Shares a component by link (keeping the link it has), or stops sharing it: the link stops
+  // working, and sharing again makes a new one. Copies already added stay.
+  const shareMatch = path.match(/^\/api\/components\/([a-zA-Z0-9_-]+)\/share$/);
+  if (shareMatch && (req.method === "POST" || req.method === "DELETE")) {
+    const component = await findOwnComponent(userId, shareMatch[1]);
+    if (!component) return json({ error: "Component not found" }, 404);
+    if (req.method === "POST" && component.shareToken) return json(component);
+    return json(
+      await prisma.component.update({
+        where: { id: component.id },
+        data: { shareToken: req.method === "POST" ? newShareToken() : null },
+      })
+    );
   }
 
   if (idMatch && req.method === "DELETE") {

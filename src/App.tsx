@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoggedInRoute from "./components/auth/LoggedInRoute";
 import MainLayout from "./components/MainLayout";
 import PublicCounterPage from "./pages/PublicCounterPage";
+import SharedComponentPage from "./pages/SharedComponentPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,8 @@ function App() {
               <Route path="/settings" element={<ProtectedRoute />}>
                 <Route index element={<SettingsPage />} />
               </Route>
+              {/* Open to anyone with the link; adding the component needs a sign-in. */}
+              <Route path="/components/shared/:token" element={<SharedComponentPage />} />
             </Route>
             {/* The editor is full screen with its own top bar. */}
             <Route path="/overlay/:id" element={<ProtectedRoute />}>

@@ -1,4 +1,5 @@
-// Components: elements a user saved to add to any overlay, and the files they are shared with.
+// Components: elements a user saved to add to any overlay, and the files and links they are
+// shared with.
 // The server side is lib/components.ts and routes/components.ts.
 
 import type { PresetElement } from "./presets";
@@ -17,8 +18,21 @@ export interface OverlayComponent {
   description: string | null;
   // In the format templates use, with no ids, positions or running state.
   elements: PresetElement[];
+  // Set while it is shared by link (see componentShareUrl).
+  shareToken: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// A component someone shares by link, as anyone with the link sees it.
+export interface SharedComponent {
+  name: string;
+  description: string | null;
+  elements: PresetElement[];
+  updatedAt: string;
+  owner: { name: string; image: string | null };
+  // Whether it is one of the signed-in user's own.
+  own: boolean;
 }
 
 // What saving or importing answers with: the component, and how many of its images couldn't
@@ -68,6 +82,21 @@ export const deleteComponent = (id: string) =>
 // Adds a component from a file someone exported.
 export const importComponentFile = async (file: File) =>
   request<SavedComponent>("/api/components/import", { method: "POST", body: await file.text() });
+
+// Shares a component by link, or stops sharing it (the link stops working).
+export const shareComponent = (id: string, shared: boolean) =>
+  request<OverlayComponent>(`/api/components/${id}/share`, { method: shared ? "POST" : "DELETE" });
+
+// The page a shared component is seen and added from (SharedComponentPage).
+export const sharedComponentPath = (token: string) => `/components/shared/${token}`;
+export const componentShareUrl = (token: string) => `${window.location.origin}${sharedComponentPath(token)}`;
+
+export const fetchSharedComponent = (token: string) =>
+  request<SharedComponent>(`/api/components/shared/${encodeURIComponent(token)}`);
+
+// Adds a copy of a component shared by link to the user's components.
+export const addSharedComponent = (token: string) =>
+  request<SavedComponent>(`/api/components/shared/${encodeURIComponent(token)}`, { method: "POST" });
 
 // Adds a copy of a component's elements to the end of the overlay (or of `parentId`). Answers
 // with the overlay and the ids of the new elements.

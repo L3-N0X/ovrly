@@ -231,7 +231,7 @@ export const ElementListEditor: React.FC<ElementListEditorProps> = ({
 
   return (
     <div className="flex flex-col">
-      <div className="sticky top-0 z-10 flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-background px-3">
+      <div className="sticky top-0 z-10 flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-card px-3">
         <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           Layers
         </h2>

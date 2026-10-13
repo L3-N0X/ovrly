@@ -7,6 +7,7 @@ import {
   FileUp,
   Info,
   Layers,
+  Link2,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -46,9 +47,10 @@ import { cn, timeAgo } from "@/lib/utils";
 import { ComponentDetailsForm } from "./ComponentDetailsForm";
 import ComponentPreview from "./ComponentPreview";
 import { LibraryHeader, SearchField } from "./LibraryHeader";
+import { ShareComponentDialog } from "./ShareComponentDialog";
 
-// The "Components" tab of the home page: the user's components, which they rename, export as
-// files to share, delete, and import files of others into. They are added to overlays from the
+// The "Components" tab of the home page: the user's components, which they rename, share by
+// link or export as files, delete, and import files of others into. They are added to overlays from the
 // editor's "Add element" dialog.
 export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) => {
   const queryClient = useQueryClient();
@@ -60,12 +62,16 @@ export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) 
   const fileInput = useRef<HTMLInputElement>(null);
   const [editTarget, setEditTarget] = useState<OverlayComponent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OverlayComponent | null>(null);
+  // By id, so the dialog shows the link the list has after sharing changed.
+  const [shareTargetId, setShareTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   // Kept while the dialogs animate out, after their target has been cleared.
   const [shownEditTarget, setShownEditTarget] = useState(editTarget);
   if (editTarget && editTarget !== shownEditTarget) setShownEditTarget(editTarget);
   const [shownDeleteTarget, setShownDeleteTarget] = useState(deleteTarget);
   if (deleteTarget && deleteTarget !== shownDeleteTarget) setShownDeleteTarget(deleteTarget);
+  const [shownShareId, setShownShareId] = useState(shareTargetId);
+  if (shareTargetId && shareTargetId !== shownShareId) setShownShareId(shareTargetId);
 
   const searchRef = useRef<HTMLInputElement>(null);
   // Typing anywhere on the page searches, unless a dialog or menu is open.
@@ -168,8 +174,8 @@ export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) 
           {importButton}
         </LibraryHeader>
         <p className="text-sm text-muted-foreground">
-          Elements you saved to reuse. Add them to any overlay from “Add element”, or export them
-          as files to share.
+          Elements you saved to reuse. Add them to any overlay from “Add element”, or share them
+          with others by link or as files.
         </p>
       </div>
 
@@ -231,7 +237,7 @@ export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) 
             <p className="text-muted-foreground">
               Built something you want to use again? In the editor, right-click it in the layers
               panel and choose “Save as component”. Got a component file from someone? Import it
-              here.
+              here. A share link adds it with one click.
             </p>
           </div>
         </div>
@@ -250,6 +256,7 @@ export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) 
               key={component.id}
               component={component}
               onEdit={setEditTarget}
+              onShare={(c) => setShareTargetId(c.id)}
               onDelete={setDeleteTarget}
             />
           ))}
@@ -278,6 +285,15 @@ export const ComponentLibrary: React.FC<{ tabs: React.ReactNode }> = ({ tabs }) 
         </DialogContent>
       </Dialog>
 
+      <ShareComponentDialog
+        component={components.find((c) => c.id === shownShareId) ?? null}
+        open={!!shareTargetId}
+        onOpenChange={(open) => !open && setShareTargetId(null)}
+        onChanged={(updated) =>
+          setComponents((current) => current.map((c) => (c.id === updated.id ? updated : c)))
+        }
+      />
+
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
@@ -302,8 +318,9 @@ const ComponentGrid: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 const ComponentCard: React.FC<{
   component: OverlayComponent;
   onEdit: (component: OverlayComponent) => void;
+  onShare: (component: OverlayComponent) => void;
   onDelete: (component: OverlayComponent) => void;
-}> = ({ component, onEdit, onDelete }) => {
+}> = ({ component, onEdit, onShare, onDelete }) => {
   const count = countComponentElements(component.elements);
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 focus-within:border-primary/40">
@@ -326,11 +343,12 @@ const ComponentCard: React.FC<{
             <Button
               variant="ghost"
               size="icon-sm"
-              title="Export as file"
-              aria-label="Export as file"
-              onClick={() => exportComponent(component)}
+              title={component.shareToken ? "Shared by link" : "Share by link"}
+              aria-label={component.shareToken ? "Shared by link" : "Share by link"}
+              className={cn(component.shareToken && "text-primary hover:text-primary")}
+              onClick={() => onShare(component)}
             >
-              <Download />
+              <Link2 />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -342,6 +360,10 @@ const ComponentCard: React.FC<{
                 <DropdownMenuItem onClick={() => onEdit(component)}>
                   <Pencil />
                   Edit details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onShare(component)}>
+                  <Link2 />
+                  Share link
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => exportComponent(component)}>
                   <Download />

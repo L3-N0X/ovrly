@@ -151,7 +151,7 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       className={cn(
         "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity outline-none hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/bind:opacity-100 group-focus-within/bind:opacity-100",
         // Over the end of the field, so it needs a background to hide the unit beneath it.
-        compact ? "size-5 bg-background" : "-my-1 size-6",
+        compact ? "size-5 bg-card" : "-my-1 size-6",
         picking && "opacity-100"
       )}
     >
@@ -247,8 +247,8 @@ const BoundVariable: React.FC<{
         "@container flex w-full min-w-0 items-center gap-1.5 rounded-md border pr-1",
         compact ? "h-7 pl-1.5 text-xs" : "h-9 pl-2 text-sm",
         missing
-          ? "border-amber-500/50 bg-amber-500/10"
-          : "border-violet-500/40 bg-violet-500/10"
+          ? "border-warning/50 bg-warning/10"
+          : "border-primary/40 bg-primary/10"
       )}
     >
       <button
@@ -264,9 +264,9 @@ const BoundVariable: React.FC<{
           </span>
         )}
         {variable ? (
-          <VariableTypeIcon type={variable.type} className="text-violet-500" />
+          <VariableTypeIcon type={variable.type} className="text-primary" />
         ) : (
-          <Braces className="size-3.5 shrink-0 text-violet-500" />
+          <Braces className="size-3.5 shrink-0 text-primary" />
         )}
         <span className="min-w-0 truncate font-medium">
           {binding.key}
@@ -284,7 +284,7 @@ const BoundVariable: React.FC<{
       ) : (
         missing && (
           <span title="There is no variable of this name (any more). The field shows its own value until there is.">
-            <AlertCircle className="size-3.5 shrink-0 text-amber-500" />
+            <AlertCircle className="size-3.5 shrink-0 text-warning" />
           </span>
         )
       )}

@@ -126,6 +126,9 @@ model Component {
   description String?
   // The element tree, in the format of a component file (lib/components.ts).
   elements    Json
+  // Set while the component is shared by link (/components/shared/<token>): anyone with the
+  // link sees it and can add a copy to their own components. A new link gets a new token.
+  shareToken  String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

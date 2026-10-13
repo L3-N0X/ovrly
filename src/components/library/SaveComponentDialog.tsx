@@ -92,7 +92,7 @@ const SaveComponentSteps = ({
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <Check className="size-5 text-emerald-500" />
+          <Check className="size-5 text-success" />
           Component saved
         </DialogTitle>
         <DialogDescription>
