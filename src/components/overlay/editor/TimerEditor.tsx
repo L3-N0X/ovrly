@@ -17,6 +17,7 @@ export const TimerStyleEditor: React.FC<{
     element={element}
     onChange={onChange}
     idPrefix="timer"
+    separatePadding
     previewWord="12:34:56"
     textFields={(style, update) => (
       <Field

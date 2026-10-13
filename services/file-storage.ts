@@ -2,6 +2,8 @@ import { S3Client, type S3File } from "bun";
 import { randomUUID } from "crypto";
 
 export const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES) || 10 * 1024 * 1024;
+// Videos are a lot bigger than pictures, so they get a limit of their own.
+export const MAX_VIDEO_UPLOAD_BYTES = Number(process.env.MAX_VIDEO_UPLOAD_BYTES) || 100 * 1024 * 1024;
 
 export class UnsupportedFileError extends Error {}
 export class StorageNotConfiguredError extends Error {}
@@ -14,7 +16,12 @@ const ALLOWED_TYPES: Record<string, string> = {
   "image/gif": "gif",
   "image/webp": "webp",
   "image/svg+xml": "svg",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
 };
+
+const maxBytesOf = (type: string) =>
+  type.startsWith("video/") ? MAX_VIDEO_UPLOAD_BYTES : MAX_UPLOAD_BYTES;
 
 const EXTENSION_TYPES: Record<string, string> = Object.fromEntries(
   Object.entries(ALLOWED_TYPES).map(([type, ext]) => [ext, type])
@@ -37,6 +44,15 @@ const matchesContent = (type: string, bytes: Uint8Array) => {
       const head = new TextDecoder().decode(bytes.slice(0, 1024));
       return /<svg[\s>]/i.test(head);
     }
+    // An ISO media file starts with its "ftyp" box.
+    case "video/mp4":
+      return startsWith(bytes, [0x66, 0x74, 0x79, 0x70], 4);
+    // An EBML header naming the "webm" doc type (Matroska files use the same header).
+    case "video/webm":
+      return (
+        startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]) &&
+        new TextDecoder("latin1").decode(bytes.slice(0, 64)).includes("webm")
+      );
     default:
       return false;
   }
@@ -44,14 +60,14 @@ const matchesContent = (type: string, bytes: Uint8Array) => {
 
 const sanitizeBaseName = (name: string) => {
   const base = name.replace(/\.[^.]*$/, "").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 80);
-  return base.replace(/^_+|_+$/g, "") || "image";
+  return base.replace(/^_+|_+$/g, "") || "file";
 };
 
 export const contentTypeForKey = (key: string) =>
   EXTENSION_TYPES[key.slice(key.lastIndexOf(".") + 1).toLowerCase()] ?? "application/octet-stream";
 
 export const isValidStorageKey = (key: string) =>
-  /^[0-9a-f-]{36}\/[a-zA-Z0-9_-]+\.[a-z]+$/.test(key) && key.slice(key.lastIndexOf(".") + 1) in EXTENSION_TYPES;
+  /^[0-9a-f-]{36}\/[a-zA-Z0-9_-]+\.[a-z0-9]+$/.test(key) && key.slice(key.lastIndexOf(".") + 1) in EXTENSION_TYPES;
 
 const REQUIRED_ENV = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const;
 
@@ -80,6 +96,8 @@ const getClient = () => {
 
 export interface FileStorage {
   save(file: File): Promise<{ url: string; filename: string }>;
+  // Saves a copy of a stored file under a new key, checked like an upload.
+  copy(filename: string): Promise<{ url: string; filename: string }>;
   delete(filename: string): Promise<void>;
   get(filename: string): S3File;
 }
@@ -88,11 +106,14 @@ export const fileStorage: FileStorage = {
   async save(file) {
     const type = file.type.split(";")[0].trim().toLowerCase();
     if (!(type in ALLOWED_TYPES)) {
-      throw new UnsupportedFileError("Only PNG, JPEG, GIF, WebP and SVG images are allowed");
-    }
-    if (file.size === 0 || file.size > MAX_UPLOAD_BYTES) {
       throw new UnsupportedFileError(
-        `File must be between 1 byte and ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)} MB`
+        "Only PNG, JPEG, GIF, WebP and SVG images and MP4 and WebM videos are allowed"
+      );
+    }
+    const maxBytes = maxBytesOf(type);
+    if (file.size === 0 || file.size > maxBytes) {
+      throw new UnsupportedFileError(
+        `File must be between 1 byte and ${Math.floor(maxBytes / 1024 / 1024)} MB`
       );
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -103,6 +124,17 @@ export const fileStorage: FileStorage = {
     const filename = `${randomUUID()}/${sanitizeBaseName(file.name)}.${ALLOWED_TYPES[type]}`;
     await getClient().write(filename, bytes, { type });
     return { url: `/uploads/${filename}`, filename };
+  },
+
+  async copy(filename) {
+    const source = getClient().file(filename);
+    if ((await source.stat()).size > maxBytesOf(contentTypeForKey(filename))) {
+      throw new UnsupportedFileError("File is too big to copy");
+    }
+    const name = filename.slice(filename.indexOf("/") + 1);
+    return fileStorage.save(
+      new File([await source.arrayBuffer()], name, { type: contentTypeForKey(filename) })
+    );
   },
 
   async delete(filename) {

@@ -29,34 +29,31 @@ const TimerControl: React.FC<TimerControlProps> = ({
   });
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center gap-1.5">
       <TimeReadout value={formatDuration(timer ? time : 0, format)} />
       <Button
         onClick={() => setIsModalOpen(true)}
         title="Edit time"
-        size="icon-lg"
+        size="icon"
         variant="secondary"
-        className="h-12 w-12"
       >
-        <Pencil className="w-4 h-4" />
+        <Pencil />
       </Button>
       <Button
         onClick={() => handleTimerToggle(element.id)}
         title={element.timer?.startedAt ? "Pause" : "Start"}
-        size="icon-lg"
+        size="icon"
         variant="secondary"
-        className="h-12 w-12"
       >
-        {element.timer?.startedAt ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+        {element.timer?.startedAt ? <Pause /> : <Play />}
       </Button>
       <Button
         onClick={() => handleTimerReset(element.id)}
         title="Reset"
-        size="icon-lg"
+        size="icon"
         variant="secondary"
-        className="h-12 w-12"
       >
-        <RotateCcw className="w-4 h-4" />
+        <RotateCcw />
       </Button>
       {/* Gets the element on every render, so it always shows the current timer state. */}
       <TimerEditModal

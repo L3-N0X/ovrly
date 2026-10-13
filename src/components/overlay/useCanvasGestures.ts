@@ -295,7 +295,8 @@ export const useCanvasGestures = ({
       const targets = [area, canvasBox(root), ...siblingBoxes(drag, parentId)].filter(
         (b): b is Box => b !== null
       );
-      const snapping = editing.snapping && !last.altKey && !last.shiftKey;
+      const grid = last.shiftKey && editing.shiftSnapsToGrid;
+      const snapping = editing.snapping && !last.altKey && !grid;
       let box = moved;
       if (snapping) {
         const { dx, dy } = snapOffset(box, targets, SNAP_DISTANCE / point.scale);
@@ -308,8 +309,8 @@ export const useCanvasGestures = ({
           ? { left: drag.startBox.left - drag.startPosition.x, top: drag.startBox.top - drag.startPosition.y }
           : { left: area.left, top: area.top };
       const position = {
-        x: snap(box.left - origin.left, last.shiftKey),
-        y: snap(box.top - origin.top, last.shiftKey),
+        x: snap(box.left - origin.left, grid),
+        y: snap(box.top - origin.top, grid),
       };
       box = { ...box, left: origin.left + position.x, top: origin.top + position.y };
 
@@ -549,37 +550,40 @@ export const useCanvasGestures = ({
   };
 
   const snapResize = useCallback<CanvasInteraction["snapResize"]>(
-    (groupId, size, modifiers) => {
+    (elementId, box, edges, modifiers) => {
       const root = rootRef.current;
       const { editing, overlay } = latest.current;
-      const el = root && elementBox(root, groupId);
-      const element = overlay.elements.find((e) => e.id === groupId);
-      if (!root || !el || !element || !editing?.snapping || modifiers.altKey || modifiers.shiftKey) {
+      const element = overlay.elements.find((e) => e.id === elementId);
+      const grid = modifiers.shiftKey && !!editing?.shiftSnapsToGrid;
+      const size = { width: box.width, height: box.height };
+      if (!root || !element || !editing?.snapping || modifiers.altKey || grid) {
         store.set({ feedback: NO_FEEDBACK });
         return size;
       }
-      const box = { ...measure(el, root), ...size };
       const parentId = element.parentId ?? null;
       const parentEl = parentId ? elementBox(root, parentId) : null;
       const targets = [
         canvasBox(root),
         ...(parentEl ? [measure(parentEl, root)] : []),
         ...childrenOf(overlay.elements, parentId)
-          .filter((e) => e.id !== groupId)
+          .filter((e) => e.id !== elementId)
           .map((e) => elementBox(root, e.id))
           .filter((b): b is Element => b !== null)
           .map((b) => measure(b, root)),
       ];
       const { scale } = toCanvas(root, 0, 0);
-      const { dx, dy } = snapOffset(box, targets, SNAP_DISTANCE / scale, "end");
-      const next = { width: Math.round(size.width + dx), height: Math.round(size.height + dy) };
+      const { dx, dy } = snapOffset(box, targets, SNAP_DISTANCE / scale, edges);
+      // Moving the start edge by d shrinks the box by d; moving the end edge grows it.
+      const next = {
+        left: box.left + (edges.x === "start" ? dx : 0),
+        top: box.top + (edges.y === "start" ? dy : 0),
+        width: Math.round(box.width + (edges.x === "start" ? -dx : dx)),
+        height: Math.round(box.height + (edges.y === "start" ? -dy : dy)),
+      };
       store.set({
-        feedback: {
-          ...NO_FEEDBACK,
-          guides: alignmentGuides({ ...box, ...next }, targets, "end"),
-        },
+        feedback: { ...NO_FEEDBACK, guides: alignmentGuides(next, targets, edges) },
       });
-      return next;
+      return { width: next.width, height: next.height };
     },
     [rootRef, store]
   );

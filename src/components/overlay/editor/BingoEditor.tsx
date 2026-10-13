@@ -14,7 +14,7 @@ import {
   SquareRoundCorner,
   Trash2,
 } from "lucide-react";
-import { uploadImage } from "@/lib/uploads";
+import { uploadFile } from "@/lib/uploads";
 import {
   Select,
   SelectContent,
@@ -119,7 +119,7 @@ const BackgroundImageControl: React.FC<{
     setIsUploading(true);
     setError(null);
     try {
-      onChange(await uploadImage(file));
+      onChange(await uploadFile(file));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Failed to upload the image");
     } finally {

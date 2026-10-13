@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { isCountdownRunning, remainingMs, type CountdownState } from "@/lib/countdown";
+import { isCountdownRunning, remainingMs, type CountdownTiming } from "@/lib/countdown";
 
 // The time a countdown has left, kept up to date while it runs. Rounded up to whole seconds,
 // the way countdowns are read: it shows 00:00:01 until it has actually run out, and 05:00
 // for the whole first second after starting from five minutes.
-export const useCountdown = (countdown: CountdownState | null | undefined): number => {
+export const useCountdown = (countdown: CountdownTiming | null | undefined): number => {
   const [left, setLeft] = useState(0);
   // Depending on the fields rather than the object keeps the interval from being restarted
   // each time the element is replaced by an equal one.

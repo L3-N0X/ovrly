@@ -8,13 +8,16 @@ import { InlineRename } from "@/components/ui/inline-rename";
 import {
   ElementPositionSection,
   ElementStyleEditor,
+  ElementVisibilitySection,
 } from "@/components/overlay/editor/elementlist/ElementInspector";
 import { InspectorSection } from "@/components/overlay/editor/fields";
 import { ElementTypeIcon } from "@/components/overlay/editor/elementlist/ElementTypeIcon";
+import { SubathonSettingsEditor } from "@/components/overlay/editor/SubathonEditor";
 import { flattenTree } from "@/components/overlay/editor/elementlist/tree";
 import {
   canvasSize,
   CanvasModeEnum,
+  ElementTypeEnum,
   hasContent,
   type OnOverlayChange,
   type PrismaElement,
@@ -96,8 +99,8 @@ const Inspector: React.FC<InspectorProps> = ({
       </PanelHeader>
       {contentElements.length === 0 ? (
         <p className="px-3 py-6 text-xs text-muted-foreground">
-          No elements with content yet. Add a title, counter, timer, image, icon or bingo card in the
-          layers panel.
+          No elements with content yet. Add a title, counter, timer, image, video, icon, bingo card or
+          cycle stack in the layers panel.
         </p>
       ) : (
         contentElements.map((element) => (
@@ -112,7 +115,7 @@ const Inspector: React.FC<InspectorProps> = ({
               <span className="truncate">{element.name}</span>
             </button>
             <BindingElementContext.Provider value={element}>
-              <ElementContentControl element={element} handlers={content} />
+              <ElementContentControl element={element} overlay={overlay} handlers={content} />
             </BindingElementContext.Provider>
           </section>
         ))
@@ -187,10 +190,23 @@ const ElementPanel = ({
       </PanelHeader>
       {hasContent(element.type) && (
         <InspectorSection title="Content">
-          <ElementContentControl element={element} handlers={content} />
+          <ElementContentControl element={element} overlay={overlay} handlers={content} />
+        </InspectorSection>
+      )}
+      {element.type === ElementTypeEnum.SUBATHON && element.subathon && (
+        <InspectorSection title="Subathon">
+          <SubathonSettingsEditor
+            element={element}
+            onChange={(settings) => content.onSubathonSettings(element.id, settings)}
+          />
         </InspectorSection>
       )}
       <ElementPositionSection
+        element={element}
+        overlay={overlay}
+        onOverlayChange={onOverlayChange}
+      />
+      <ElementVisibilitySection
         element={element}
         overlay={overlay}
         onOverlayChange={onOverlayChange}
@@ -206,7 +222,7 @@ const ElementPanel = ({
 };
 
 const PanelHeader = ({ children }: { children: React.ReactNode }) => (
-  <div className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b bg-background px-3">
+  <div className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b bg-card px-3">
     {children}
   </div>
 );

@@ -82,7 +82,7 @@ export function CanvasHelp() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="absolute bottom-3 left-3 rounded-full border bg-background/90 shadow-md backdrop-blur"
+          className="absolute bottom-3 left-3 rounded-full border bg-popover/90 shadow-md backdrop-blur"
           title="How the canvas works"
           aria-label="How the canvas works"
           onPointerDown={(e) => e.stopPropagation()}
@@ -108,6 +108,7 @@ export function CanvasHelp() {
             { gesture: "Click again", action: "Go one level inside a group." },
             { keys: ["Ctrl", "Click"], action: "Select the innermost element directly." },
             { gesture: "Click empty canvas", action: "Open the overlay's canvas settings." },
+            { keys: ["Shift"], action: "Hold to use the move tool until you let go." },
           ]}
         />
 

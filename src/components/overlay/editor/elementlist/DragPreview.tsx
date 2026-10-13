@@ -1,21 +1,22 @@
 import { type PrismaElement } from "@/lib/types";
 
-// Rendered outside the app's React tree and theme, hence the inline styles.
+// Rendered outside the app's React tree (into a container on <body>), hence the inline styles;
+// the theme's variables still reach it.
 export const DragPreview = ({ element }: { element: PrismaElement }) => {
   return (
     <div
       style={{
-        backgroundColor: "#18181b",
-        color: "white",
+        backgroundColor: "var(--popover)",
+        color: "var(--popover-foreground)",
         padding: "6px 10px",
         borderRadius: "0.375rem",
-        border: "1px solid #3f3f46",
+        border: "1px solid var(--border)",
         display: "flex",
         gap: "8px",
         alignItems: "center",
         maxWidth: "240px",
         fontSize: "0.875rem",
-        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3)",
+        boxShadow: "var(--shadow-lg)",
       }}
     >
       <span
@@ -26,7 +27,7 @@ export const DragPreview = ({ element }: { element: PrismaElement }) => {
       <span
         style={{
           fontSize: "0.625rem",
-          color: "#a1a1aa",
+          color: "var(--muted-foreground)",
           textTransform: "uppercase",
           letterSpacing: "0.05em",
         }}

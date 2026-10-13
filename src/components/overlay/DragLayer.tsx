@@ -3,7 +3,7 @@ import type { DragStore } from "./canvasDrag";
 import { unzoomed, type Line } from "./canvasGeometry";
 
 // Pastel red, so guides stand out from the blue selection without shouting.
-const GUIDE_COLOR = "#ff8a65";
+const GUIDE_COLOR = "var(--canvas-guide)";
 
 const LineMark = ({ line, color, width }: { line: Line; color: string; width: number }) => (
   <div

@@ -5,6 +5,14 @@ import { connectOverlaySocket } from "@/lib/overlaySocket";
 import { applyBingoDataUpdate, normalizeBingoData, type BingoDataUpdate } from "@/lib/bingo";
 import { applyTimerAction, type TimerAction } from "@/lib/timer";
 import { applyCountdownAction, type CountdownAction } from "@/lib/countdown";
+import { applyCycleStackAction, type CycleStackAction } from "@/lib/cycleStack";
+import { applyVideoAction, withNewSource, type VideoAction } from "@/lib/video";
+import {
+  applySubathonAction,
+  applySubathonSettings,
+  type SubathonAction,
+  type SubathonSettings,
+} from "@/lib/subathon";
 import { ApiError, sharingApi, type OverlayAccess } from "@/lib/sharing";
 
 const DEBOUNCE_MS = 500;
@@ -123,9 +131,14 @@ const combineCounter = (queued: object, next: object): object => {
   return { data: { value: (q.value ?? 0) + n.increment } };
 };
 
-type ActionsBody = { data: { actions: (TimerAction | CountdownAction)[] } };
+type ActionsBody = {
+  data: {
+    actions: (TimerAction | CountdownAction | SubathonAction | CycleStackAction | VideoAction)[];
+  };
+};
 
-// Timer and countdown actions waiting to be sent go out together, in the order they were made.
+// Timer, countdown, subathon, cycle stack and video actions waiting to be sent go out together,
+// in the order they were made.
 const combineActions = (queued: object, next: object): object => ({
   data: {
     actions: [...(queued as ActionsBody).data.actions, ...(next as ActionsBody).data.actions],
@@ -664,6 +677,18 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // A new video plays from the start, playing if the old one was.
+  const handleVideoChange = useCallback(
+    (elementId: string, src: string) => {
+      // Fixed now, so recomputing the local state later doesn't move the video.
+      const now = Date.now();
+      updateElement(elementId, "videoSrc", { data: { src } }, (el) => {
+        if (el.video) el.video = withNewSource(el.video, src, now);
+      });
+    },
+    [updateElement]
+  );
+
   // Binds a property of an element to a variable of the owner ({ source, key }), or detaches it
   // with null so the property shows its own value again.
   const handleBindingChange = useCallback(
@@ -686,6 +711,24 @@ export const useOverlayData = () => {
       updateElement(elementId, "icon", { data: icon }, (el) => {
         if (el.icon) Object.assign(el.icon, icon);
       });
+    },
+    [updateElement]
+  );
+
+  // Typing a value: the last one typed wins. Value, maximum and running are separate slots, so
+  // changing one doesn't cancel a pending change of another.
+  const handleProgressChange = useCallback(
+    (elementId: string, change: { value?: number; max?: number; running?: boolean }) => {
+      const slot = Object.keys(change).sort().join(",");
+      updateElement(
+        elementId,
+        `progress:${slot}`,
+        { data: change },
+        (el) => {
+          if (el.progress) Object.assign(el.progress, change);
+        },
+        { delay: change.running === undefined ? DEBOUNCE_MS : undefined }
+      );
     },
     [updateElement]
   );
@@ -774,6 +817,85 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // Subathons too, apart from their settings, which are sent as the changed keys.
+  const handleSubathonAction = useCallback(
+    (elementId: string, action: SubathonAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the subathon.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "subathon",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.subathon) el.subathon = applySubathonAction(el.subathon, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
+  // Cycle stacks too: playing, pausing and picking a layer.
+  const handleCycleStackAction = useCallback(
+    (elementId: string, action: CycleStackAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the stack.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "cycleStack",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.cycleStack) el.cycleStack = applyCycleStackAction(el.cycleStack, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
+  // Videos too: playing, pausing, restarting and stopping them.
+  const handleVideoAction = useCallback(
+    (elementId: string, action: VideoAction) => {
+      // Fixed now, so recomputing the local state later doesn't move the video.
+      const now = Date.now();
+      updateElement(
+        elementId,
+        "video",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.video) el.video = applyVideoAction(el.video, action, now);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
+  const handleSubathonSettings = useCallback(
+    (elementId: string, settings: SubathonSettings) => {
+      updateElement(
+        elementId,
+        "subathonSettings",
+        { data: { settings } },
+        (el) => {
+          if (el.subathon) el.subathon = applySubathonSettings(el.subathon, settings);
+        },
+        {
+          delay: DEBOUNCE_MS,
+          combine: (queued, next) => ({
+            data: {
+              settings: {
+                ...(queued as { data: { settings: SubathonSettings } }).data.settings,
+                ...(next as { data: { settings: SubathonSettings } }).data.settings,
+              },
+            },
+          }),
+        }
+      );
+    },
+    [updateElement]
+  );
+
   const handleDeleteOverlay = async () => {
     deletingOverlay.current = true;
     try {
@@ -815,13 +937,19 @@ export const useOverlayData = () => {
     handleCounterIncrement,
     handleTitleChange,
     handleImageChange,
+    handleVideoChange,
+    handleVideoAction,
     handleIconChange,
+    handleProgressChange,
     handleBindingChange,
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerAddTime,
     handleCountdownAction,
+    handleSubathonAction,
+    handleSubathonSettings,
+    handleCycleStackAction,
     handleDeleteOverlay,
     variablesVersion,
   };

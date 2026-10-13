@@ -9,8 +9,13 @@
 const HELIX_URL = "https://api.twitch.tv/helix";
 const OAUTH_URL = "https://id.twitch.tv/oauth2";
 
-// What connecting a channel asks for: reading its subscriptions (count and points).
-export const CONNECTION_SCOPES = ["channel:read:subscriptions"];
+// What connecting a channel asks for: reading its subscriptions (count and points, and each new
+// one for subathons) and its cheers (for subathons).
+export const SUBSCRIPTIONS_SCOPE = "channel:read:subscriptions";
+export const BITS_SCOPE = "bits:read";
+export const CONNECTION_SCOPES = [SUBSCRIPTIONS_SCOPE, BITS_SCOPE];
+// Channels connected before bits were asked for still work for everything else.
+export const REQUIRED_SCOPES = [SUBSCRIPTIONS_SCOPE];
 
 const clientId = () => process.env.AUTH_TWITCH_ID ?? "";
 const clientSecret = () => process.env.AUTH_TWITCH_SECRET ?? "";
@@ -183,6 +188,38 @@ export const getViewerCounts = async (channelIds: string[]) => {
   return viewers;
 };
 
+// A chat badge, as chat messages name it: "<set>/<version>" ("subscriber/12").
+export interface ChatBadge {
+  title: string;
+  // 36x36 and 72x72.
+  url: string;
+  largeUrl: string;
+}
+
+interface HelixBadgeSet {
+  set_id: string;
+  versions: { id: string; title: string; image_url_2x: string; image_url_4x: string }[];
+}
+
+// The badges every chat shows (moderator, VIP, ...), or with `channelId` the ones of that channel
+// (its subscriber and bits badges), by "<set>/<version>".
+export const getChatBadges = async (channelId?: string) => {
+  const { data } = await helix<{ data: HelixBadgeSet[] }>(
+    channelId ? `/chat/badges?broadcaster_id=${encodeURIComponent(channelId)}` : "/chat/badges/global"
+  );
+  const badges: Record<string, ChatBadge> = {};
+  for (const set of data) {
+    for (const version of set.versions) {
+      badges[`${set.set_id}/${version.id}`] = {
+        title: version.title,
+        url: version.image_url_2x,
+        largeUrl: version.image_url_4x,
+      };
+    }
+  }
+  return badges;
+};
+
 // With a token of the channel itself (channel:read:subscriptions). `total` includes the
 // broadcaster's own subscription, as on Twitch.
 export const getSubscriptions = async (channelId: string, userToken: string) => {
@@ -191,6 +228,34 @@ export const getSubscriptions = async (channelId: string, userToken: string) => 
     userToken
   )) as { total: number; points: number };
   return { total, points };
+};
+
+// Subscribes the EventSub WebSocket session `sessionId` (services/twitch-events.ts) to events of
+// the channel whose token this is. One that exists already counts as done.
+export const createEventSubSubscription = async (
+  userToken: string,
+  sessionId: string,
+  type: string,
+  condition: Record<string, string>
+) => {
+  const response = await fetch(`${HELIX_URL}/eventsub/subscriptions`, {
+    method: "POST",
+    headers: {
+      "Client-Id": clientId(),
+      Authorization: `Bearer ${userToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      type,
+      version: "1",
+      condition,
+      transport: { method: "websocket", session_id: sessionId },
+    }),
+  });
+  if (!response.ok && response.status !== 409) {
+    const body = await response.text().catch(() => "");
+    throw new TwitchError(`Subscribing to ${type} failed (${response.status}): ${body}`, response.status);
+  }
 };
 
 // ---- User tokens (connected channels) ------------------------------------------------------

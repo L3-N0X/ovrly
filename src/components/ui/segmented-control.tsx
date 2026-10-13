@@ -62,7 +62,7 @@ function SegmentedControl<T extends string>({
             "data-[state=off]:hover:bg-foreground/5 data-[state=off]:hover:text-foreground",
             "focus-visible:ring-[3px] focus-visible:ring-ring/50",
             "data-[state=on]:bg-popover data-[state=on]:text-primary data-[state=on]:shadow-sm data-[state=on]:ring-1 data-[state=on]:ring-black/5",
-            "dark:data-[state=on]:bg-input dark:data-[state=on]:text-ring dark:data-[state=on]:ring-white/10",
+            "dark:data-[state=on]:bg-input dark:data-[state=on]:ring-white/10",
             "disabled:pointer-events-none disabled:opacity-50",
             size === "sm" ? "h-[22px] rounded-[5px] text-xs" : "h-7 rounded-md text-sm",
             stretch

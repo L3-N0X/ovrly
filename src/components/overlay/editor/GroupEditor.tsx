@@ -18,7 +18,7 @@ import {
   InspectorSection,
   Letter,
   NumberProp,
-  SizeFields,
+  SizeModeFields,
   StrokeSection,
 } from "./fields";
 import { spreadFor, useStyleDraft } from "./useStyleDraft";
@@ -69,10 +69,10 @@ export const GroupEditor: React.FC<{
   return (
     <>
       <InspectorSection title="Layout">
-        <SizeFields
-          id={id}
-          width={style.width ?? DEFAULT_GROUP_WIDTH}
-          height={style.height ?? DEFAULT_GROUP_HEIGHT}
+        <SizeModeFields
+          elementId={id}
+          style={style}
+          defaultSize={{ width: DEFAULT_GROUP_WIDTH, height: DEFAULT_GROUP_HEIGHT }}
           onChange={update}
         />
         <BindableField property="style.clip" inline htmlFor={`${id}-clip`} label="Clip content">

@@ -13,7 +13,7 @@ import {
   FieldGrid,
   FillSection,
   InspectorSection,
-  SizeFields,
+  SizeModeFields,
   StrokeSection,
 } from "./fields";
 import { spreadFor, useStyleDraft } from "./useStyleDraft";
@@ -29,10 +29,10 @@ export const RectangleEditor: React.FC<{
   return (
     <>
       <InspectorSection title="Layout">
-        <SizeFields
-          id={id}
-          width={style.width ?? DEFAULT_RECTANGLE_WIDTH}
-          height={style.height ?? DEFAULT_RECTANGLE_HEIGHT}
+        <SizeModeFields
+          elementId={id}
+          style={style}
+          defaultSize={{ width: DEFAULT_RECTANGLE_WIDTH, height: DEFAULT_RECTANGLE_HEIGHT }}
           onChange={update}
         />
       </InspectorSection>

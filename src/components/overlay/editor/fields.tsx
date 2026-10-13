@@ -1,6 +1,25 @@
 import React from "react";
-import { ALargeSmall, Expand, Minus, Plus, SquareRoundCorner, Sun } from "lucide-react";
+import {
+  ALargeSmall,
+  Expand,
+  FoldHorizontal,
+  FoldVertical,
+  Minus,
+  Plus,
+  Ruler,
+  SquareRoundCorner,
+  Sun,
+  UnfoldHorizontal,
+  UnfoldVertical,
+} from "lucide-react";
 import { ColorField } from "@/components/ui/color-picker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NumberField } from "@/components/ui/number-field";
 import { BindableField } from "@/components/variables/BindableField";
 import { fontWeightOf } from "@/lib/fonts";
@@ -15,6 +34,7 @@ import {
 } from "@/lib/types";
 import { FontPicker } from "../../FontPicker";
 import { FontWeightPicker } from "../../FontWeightPicker";
+import { FIXED_OR_FILL, fixedOrFill, sizeModePatch, type SizeMode } from "./sizing";
 
 // The building blocks of the inspector, laid out like Figma's: titled sections in a fixed order
 // (Position, Layout, Appearance, Text, Fill, Stroke, Effects, with an element's own sections in
@@ -488,3 +508,132 @@ export const SizeFields: React.FC<{
     />
   </FieldGrid>
 );
+
+const SIZE_MODE_LABELS: Record<SizeMode, string> = {
+  fixed: "Fixed size",
+  hug: "Hug contents",
+  fill: "Fill container",
+};
+
+const SIZE_MODE_ICONS = {
+  width: { fixed: Ruler, hug: FoldHorizontal, fill: UnfoldHorizontal },
+  height: { fixed: Ruler, hug: FoldVertical, fill: UnfoldVertical },
+} as const;
+
+/**
+ * One side of an element's size: the pixel count while it is fixed (bindable), otherwise the
+ * name of its mode, and a menu next to it to switch between the `modes` the element offers.
+ */
+export const SizeProp: React.FC<{
+  id: string;
+  side: "width" | "height";
+  modes: readonly SizeMode[];
+  mode: SizeMode;
+  onModeChange: (mode: SizeMode) => void;
+  /** Only needed when the side can be fixed. */
+  value?: number;
+  min?: number;
+  onChange?: (value: number) => void;
+}> = ({ id, side, modes, mode, onModeChange, value, min = 1, onChange }) => {
+  const letter = side === "width" ? "W" : "H";
+  const Icon = SIZE_MODE_ICONS[side][mode];
+  return (
+    <div className="flex min-w-0 gap-1">
+      {mode === "fixed" && value !== undefined && onChange ? (
+        <NumberProp
+          id={id}
+          label={side === "width" ? "Width" : "Height"}
+          prefix={<Letter>{letter}</Letter>}
+          property={`style.${side}`}
+          min={min}
+          unit="px"
+          value={value}
+          onChange={onChange}
+          className="flex-1"
+        />
+      ) : (
+        <div
+          title={SIZE_MODE_LABELS[mode]}
+          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-input bg-input/30 pl-1.5 text-xs text-muted-foreground"
+        >
+          <Letter>{letter}</Letter>
+          <span className="truncate">{mode === "hug" ? "Hug" : "Fill"}</span>
+        </div>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            title={`${side === "width" ? "Width" : "Height"}: ${SIZE_MODE_LABELS[mode]}`}
+            aria-label={`${side === "width" ? "Width" : "Height"} sizing`}
+            className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent [&_svg]:size-3.5"
+          >
+            <Icon />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuRadioGroup
+            value={mode}
+            onValueChange={(next) => onModeChange(next as SizeMode)}
+          >
+            {modes.map((option) => {
+              const OptionIcon = SIZE_MODE_ICONS[side][option];
+              return (
+                <DropdownMenuRadioItem key={option} value={option} className="text-xs">
+                  <OptionIcon className="size-3.5" />
+                  {SIZE_MODE_LABELS[option]}
+                </DropdownMenuRadioItem>
+              );
+            })}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
+/**
+ * Width and height with a sizing mode each (see sizing.ts): fixed pixels, hugging the content or
+ * filling the parent. By default fixed or fill; `hugKey` lists the style keys of elements that
+ * store hugging (containers), which then offer all three.
+ */
+export const SizeModeFields: React.FC<{
+  elementId: string;
+  style: { width?: number; height?: number; fillWidth?: boolean; fillHeight?: boolean };
+  defaultSize: { width: number; height: number };
+  modes?: readonly SizeMode[];
+  hugKeys?: { width: string; height: string };
+  /** Every side that doesn't fill hugs (elements sized by their content as a whole). */
+  hugging?: boolean;
+  min?: number;
+  onChange: (patch: Record<string, unknown>) => void;
+}> = ({ elementId, style, defaultSize, modes = FIXED_OR_FILL, hugKeys, hugging, min, onChange }) => {
+  const modeOf = (side: "width" | "height"): SizeMode => {
+    const fill = fixedOrFill(style, side);
+    if (fill === "fill") return fill;
+    if (hugging) return "hug";
+    if (!hugKeys) return fill;
+    return (style as Record<string, unknown>)[hugKeys[side]] === true ? "hug" : "fixed";
+  };
+  return (
+    <FieldGrid>
+      {(["width", "height"] as const).map((side) => (
+        <SizeProp
+          key={side}
+          id={`${elementId}-${side}`}
+          side={side}
+          modes={modes}
+          mode={modeOf(side)}
+          onModeChange={(mode) =>
+            onChange(
+              sizeModePatch(elementId, style, side, mode, defaultSize[side], hugKeys?.[side])
+            )
+          }
+          min={min}
+          value={style[side] ?? defaultSize[side]}
+          onChange={(value) => onChange({ [side]: value })}
+        />
+      ))}
+    </FieldGrid>
+  );
+};

@@ -104,11 +104,19 @@ export const positionInside = (elementId: string, parentId: string | null) => {
 // Snapping: the edges and centre lines of the dragged box are pulled onto those of the boxes
 // around it.
 
-type Edges = "all" | "end";
+// Which of the moving box's lines snap: all of them (moving it), or only the edge being dragged
+// while resizing it. Given per axis when the two differ.
+export type Edges = "all" | "start" | "end" | "none";
+type AxisEdges = Edges | Record<Line["axis"], Edges>;
+
+const edgesOn = (edges: AxisEdges, axis: Line["axis"]) =>
+  typeof edges === "string" ? edges : edges[axis];
 
 const linesOf = (box: Box, axis: Line["axis"], edges: Edges) => {
   const start = axis === "x" ? box.left : box.top;
   const size = axis === "x" ? box.width : box.height;
+  if (edges === "none") return [];
+  if (edges === "start") return [start];
   return edges === "end" ? [start + size] : [start, start + size / 2, start + size];
 };
 
@@ -136,23 +144,28 @@ const snapAxis = (
   return best ?? 0;
 };
 
-// How far `moving` has to move (or, with "end", grow) to line up with the closest target
-// line within `threshold`, per axis.
-export const snapOffset = (moving: Box, targets: Box[], threshold: number, edges: Edges = "all") => ({
-  dx: snapAxis(moving, targets, "x", edges, threshold),
-  dy: snapAxis(moving, targets, "y", edges, threshold),
+// How far `moving` (or, with "start"/"end", that edge of it) has to move to line up with the
+// closest target line within `threshold`, per axis.
+export const snapOffset = (
+  moving: Box,
+  targets: Box[],
+  threshold: number,
+  edges: AxisEdges = "all"
+) => ({
+  dx: snapAxis(moving, targets, "x", edgesOn(edges, "x"), threshold),
+  dy: snapAxis(moving, targets, "y", edgesOn(edges, "y"), threshold),
 });
 
 // The guides to draw for a box that has been snapped: one per target line it lines up with,
 // long enough to connect it with every box on that line. Positions are whole pixels, so a
 // centre line half a pixel off still counts.
-export const alignmentGuides = (moving: Box, targets: Box[], edges: Edges = "all"): Line[] => {
+export const alignmentGuides = (moving: Box, targets: Box[], edges: AxisEdges = "all"): Line[] => {
   const guides: Line[] = [];
   for (const axis of ["x", "y"] as const) {
     const byPosition = new Map<number, Line>();
     for (const target of targets) {
       for (const line of linesOf(target, axis, "all")) {
-        if (!linesOf(moving, axis, edges).some((own) => Math.abs(own - line) <= 0.5)) continue;
+        if (!linesOf(moving, axis, edgesOn(edges, axis)).some((own) => Math.abs(own - line) <= 0.5)) continue;
         const [a0, a1] = spanOf(moving, axis);
         const [b0, b1] = spanOf(target, axis);
         const key = Math.round(line * 2) / 2;

@@ -15,7 +15,7 @@ import {
   Field,
   FieldGrid,
   InspectorSection,
-  SizeFields,
+  SizeModeFields,
   SMALL_CONTROL,
 } from "./fields";
 import { useStyleDraft } from "./useStyleDraft";
@@ -32,11 +32,10 @@ const ImageStyleEditor: React.FC<ImageStyleEditorProps> = ({ element, onChange }
   return (
     <>
       <InspectorSection title="Layout">
-        <SizeFields
-          id={id}
-          min={0}
-          width={style.width || 100}
-          height={style.height || 100}
+        <SizeModeFields
+          elementId={element.id}
+          style={style}
+          defaultSize={{ width: 100, height: 100 }}
           onChange={update}
         />
       </InspectorSection>

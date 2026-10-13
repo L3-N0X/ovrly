@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import OverlayCanvas from "../components/overlay/OverlayCanvas";
+import { OverlayAudioContext } from "../components/overlay/overlayAudio";
 import FontLoader from "../components/FontLoader";
 import {
   DEFAULT_CANVAS_HEIGHT,
@@ -78,7 +79,10 @@ const PublicCounterPage = () => {
   return (
     <>
       {loadOverlayFonts()}
-      <OverlayCanvas overlay={overlay} />
+      {/* What OBS shows, so the only place videos play their sound. */}
+      <OverlayAudioContext.Provider value={true}>
+        <OverlayCanvas overlay={overlay} />
+      </OverlayAudioContext.Provider>
     </>
   );
 };

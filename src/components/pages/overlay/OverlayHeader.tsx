@@ -95,7 +95,7 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
   };
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-2">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-card px-2">
       <Button variant="ghost" size="icon-sm" asChild title="Back to overlays">
         <Link to="/" aria-label="Back to overlays">
           <ChevronLeft />
@@ -143,7 +143,7 @@ const OverlayHeader: React.FC<OverlayHeaderProps> = ({
           size="sm"
           aria-label="Copy OBS browser source URL"
         >
-          {isCopied ? <Check className="text-green-400" /> : <Copy />}
+          {isCopied ? <Check className="text-success" /> : <Copy />}
           <span className="hidden sm:inline">{isCopied ? "Copied!" : "Copy for OBS"}</span>
         </Button>
         {isOwner ? (

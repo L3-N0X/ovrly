@@ -10,6 +10,7 @@ import {
 } from "@/lib/types";
 import FreeItem from "./FreeItem";
 import { useCanvasEditing } from "./canvasEditing";
+import { ParentLayoutContext, useFill } from "./fill";
 import { shadowStyle } from "./shadow";
 import { useElementResize } from "./useElementResize";
 
@@ -39,7 +40,11 @@ const Group: React.FC<GroupProps> = ({
   const borderWidth = toNumber(style.borderWidth, DEFAULT_BORDER_WIDTH);
   const borderRadius = toNumber(style.radius, DEFAULT_BORDER_RADIUS);
 
-  const { dragSize, handle } = useElementResize(element, MIN_GROUP_SIZE);
+  const fill = useFill(element);
+  const { dragSize, handle } = useElementResize(element, MIN_GROUP_SIZE, {
+    width: !fill.width,
+    height: !fill.height,
+  });
   const size = dragSize ?? { width, height };
 
   return (
@@ -59,6 +64,7 @@ const Group: React.FC<GroupProps> = ({
             : undefined,
         // Keeps the border inside the group's size, so adding one doesn't shift its children.
         boxSizing: "border-box",
+        ...fill.style,
         ...shadowStyle(style, { box: !!style.backgroundColor }),
       }}
       className={
@@ -67,11 +73,13 @@ const Group: React.FC<GroupProps> = ({
           : undefined
       }
     >
-      {childElements.map((child, index) => (
-        <FreeItem key={child.id} element={child} fallbackIndex={index}>
-          {renderChild(child)}
-        </FreeItem>
-      ))}
+      <ParentLayoutContext.Provider value="free">
+        {childElements.map((child, index) => (
+          <FreeItem key={child.id} element={child} fallbackIndex={index}>
+            {renderChild(child)}
+          </FreeItem>
+        ))}
+      </ParentLayoutContext.Provider>
       {handle}
     </div>
   );

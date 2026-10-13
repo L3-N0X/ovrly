@@ -6,7 +6,7 @@ import { lockOverlay } from "../services/locks";
 
 const MAX_REORDER_ELEMENTS = 1000;
 // Only these render their children; anything placed under another type would vanish.
-const PARENT_TYPES = new Set(["CONTAINER", "GROUP"]);
+const PARENT_TYPES = new Set(["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"]);
 
 export const handleReorderRoutes = async (
   req: Request,

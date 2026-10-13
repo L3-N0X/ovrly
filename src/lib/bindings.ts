@@ -39,6 +39,9 @@ export const acceptsType = (kind: BindingKind, type: VariableType) => KIND_TYPES
 // Where an element sits in a group or on a free canvas.
 const POSITION = { "style.x": "number", "style.y": "number" } as const;
 
+// Whether the element is drawn at all; every element type has it.
+const VISIBILITY = { "style.visible": "boolean" } as const;
+
 // The drop shadow every element can have.
 const SHADOW = {
   "style.shadowColor": "color",
@@ -60,20 +63,48 @@ const BOX_STYLE = {
   "style.radius": "number",
 } as const;
 
+const TIMER_STYLE = {
+  ...BOX_STYLE,
+  "style.paddingX": "number",
+  "style.paddingY": "number",
+} as const;
+
 export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind>> = {
-  TITLE: { text: "text", ...TEXT_STYLE, ...POSITION, ...SHADOW },
-  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...SHADOW },
-  TIMER: { ...BOX_STYLE, ...POSITION, ...SHADOW },
-  COUNTDOWN: { ...BOX_STYLE, ...POSITION, ...SHADOW },
+  TITLE: {
+    text: "text",
+    ...TEXT_STYLE,
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
+  COUNTER: { value: "number", ...BOX_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
+  TIMER: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
+  COUNTDOWN: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
+  SUBATHON: { ...TIMER_STYLE, ...POSITION, ...VISIBILITY, ...SHADOW },
   IMAGE: {
     src: "image",
     "style.width": "number",
     "style.height": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
     ...SHADOW,
   },
-  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...SHADOW },
+  // Videos take image variables too: a URL either way, and a GIF is both.
+  VIDEO: {
+    src: "image",
+    "style.width": "number",
+    "style.height": "number",
+    "style.borderRadius": "number",
+    "style.volume": "number",
+    "style.muted": "boolean",
+    ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
+  ICON: { "style.color": "color", "style.size": "number", ...POSITION, ...VISIBILITY, ...SHADOW },
   BINGO: {
     "style.width": "number",
     "style.fontSize": "number",
@@ -93,6 +124,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.crossThickness": "number",
     "style.crossOpacity": "number",
     ...POSITION,
+    ...VISIBILITY,
     ...SHADOW,
   },
   CONTAINER: {
@@ -106,6 +138,38 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
+  SCROLLER: {
+    "style.width": "number",
+    "style.height": "number",
+    "style.speed": "number",
+    "style.pause": "number",
+    "style.gap": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
+  CYCLE_STACK: {
+    "style.interval": "number",
+    "style.transitionDuration": "number",
+    "style.width": "number",
+    "style.height": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
     ...SHADOW,
   },
   GROUP: {
@@ -117,6 +181,7 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderWidth": "number",
     "style.radius": "number",
     ...POSITION,
+    ...VISIBILITY,
     ...SHADOW,
   },
   RECTANGLE: {
@@ -127,6 +192,44 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     "style.borderWidth": "number",
     "style.borderRadius": "number",
     ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
+  CHAT: {
+    ...TEXT_STYLE,
+    "style.width": "number",
+    "style.height": "number",
+    "style.nameColor": "color",
+    "style.nameFontSize": "number",
+    "style.dividerColor": "color",
+    "style.timeColor": "color",
+    "style.emoteSize": "number",
+    "style.gap": "number",
+    "style.paddingX": "number",
+    "style.paddingY": "number",
+    "style.messageBackgroundColor": "color",
+    "style.messageRadius": "number",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
+  PROGRESS: {
+    value: "number",
+    max: "number",
+    running: "boolean",
+    "style.width": "number",
+    "style.height": "number",
+    "style.fillColor": "color",
+    "style.backgroundColor": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.borderRadius": "number",
+    ...POSITION,
+    ...VISIBILITY,
     ...SHADOW,
   },
 };
@@ -167,8 +270,15 @@ export const resolveElement = (
       resolved.title = { ...resolved.title, text: String(value) };
     } else if (binding.property === "value" && resolved.counter) {
       resolved.counter = { ...resolved.counter, value: Number(value) };
+    } else if (
+      (binding.property === "value" || binding.property === "max" || binding.property === "running") &&
+      resolved.progress
+    ) {
+      resolved.progress = { ...resolved.progress, [binding.property]: value };
     } else if (binding.property === "src" && resolved.image) {
       resolved.image = { ...resolved.image, src: String(value) };
+    } else if (binding.property === "src" && resolved.video) {
+      resolved.video = { ...resolved.video, src: String(value) };
     }
   }
   return resolved;

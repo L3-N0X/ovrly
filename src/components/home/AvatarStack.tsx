@@ -4,16 +4,17 @@ import { cn } from "@/lib/utils";
 import { ROLE_INFO } from "@/lib/sharing";
 
 // Background colours for people without a profile picture, picked from their name so the
-// same person always gets the same one.
+// same person always gets the same one. One lightness around the hue wheel, dark enough for
+// white initials (5:1 or more).
 const FALLBACK_COLORS = [
-  "bg-violet-500",
-  "bg-sky-500",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-fuchsia-500",
-  "bg-teal-500",
-  "bg-indigo-500",
+  "bg-[oklch(0.52_0.16_292)]",
+  "bg-[oklch(0.52_0.147_250)]",
+  "bg-[oklch(0.52_0.09_210)]",
+  "bg-[oklch(0.52_0.118_160)]",
+  "bg-[oklch(0.52_0.122_60)]",
+  "bg-[oklch(0.52_0.16_20)]",
+  "bg-[oklch(0.52_0.16_340)]",
+  "bg-[oklch(0.52_0.16_265)]",
 ];
 
 const colorFor = (name: string) => {

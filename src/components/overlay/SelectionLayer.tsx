@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { CANVAS_ELEMENT_ATTRIBUTE } from "./canvasSelection";
 import { CARRYING_ATTRIBUTE, unzoomed } from "./canvasGeometry";
 
@@ -10,13 +10,23 @@ export const SelectionLayer = ({
   selectedId,
   selectedName,
   hoveredIdRef,
+  onSelectedBox,
 }: {
   rootRef: RefObject<HTMLDivElement | null>;
   selectedId: string | null;
   selectedName?: string;
   hoveredIdRef: RefObject<string | null>;
+  // Receives the selection's box, which the selected element draws its resize handles into.
+  onSelectedBox?: (box: HTMLDivElement | null) => void;
 }) => {
-  const selectedRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<HTMLDivElement | null>(null);
+  const setSelectedRef = useCallback(
+    (box: HTMLDivElement | null) => {
+      selectedRef.current = box;
+      onSelectedBox?.(box);
+    },
+    [onSelectedBox]
+  );
   const hoveredRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,7 +71,7 @@ export const SelectionLayer = ({
         style={{ outlineWidth: unzoomed(2) }}
       />
       <div
-        ref={selectedRef}
+        ref={setSelectedRef}
         className="absolute hidden outline-solid outline-sky-400"
         style={{ outlineWidth: unzoomed(2) }}
       >

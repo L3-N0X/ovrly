@@ -52,12 +52,12 @@ const ControlView: React.FC<ControlViewProps> = ({
             maxWidth: `min(100%, calc((100dvh - 10rem) * ${width} / ${height}))`,
           }}
         >
-          <OverlayPreview overlay={overlay} interactive={canControl} />
+          <OverlayPreview overlay={overlay} interactive={canControl} liveChat />
         </div>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+            <span className="relative inline-flex size-2 rounded-full bg-success" />
           </span>
           Live · what OBS shows right now
         </p>
@@ -65,7 +65,7 @@ const ControlView: React.FC<ControlViewProps> = ({
 
       <aside
         aria-label="Controls"
-        className="shrink-0 border-t bg-background lg:w-[380px] lg:overflow-y-auto lg:border-t-0 lg:border-l"
+        className="shrink-0 border-t bg-card lg:w-[380px] lg:overflow-y-auto lg:border-t-0 lg:border-l"
       >
         {canControl ? (
           <div className="sticky top-0 z-10">
@@ -77,7 +77,7 @@ const ControlView: React.FC<ControlViewProps> = ({
             />
           </div>
         ) : (
-          <div className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b bg-background px-4">
+          <div className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b bg-card px-4">
             <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Controls
             </span>
@@ -85,7 +85,8 @@ const ControlView: React.FC<ControlViewProps> = ({
         )}
 
         {canControl && panel === "variables" ? (
-          <VariablesPanel overlay={overlay} />
+          // Controllers never own the overlay; owners always get the editor.
+          <VariablesPanel overlay={overlay} isOwner={false} />
         ) : (
           <>
             {!canControl && (
@@ -115,7 +116,7 @@ const ControlView: React.FC<ControlViewProps> = ({
                       <span className="truncate">{element.name}</span>
                     </h3>
                     <BindingElementContext.Provider value={element}>
-                      <ElementContentControl element={element} handlers={content} />
+                      <ElementContentControl element={element} overlay={overlay} handlers={content} />
                     </BindingElementContext.Provider>
                   </section>
                 ))}

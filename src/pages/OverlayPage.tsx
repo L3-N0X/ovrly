@@ -20,7 +20,9 @@ import { VariablesProvider } from "@/components/variables/VariablesProvider";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { hasRole } from "@/lib/sharing";
+import { useCopyPaste } from "@/components/pages/overlay/useCopyPaste";
 import { DeleteElementDialog, UndoDeleteToast } from "@/components/pages/overlay/ElementDeletion";
+import { SaveComponentDialog } from "@/components/library/SaveComponentDialog";
 
 const OverlayPage: React.FC = () => {
   const {
@@ -38,12 +40,18 @@ const OverlayPage: React.FC = () => {
     handleCounterIncrement,
     handleTitleChange,
     handleImageChange,
+    handleVideoChange,
+    handleVideoAction,
     handleIconChange,
+    handleProgressChange,
     handleBingoDataChange,
     handleTimerToggle,
     handleTimerReset,
     handleTimerAddTime,
     handleCountdownAction,
+    handleSubathonAction,
+    handleSubathonSettings,
+    handleCycleStackAction,
     handleDeleteOverlay,
     handleBindingChange,
     variablesVersion,
@@ -61,6 +69,8 @@ const OverlayPage: React.FC = () => {
     setSelectedId(selection);
     if (selection) setPanel("editor");
   }, []);
+  // The element being saved as a component.
+  const [saveComponentId, setSaveComponentId] = useState<string | null>(null);
   // The element waiting for the user to confirm its deletion.
   const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
   // The latest deletion, while it can still be undone.
@@ -68,30 +78,51 @@ const OverlayPage: React.FC = () => {
     ReturnType<typeof handleDeleteElements>
   > | null>(null);
 
+  // Ctrl+C / Ctrl+V on the canvas and the layers panel, and the layers context menu.
+  const { copy, paste, canPaste } = useCopyPaste({
+    overlay,
+    selectedId,
+    enabled: !!role && hasRole(role, "EDITOR"),
+    onOverlayChange: handleOverlayChange,
+    onSelect: select,
+  });
+
   const content = useMemo<ContentHandlers>(
     () => ({
       onCounterChange: handleCounterChange,
       onCounterIncrement: handleCounterIncrement,
       onTitleChange: handleTitleChange,
       onImageChange: handleImageChange,
+      onVideoChange: handleVideoChange,
+      onVideoAction: handleVideoAction,
       onIconChange: handleIconChange,
+      onProgressChange: handleProgressChange,
       onBingoDataChange: handleBingoDataChange,
       onTimerToggle: handleTimerToggle,
       onTimerReset: handleTimerReset,
       onTimerAddTime: handleTimerAddTime,
       onCountdownAction: handleCountdownAction,
+      onSubathonAction: handleSubathonAction,
+      onSubathonSettings: handleSubathonSettings,
+      onCycleStackAction: handleCycleStackAction,
     }),
     [
       handleCounterChange,
       handleCounterIncrement,
       handleTitleChange,
       handleImageChange,
+      handleVideoChange,
+      handleVideoAction,
       handleIconChange,
+      handleProgressChange,
       handleBingoDataChange,
       handleTimerToggle,
       handleTimerReset,
       handleTimerAddTime,
       handleCountdownAction,
+      handleSubathonAction,
+      handleSubathonSettings,
+      handleCycleStackAction,
     ]
   );
 
@@ -198,7 +229,7 @@ const OverlayPage: React.FC = () => {
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             <aside
               aria-label="Layers"
-              className="order-3 shrink-0 border-t bg-background lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
+              className="order-3 shrink-0 border-t bg-card lg:order-1 lg:w-64 lg:overflow-y-auto lg:border-t-0 lg:border-r"
             >
               <ElementListEditor
                 overlay={overlay}
@@ -206,6 +237,11 @@ const OverlayPage: React.FC = () => {
                 onStructureChange={handleStructureChange}
                 selectedId={selectedId}
                 onSelect={select}
+                canPaste={canPaste}
+                onCopy={copy}
+                onPaste={paste}
+                onRequestSaveAsComponent={setSaveComponentId}
+                onRequestDelete={setDeleteRequestId}
               />
             </aside>
             <main className="order-1 h-[55vh] shrink-0 lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:shrink">
@@ -221,7 +257,7 @@ const OverlayPage: React.FC = () => {
             </main>
             <aside
               aria-label="Inspector"
-              className="order-2 flex shrink-0 flex-col border-t bg-background lg:order-3 lg:w-[340px] lg:border-t-0 lg:border-l xl:w-[360px]"
+              className="order-2 flex shrink-0 flex-col border-t bg-card lg:order-3 lg:w-[340px] lg:border-t-0 lg:border-l xl:w-[360px]"
             >
               <PanelTabs label="Panel" tabs={PANEL_TABS} value={panel} onValueChange={setPanel} />
               <div ref={inspectorRef} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
@@ -235,7 +271,7 @@ const OverlayPage: React.FC = () => {
                     content={content}
                   />
                 ) : (
-                  <VariablesPanel overlay={overlay} />
+                  <VariablesPanel overlay={overlay} isOwner={role === "OWNER"} />
                 )}
               </div>
             </aside>
@@ -246,6 +282,11 @@ const OverlayPage: React.FC = () => {
         elements={deleteRequest.length > 0 ? deleteRequest : null}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteRequestId(null)}
+      />
+      <SaveComponentDialog
+        overlayId={id}
+        element={overlay.elements.find((el) => el.id === saveComponentId) ?? null}
+        onClose={() => setSaveComponentId(null)}
       />
       {lastDeletion && (
         <UndoDeleteToast

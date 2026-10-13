@@ -14,10 +14,10 @@ const TimeReadout: React.FC<TimeReadoutProps> = ({ value, title }) => {
 
   return (
     <div
-      className="text-2xl font-mono bg-secondary h-12 flex items-center rounded-md px-3 flex-grow min-w-0"
+      className="flex h-9 min-w-0 flex-grow items-center rounded-md bg-secondary px-2.5 font-mono text-base font-medium tabular-nums"
       title={title}
     >
-      <span ref={textRef} className="block w-full text-center truncate">
+      <span ref={textRef} className="block w-full truncate text-center">
         {value}
       </span>
     </div>

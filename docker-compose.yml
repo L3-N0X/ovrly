@@ -27,6 +27,8 @@ services:
     image: rustfs/rustfs:latest
     container_name: ovrly-s3
     command: /data
+    ports:
+      - 9000:9000
     environment:
       RUSTFS_ACCESS_KEY: ${OVRLY_S3_ACCESS_KEY:-ovrly}
       RUSTFS_SECRET_KEY: ${OVRLY_S3_SECRET_KEY:-change-me-please}
@@ -90,6 +92,10 @@ services:
       # Twitch OAuth credentials
       - AUTH_TWITCH_ID=${OVRLY_TWITCH_CLIENT_ID}
       - AUTH_TWITCH_SECRET=${OVRLY_TWITCH_CLIENT_SECRET}
+
+      # Spotify app credentials (optional), for the Spotify variables
+      - SPOTIFY_CLIENT_ID=${OVRLY_SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${OVRLY_SPOTIFY_CLIENT_SECRET:-}
 
       # S3-compatible storage for uploaded images. The defaults match the bundled `s3` service.
       - S3_ENDPOINT=http://s3:9000

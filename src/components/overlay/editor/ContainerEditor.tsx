@@ -7,7 +7,6 @@ import {
   type ContainerStyle,
   type PrismaElement,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import {
   ArrowDown,
   ArrowLeft,
@@ -15,11 +14,8 @@ import {
   ArrowUp,
   BetweenHorizontalStart,
   BetweenVerticalStart,
-  FoldVertical,
-  UnfoldHorizontal,
 } from "lucide-react";
 import React from "react";
-import { CANVAS_ELEMENT_ATTRIBUTE } from "../canvasSelection";
 import { alignOptions, isRowDirection, justifyOptions } from "./alignment";
 import {
   CornerRadiusProp,
@@ -28,11 +24,13 @@ import {
   FieldGrid,
   FillSection,
   InspectorSection,
-  Letter,
   NumberProp,
+  SizeModeFields,
   StrokeSection,
 } from "./fields";
 import { spreadFor, useStyleDraft } from "./useStyleDraft";
+
+const SIZE_MODES = ["fixed", "hug", "fill"] as const;
 
 const DIRECTIONS = [
   { value: "column", label: "Vertical", icon: ArrowDown },
@@ -54,86 +52,11 @@ const PaddingIcon = ({ axis }: { axis: "x" | "y" }) => (
   </svg>
 );
 
-/**
- * One side of the container: a fixed size, or automatic (the width fills the parent, the height
- * hugs the children), switched by the button next to it.
- */
-const SideField: React.FC<{
-  id: string;
-  side: "width" | "height";
-  auto: boolean;
-  value: number;
-  onAutoChange: (auto: boolean) => void;
-  onChange: (value: number) => void;
-}> = ({ id, side, auto, value, onAutoChange, onChange }) => {
-  const letter = side === "width" ? "W" : "H";
-  const autoName = side === "width" ? "Fill" : "Hug";
-  const autoHint =
-    side === "width" ? "Auto width: fills the parent" : "Auto height: hugs the contents";
-  const Icon = side === "width" ? UnfoldHorizontal : FoldVertical;
-  return (
-    <div className="flex min-w-0 gap-1">
-      {auto ? (
-        <div
-          title={autoHint}
-          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-input bg-input/30 pl-1.5 text-xs text-muted-foreground"
-        >
-          <Letter>{letter}</Letter>
-          <span className="truncate">{autoName}</span>
-        </div>
-      ) : (
-        <NumberProp
-          id={id}
-          label={side === "width" ? "Width" : "Height"}
-          prefix={<Letter>{letter}</Letter>}
-          property={`style.${side}`}
-          min={1}
-          unit="px"
-          value={value}
-          onChange={onChange}
-          className="flex-1"
-        />
-      )}
-      <button
-        type="button"
-        aria-pressed={auto}
-        title={auto ? `${autoHint} (click for a fixed ${side})` : autoHint}
-        aria-label={side === "width" ? "Auto width" : "Auto height"}
-        onClick={() => onAutoChange(!auto)}
-        className={cn(
-          "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5",
-          auto && "bg-accent text-primary dark:text-ring"
-        )}
-      >
-        <Icon />
-      </button>
-    </div>
-  );
-};
-
 export const ContainerEditor: React.FC<{
   element: PrismaElement;
   onChange: (newStyle: ContainerStyle) => void;
 }> = ({ element, onChange }) => {
   const { style, update, colorProps } = useStyleDraft(element, onChange);
-
-  const autoWidth = style.autoWidth !== false;
-  const autoHeight = style.autoHeight !== false;
-
-  // Switching an automatic side off keeps the size the container has right now.
-  const setAuto = (side: "width" | "height", auto: boolean) => {
-    const key = side === "width" ? "autoWidth" : "autoHeight";
-    if (auto) return update({ [key]: true });
-    const box = document.querySelector(`[${CANVAS_ELEMENT_ATTRIBUTE}="${CSS.escape(element.id)}"]`)
-      ?.firstElementChild as HTMLElement | null | undefined;
-    const measured = side === "width" ? box?.offsetWidth : box?.offsetHeight;
-    update({
-      [key]: false,
-      [side]:
-        style[side] ??
-        (measured || (side === "width" ? DEFAULT_CONTAINER_WIDTH : DEFAULT_CONTAINER_HEIGHT)),
-    });
-  };
 
   const row = isRowDirection(style.flexDirection);
   const id = (name: string) => `${element.id}-container-${name}`;
@@ -143,24 +66,14 @@ export const ContainerEditor: React.FC<{
   return (
     <>
       <InspectorSection title="Layout">
-        <FieldGrid>
-          <SideField
-            id={id("width")}
-            side="width"
-            auto={autoWidth}
-            value={style.width ?? DEFAULT_CONTAINER_WIDTH}
-            onAutoChange={(auto) => setAuto("width", auto)}
-            onChange={(width) => update({ width })}
-          />
-          <SideField
-            id={id("height")}
-            side="height"
-            auto={autoHeight}
-            value={style.height ?? DEFAULT_CONTAINER_HEIGHT}
-            onAutoChange={(auto) => setAuto("height", auto)}
-            onChange={(height) => update({ height })}
-          />
-        </FieldGrid>
+        <SizeModeFields
+          elementId={element.id}
+          style={style}
+          defaultSize={{ width: DEFAULT_CONTAINER_WIDTH, height: DEFAULT_CONTAINER_HEIGHT }}
+          modes={SIZE_MODES}
+          hugKeys={{ width: "autoWidth", height: "autoHeight" }}
+          onChange={update}
+        />
         <FieldGrid className="items-end">
           <Field label="Direction" htmlFor={id("direction")}>
             <SegmentedControl

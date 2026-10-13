@@ -1,14 +1,20 @@
 import { ElementTypeEnum, type ContainerStyle, type PrismaElement } from "@/lib/types";
 import {
+  ChartNoAxesGantt,
+  Clapperboard,
   Columns3,
   Frame,
   Grid3x3,
   Hash,
   Hourglass,
+  HeartPulse,
   Image,
+  MessagesSquare,
   Rows3,
+  ScrollText,
   Shapes,
   Square,
+  SquareStack,
   Timer,
   Type,
 } from "lucide-react";
@@ -29,16 +35,28 @@ export const ElementTypeIcon = ({
       return <Timer className={className} />;
     case ElementTypeEnum.COUNTDOWN:
       return <Hourglass className={className} />;
+    case ElementTypeEnum.SUBATHON:
+      return <HeartPulse className={className} />;
     case ElementTypeEnum.ICON:
       return <Shapes className={className} />;
     case ElementTypeEnum.IMAGE:
       return <Image className={className} />;
+    case ElementTypeEnum.VIDEO:
+      return <Clapperboard className={className} />;
     case ElementTypeEnum.BINGO:
       return <Grid3x3 className={className} />;
     case ElementTypeEnum.GROUP:
       return <Frame className={className} />;
     case ElementTypeEnum.RECTANGLE:
       return <Square className={className} />;
+    case ElementTypeEnum.SCROLLER:
+      return <ScrollText className={className} />;
+    case ElementTypeEnum.CYCLE_STACK:
+      return <SquareStack className={className} />;
+    case ElementTypeEnum.PROGRESS:
+      return <ChartNoAxesGantt className={className} />;
+    case ElementTypeEnum.CHAT:
+      return <MessagesSquare className={className} />;
     case ElementTypeEnum.CONTAINER: {
       // Mirrors the container's layout direction
       const direction = (element.style as ContainerStyle | null)?.flexDirection ?? "column";

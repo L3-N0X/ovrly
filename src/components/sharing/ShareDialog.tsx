@@ -328,7 +328,7 @@ const PublicLinkFooter: React.FC<{ overlayId: string; showTeamLink: boolean }> =
         </p>
       </div>
       <Button variant="outline" size="sm" onClick={copy} className="shrink-0">
-        {copied ? <Check className="text-emerald-500" /> : <Link2 />}
+        {copied ? <Check className="text-success" /> : <Link2 />}
         {copied ? "Copied" : "Copy link"}
       </Button>
     </div>

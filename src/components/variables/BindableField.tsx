@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { AlertCircle, Braces, Check, Settings2, Unlink } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -32,6 +32,8 @@ interface BindableFieldProps {
   htmlFor?: string;
   // For switches, whose label sits next to them rather than above.
   inline?: boolean;
+  // Controls shown at the end of the label's row (not for inline fields).
+  actions?: React.ReactNode;
   // For the small fields of the inspector, which carry their label inside (as a prefix like "X"
   // or an icon): no label above, the bind button shows on hover at the field's right end, and
   // a bound variable takes the field's place at the same height. `label` becomes the tooltip.
@@ -57,6 +59,7 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   label,
   htmlFor,
   inline,
+  actions,
   compact,
   prefix,
   className,
@@ -66,6 +69,9 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   const element = useBindingElement();
   const kind = element && property ? bindingKind(element.type, property) : undefined;
   const [picking, setPicking] = useState(false);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  // What had focus in the field when the picker opened, to go back to once it closes.
+  const returnFocus = useRef<HTMLElement | null>(null);
 
   const tooltip = typeof label === "string" ? label : undefined;
 
@@ -86,7 +92,14 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       </div>
     ) : (
       <div className={cn("space-y-2", className)}>
-        <Label htmlFor={htmlFor}>{label}</Label>
+        {actions ? (
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={htmlFor}>{label}</Label>
+            {actions}
+          </div>
+        ) : (
+          <Label htmlFor={htmlFor}>{label}</Label>
+        )}
         {children}
       </div>
     );
@@ -98,17 +111,47 @@ export const BindableField: React.FC<BindableFieldProps> = ({
     setPicking(false);
     variables.onBind(element.id, property, target);
   };
+  const openPicker = () => {
+    const focused = document.activeElement;
+    returnFocus.current =
+      focused instanceof HTMLElement && fieldRef.current?.contains(focused) ? focused : null;
+    setPicking(true);
+  };
+  // Alt+V opens the picker from anywhere in the field, since the bind button can't be tabbed to.
+  // By code, as Option+V types a character on macOS.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!canBind || !e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.code !== "KeyV") return;
+    e.preventDefault();
+    e.stopPropagation();
+    openPicker();
+  };
+  // Back into the field, or into what replaced it once a variable was bound or detached.
+  const onCloseAutoFocus = (e: Event) => {
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    if (!target) return;
+    e.preventDefault();
+    const next = target.isConnected
+      ? target
+      : fieldRef.current?.querySelector<HTMLElement>(
+          "input, textarea, select, button:not([tabindex='-1']), [tabindex]:not([tabindex='-1'])"
+        );
+    next?.focus();
+  };
 
+  // Out of the tab order, so tabbing through a form goes from field to field (Alt+V instead).
   const bindButton = canBind && (
     <button
       type="button"
-      title="Bind to a variable"
+      tabIndex={-1}
+      title="Bind to a variable (Alt+V)"
       aria-label={`Bind ${typeof label === "string" ? label : "field"} to a variable`}
-      onClick={() => setPicking(true)}
+      aria-keyshortcuts="Alt+V"
+      onClick={openPicker}
       className={cn(
         "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity outline-none hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/bind:opacity-100 group-focus-within/bind:opacity-100",
         // Over the end of the field, so it needs a background to hide the unit beneath it.
-        compact ? "size-5 bg-background" : "-my-1 size-6",
+        compact ? "size-5 bg-card" : "-my-1 size-6",
         picking && "opacity-100"
       )}
     >
@@ -122,7 +165,7 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       variable={variables.variables?.find((v) => variableRef(v) === variableRef(binding))}
       loaded={variables.variables !== null}
       sourceName={sourceLabel(binding.source, variables.sources)}
-      onPick={canBind ? () => setPicking(true) : undefined}
+      onPick={canBind ? openPicker : undefined}
       onDetach={canBind ? () => bind(null) : undefined}
       compact={compact}
       prefix={prefix}
@@ -150,7 +193,12 @@ export const BindableField: React.FC<BindableFieldProps> = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor={binding ? undefined : htmlFor}>{label}</Label>
-          {!binding && bindButton}
+          {(actions || !binding) && (
+            <div className="flex items-center gap-1">
+              {!binding && bindButton}
+              {actions}
+            </div>
+          )}
         </div>
         {boundVariable || children}
       </div>
@@ -159,11 +207,22 @@ export const BindableField: React.FC<BindableFieldProps> = ({
   return (
     <Popover open={picking} onOpenChange={setPicking}>
       <PopoverAnchor asChild>
-        <div className={cn("group/bind min-w-0", className)} title={compact ? tooltip : undefined}>
+        <div
+          ref={fieldRef}
+          onKeyDown={onKeyDown}
+          className={cn("group/bind min-w-0", className)}
+          title={compact ? tooltip : undefined}
+        >
           {field}
         </div>
       </PopoverAnchor>
-      <PopoverContent align="end" className="w-72 p-0">
+      <PopoverContent
+        align="end"
+        className="w-72 p-0"
+        onCloseAutoFocus={onCloseAutoFocus}
+        // Clicking elsewhere closes it without pulling focus back from what was clicked.
+        onInteractOutside={() => (returnFocus.current = null)}
+      >
         <VariablePicker kind={kind} binding={binding} onBind={bind} />
       </PopoverContent>
     </Popover>
@@ -188,8 +247,8 @@ const BoundVariable: React.FC<{
         "@container flex w-full min-w-0 items-center gap-1.5 rounded-md border pr-1",
         compact ? "h-7 pl-1.5 text-xs" : "h-9 pl-2 text-sm",
         missing
-          ? "border-amber-500/50 bg-amber-500/10"
-          : "border-violet-500/40 bg-violet-500/10"
+          ? "border-warning/50 bg-warning/10"
+          : "border-primary/40 bg-primary/10"
       )}
     >
       <button
@@ -205,9 +264,9 @@ const BoundVariable: React.FC<{
           </span>
         )}
         {variable ? (
-          <VariableTypeIcon type={variable.type} className="text-violet-500" />
+          <VariableTypeIcon type={variable.type} className="text-primary" />
         ) : (
-          <Braces className="size-3.5 shrink-0 text-violet-500" />
+          <Braces className="size-3.5 shrink-0 text-primary" />
         )}
         <span className="min-w-0 truncate font-medium">
           {binding.key}
@@ -225,7 +284,7 @@ const BoundVariable: React.FC<{
       ) : (
         missing && (
           <span title="There is no variable of this name (any more). The field shows its own value until there is.">
-            <AlertCircle className="size-3.5 shrink-0 text-amber-500" />
+            <AlertCircle className="size-3.5 shrink-0 text-warning" />
           </span>
         )
       )}

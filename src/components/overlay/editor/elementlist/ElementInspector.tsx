@@ -1,21 +1,30 @@
+import { Switch } from "@/components/ui/switch";
+import { BindableField } from "@/components/variables/BindableField";
 import {
   ElementTypeEnum,
+  isElementVisible,
   type ElementStyle,
   type PrismaElement,
   type PrismaOverlay,
   type OnOverlayChange,
 } from "@/lib/types";
 import { BingoEditor } from "../BingoEditor";
+import { ChatEditor } from "../ChatEditor";
 import type { BingoDataUpdate } from "@/lib/bingo";
 import { ContainerEditor } from "../ContainerEditor";
 import { CounterStyleEditor } from "../CounterEditor";
+import { CycleStackEditor } from "../CycleStackEditor";
 import { FieldHint, InspectorSection } from "../fields";
 import { GroupEditor, PositionFields } from "../GroupEditor";
 import { IconStyleEditor } from "../IconEditor";
 import ImageStyleEditor from "../ImageStyleEditor";
+import { ProgressEditor } from "../ProgressEditor";
 import { RectangleEditor } from "../RectangleEditor";
+import { ScrollerEditor } from "../ScrollerEditor";
+import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
+import VideoStyleEditor from "../VideoStyleEditor";
 import { isPlacedFreely } from "./tree";
 
 // Updates the selected element's style. onOverlayChange persists it itself (debounced per
@@ -64,6 +73,35 @@ export const ElementPositionSection = ({
   );
 };
 
+// Whether the element is drawn. Bound to a yes/no variable, apps and providers can show and hide it.
+export const ElementVisibilitySection = ({
+  element,
+  overlay,
+  onOverlayChange,
+}: {
+  element: PrismaElement;
+  overlay: PrismaOverlay;
+  onOverlayChange: OnOverlayChange;
+}) => {
+  const updateStyle = styleUpdater(element, overlay, onOverlayChange);
+  return (
+    <InspectorSection title="Visibility">
+      <BindableField
+        property="style.visible"
+        inline
+        htmlFor={`${element.id}-visible`}
+        label="Visible"
+      >
+        <Switch
+          id={`${element.id}-visible`}
+          checked={isElementVisible(element)}
+          onCheckedChange={(visible) => updateStyle({ ...(element.style || {}), visible })}
+        />
+      </BindableField>
+    </InspectorSection>
+  );
+};
+
 // The design sections of the selected element (Layout, Appearance, Text, Fill, Stroke, Effects
 // and its own), each editor rendering them in that order.
 export const ElementStyleEditor = ({
@@ -88,10 +126,14 @@ export const ElementStyleEditor = ({
     case ElementTypeEnum.TIMER:
     case ElementTypeEnum.COUNTDOWN:
       return <TimerStyleEditor {...editorProps} />;
+    case ElementTypeEnum.SUBATHON:
+      return <SubathonStyleEditor {...editorProps} />;
     case ElementTypeEnum.ICON:
       return <IconStyleEditor {...editorProps} />;
     case ElementTypeEnum.IMAGE:
       return <ImageStyleEditor {...editorProps} />;
+    case ElementTypeEnum.VIDEO:
+      return <VideoStyleEditor {...editorProps} />;
     case ElementTypeEnum.BINGO:
       return <BingoEditor {...editorProps} onDataChange={onBingoDataChange} />;
     case ElementTypeEnum.CONTAINER:
@@ -100,5 +142,13 @@ export const ElementStyleEditor = ({
       return <GroupEditor {...editorProps} />;
     case ElementTypeEnum.RECTANGLE:
       return <RectangleEditor {...editorProps} />;
+    case ElementTypeEnum.SCROLLER:
+      return <ScrollerEditor {...editorProps} />;
+    case ElementTypeEnum.CYCLE_STACK:
+      return <CycleStackEditor {...editorProps} />;
+    case ElementTypeEnum.PROGRESS:
+      return <ProgressEditor {...editorProps} />;
+    case ElementTypeEnum.CHAT:
+      return <ChatEditor {...editorProps} />;
   }
 };

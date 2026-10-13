@@ -11,22 +11,40 @@ export const ElementTypeEnum = {
   GROUP: "GROUP",
   ICON: "ICON",
   RECTANGLE: "RECTANGLE",
+  PROGRESS: "PROGRESS",
+  SUBATHON: "SUBATHON",
+  SCROLLER: "SCROLLER",
+  CYCLE_STACK: "CYCLE_STACK",
+  VIDEO: "VIDEO",
+  CHAT: "CHAT",
 } as const;
 
 // Element types that hold other elements.
 export const isParentType = (type: ElementType) =>
-  type === ElementTypeEnum.CONTAINER || type === ElementTypeEnum.GROUP;
+  type === ElementTypeEnum.CONTAINER ||
+  type === ElementTypeEnum.GROUP ||
+  type === ElementTypeEnum.SCROLLER ||
+  type === ElementTypeEnum.CYCLE_STACK;
+
+// Whether an element is drawn: only `style.visible: false` (stored or bound) hides it.
+export const isElementVisible = (element: { style: ElementStyle | null }) =>
+  (element.style as BaseElementStyle | null)?.visible !== false;
 
 // Element types with content of their own (text, a value, ...) that can be changed while
-// live. Containers and groups only arrange other elements.
+// live. Containers and groups only arrange other elements; a cycle stack's content is which of
+// them it shows.
 export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.TITLE ||
   type === ElementTypeEnum.COUNTER ||
   type === ElementTypeEnum.TIMER ||
   type === ElementTypeEnum.COUNTDOWN ||
+  type === ElementTypeEnum.SUBATHON ||
   type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.VIDEO ||
   type === ElementTypeEnum.ICON ||
-  type === ElementTypeEnum.BINGO;
+  type === ElementTypeEnum.PROGRESS ||
+  type === ElementTypeEnum.BINGO ||
+  type === ElementTypeEnum.CYCLE_STACK;
 
 export type ElementType =
   (typeof ElementTypeEnum)[keyof typeof ElementTypeEnum];
@@ -112,6 +130,12 @@ export interface BaseElementStyle {
   // Offset from the top left corner of the parent, used when the parent is a GROUP.
   x?: number;
   y?: number;
+  // Hidden elements (`false`) are not drawn; anything else, including nothing stored, shows them.
+  visible?: boolean;
+  // Stretch the element across its parent along that side, like Figma's "Fill container"; the
+  // stored size on that side is then ignored. Off by default. Only the types in `canFill` use it.
+  fillWidth?: boolean;
+  fillHeight?: boolean;
   /**
    * A drop shadow is drawn while this is set (see `shadowStyle` in
    * components/overlay/shadow.ts); the other shadow values fall back to `DEFAULT_SHADOW`.
@@ -122,6 +146,39 @@ export interface BaseElementStyle {
   shadowBlur?: number;
   /** Only used by elements with a fill, whose shadow is cast by their box. */
   shadowSpread?: number;
+}
+
+// Element types that can fill their parent along a side (`fillWidth`/`fillHeight`).
+export const canFill = (type: ElementType) =>
+  type === ElementTypeEnum.TITLE ||
+  type === ElementTypeEnum.IMAGE ||
+  type === ElementTypeEnum.VIDEO ||
+  type === ElementTypeEnum.CONTAINER ||
+  type === ElementTypeEnum.GROUP ||
+  type === ElementTypeEnum.SCROLLER ||
+  type === ElementTypeEnum.CYCLE_STACK ||
+  type === ElementTypeEnum.RECTANGLE ||
+  type === ElementTypeEnum.CHAT ||
+  type === ElementTypeEnum.PROGRESS;
+
+// Whether an element fills its parent along each side.
+export const fillOf = (element: { type: ElementType; style: ElementStyle | null }) => {
+  const style = element.style as BaseElementStyle | null;
+  const fills = canFill(element.type);
+  return {
+    width: fills && style?.fillWidth === true,
+    height: fills && style?.fillHeight === true,
+  };
+};
+
+// Specific style for a Title element
+export interface TitleStyle extends BaseElementStyle {
+  paddingX?: number;
+  paddingY?: number;
+  /** Where the text sits when the title is wider than it; "left" by default. */
+  textAlign?: "left" | "center" | "right";
+  /** Where the text sits when the title is taller than it; "top" by default. */
+  verticalAlign?: "top" | "center" | "bottom";
 }
 
 // What a shadow starts out as when it is added: a soft one, slightly below the element.
@@ -145,9 +202,20 @@ export interface CounterStyle extends BaseElementStyle {
 // Specific style for a Timer or Countdown element
 export interface TimerStyle extends BaseElementStyle {
   backgroundColor?: string;
+  /** Older timers may still store uniform padding; paddingX/paddingY take precedence per axis. */
   padding?: number;
+  paddingX?: number;
+  paddingY?: number;
   radius?: number;
   format?: string;
+}
+
+// Specific style for a Subathon element: a countdown that shows what Twitch events add to it.
+export interface SubathonStyle extends TimerStyle {
+  /** Shows the time an event added ("+5m") above the countdown for a moment. On by default. */
+  showAdded?: boolean;
+  /** Shown instead of the time once it has run out; empty keeps showing zero. */
+  endedText?: string;
 }
 
 // Specific style for an Image element
@@ -159,6 +227,23 @@ export interface ImageStyle extends BaseElementStyle {
   borderRadius?: number;
 }
 
+// Specific style for a Video element, which also shows GIFs and other animated images (see
+// src/lib/video.ts).
+export interface VideoStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  objectFit?: "cover" | "contain";
+  borderRadius?: number;
+  /** Starts over at the end; on by default. Off, it stops on its last frame. */
+  loop?: boolean;
+  /** Off by default. Sound only ever plays in OBS, never in the editor. */
+  muted?: boolean;
+  /** 0–100; 100 by default. */
+  volume?: number;
+  /** Off by default; when on, it is only drawn while it plays (not paused, stopped or ended). */
+  hideWhenStopped?: boolean;
+}
+
 // Specific style for an Icon element. The icon is drawn in `color` at `size` by `size` pixels.
 export interface IconStyle extends BaseElementStyle {
   size?: number;
@@ -166,7 +251,7 @@ export interface IconStyle extends BaseElementStyle {
 
 // Specific style for a Container element
 export interface ContainerStyle extends BaseElementStyle {
-  /** Both sizes are automatic unless switched off: the container fills its parent's width and grows with its children. */
+  /** Both sizes are fixed by default; a side can hug the children instead (or fill the parent). */
   autoWidth?: boolean;
   autoHeight?: boolean;
   /** Used for the sides that are not automatic. */
@@ -234,6 +319,87 @@ export const BORDER_RADIUS_RANGE = { min: 0, max: 200 };
 export const DEFAULT_RECTANGLE_WIDTH = 320;
 export const DEFAULT_RECTANGLE_HEIGHT = 200;
 
+// How a scroller moves content that doesn't fit: `bounce` scrolls to the end, waits, scrolls back
+// and waits again; `loop` scrolls on forever, the first child following the last one again.
+export type ScrollerMode = "bounce" | "loop";
+
+// Specific style for a Scroller element: lays its children out like a container, in a box of at
+// most `width` by `height`, and scrolls them by itself when they are longer than that.
+export interface ScrollerStyle extends BaseElementStyle {
+  /** "vertical" by default: the children stack in a column and scroll up. */
+  direction?: "vertical" | "horizontal";
+  /** "bounce" by default. */
+  mode?: ScrollerMode;
+  /** The size of the box; the side it scrolls along is a maximum when `fitContent` is on. */
+  width?: number;
+  height?: number;
+  /** Off by default; while it's on, the side it scrolls along shrinks to the children. */
+  fitContent?: boolean;
+  /** Pixels per second. */
+  speed?: number;
+  /** Seconds to wait at each end, in bounce mode. */
+  pause?: number;
+  gap?: number;
+  paddingX?: number;
+  paddingY?: number;
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
+  /** Transparent by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
+}
+
+export const DEFAULT_SCROLLER_WIDTH = 400;
+export const DEFAULT_SCROLLER_HEIGHT = 240;
+export const DEFAULT_SCROLLER_SPEED = 40;
+export const DEFAULT_SCROLLER_PAUSE = 2;
+export const SCROLLER_SPEED_RANGE = { min: 1, max: 2000 };
+export const SCROLLER_PAUSE_RANGE = { min: 0, max: 60 };
+
+// How a cycle stack goes from one layer to the next.
+export type CycleStackTransition = "none" | "fade";
+
+// Specific style for a Cycle Stack element: its children are layers on top of each other in a
+// box of `width` by `height`, and only one of them is shown at a time, each for `interval`
+// seconds (see src/lib/cycleStack.ts).
+export interface CycleStackStyle extends BaseElementStyle {
+  /** Seconds each layer is shown for while it cycles. */
+  interval?: number;
+  /** "fade" by default. */
+  transition?: CycleStackTransition;
+  /** Seconds a fade takes. */
+  transitionDuration?: number;
+  /** The size of the box, unless `fitContent` is on. */
+  width?: number;
+  height?: number;
+  /** Off by default: when on, the box takes the size of its biggest layer. */
+  fitContent?: boolean;
+  /** Where a layer smaller than the box sits in it; "center" by default. */
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignItems?: "start" | "center" | "end" | "stretch";
+  paddingX?: number;
+  paddingY?: number;
+  /** Transparent by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  /** 0 by default, which draws no border at all. */
+  borderWidth?: number;
+  /** 0 by default, so the corners are square. */
+  borderRadius?: number;
+}
+
+export const DEFAULT_CYCLE_STACK_WIDTH = 400;
+export const DEFAULT_CYCLE_STACK_HEIGHT = 240;
+export const DEFAULT_CYCLE_STACK_INTERVAL = 5;
+export const DEFAULT_CYCLE_STACK_TRANSITION_DURATION = 0.5;
+export const CYCLE_STACK_INTERVAL_RANGE = { min: 0.5, max: 3600 };
+export const CYCLE_STACK_TRANSITION_RANGE = { min: 0, max: 10 };
+
 // Specific style for a Group element: a fixed-size area whose children are placed freely
 export interface GroupStyle extends BaseElementStyle {
   width?: number;
@@ -265,6 +431,120 @@ export interface RectangleStyle extends BaseElementStyle {
   /** 0 by default, so the corners are square. */
   borderRadius?: number;
 }
+
+// Where a chat's messages sit, and which end new ones come in at.
+export type ChatEdge = "top" | "bottom";
+
+// How a new chat message comes in (and an old one leaves): the others always make room smoothly.
+export type ChatAnimation = "slide-left" | "slide-right" | "rise" | "fade" | "pop" | "none";
+
+export type ChatTimeFormat = "24h" | "24h-seconds" | "12h";
+
+// Specific style for a Chat element: the live Twitch chat of a channel, with Twitch, 7TV, BTTV
+// and FFZ emotes (see src/lib/chat). The message font is the base `fontFamily`/`fontSize`/
+// `fontWeight`/`color`; names have their own.
+export interface ChatStyle extends BaseElementStyle {
+  /** The Twitch channel (login name); empty for the overlay owner's own. */
+  channel?: string;
+  width?: number;
+  height?: number;
+  /**
+   * How a message is written, with placeholders (see `CHAT_PLACEHOLDERS` in src/lib/chat):
+   * `DEFAULT_CHAT_FORMAT` by default. Anything else is shown as written, in `dividerColor`.
+   */
+  format?: string;
+  timeFormat?: ChatTimeFormat;
+  /** The text between the placeholders; the message color by default. */
+  dividerColor?: string;
+  /** The timestamp; a dimmed message color by default. */
+  timeColor?: string;
+  /** Names fall back to the message font. */
+  nameFontFamily?: string;
+  nameFontSize?: number;
+  nameFontWeight?: number;
+  /** On by default: names in the color each chatter picked on Twitch, `nameColor` for the rest. */
+  useUserColors?: boolean;
+  nameColor?: string;
+  /** The height of emotes in pixels; 1.6 times the font size by default. */
+  emoteSize?: number;
+  /** Which emote providers are used besides Twitch; all of them by default. */
+  sevenTv?: boolean;
+  bttv?: boolean;
+  ffz?: boolean;
+  /** "bottom" by default: messages sit at the bottom of the box while they don't fill it. */
+  align?: ChatEdge;
+  /** "bottom" by default: new messages come in below the older ones. */
+  newestAt?: ChatEdge;
+  /** Off by default: messages stay until they are pushed out. On, they leave after `hideAfter`. */
+  hideMessages?: boolean;
+  /** Seconds a message is shown for while `hideMessages` is on. */
+  hideAfter?: number;
+  /** The most messages kept; older ones leave. */
+  maxMessages?: number;
+  animation?: ChatAnimation;
+  /** Seconds a message takes to come in or leave. */
+  animationDuration?: number;
+  /** Fades messages out towards the edge where they are cut off. Off by default. */
+  fadeEdge?: boolean;
+  textAlign?: "left" | "center" | "right";
+  /** Pixels between two messages. */
+  gap?: number;
+  /** Leaves out messages starting with "!" (bot commands). Off by default. */
+  hideCommands?: boolean;
+  /** Login names whose messages are left out (bots), separated by commas or spaces. */
+  hiddenUsers?: string;
+  /** Each message on a background of its own; none by default. */
+  messageBackgroundColor?: string;
+  messageRadius?: number;
+  messagePaddingX?: number;
+  messagePaddingY?: number;
+  /** The box around all messages. */
+  paddingX?: number;
+  paddingY?: number;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+}
+
+export const DEFAULT_CHAT_WIDTH = 420;
+export const DEFAULT_CHAT_HEIGHT = 560;
+export const DEFAULT_CHAT_FONT_SIZE = 22;
+export const DEFAULT_CHAT_FORMAT = "{badges}{name}: {message}";
+export const DEFAULT_CHAT_HIDE_AFTER = 30;
+export const DEFAULT_CHAT_MAX_MESSAGES = 50;
+export const DEFAULT_CHAT_ANIMATION_DURATION = 0.35;
+export const DEFAULT_CHAT_GAP = 8;
+export const DEFAULT_CHAT_NAME_COLOR = "#a970ff";
+export const CHAT_MAX_MESSAGES_RANGE = { min: 1, max: 200 };
+export const CHAT_HIDE_AFTER_RANGE = { min: 1, max: 3600 };
+export const CHAT_ANIMATION_DURATION_RANGE = { min: 0, max: 5 };
+
+// How a progress bar reads its value: as a percentage, or as a value out of a maximum (a song's
+// progress out of its length).
+export type ProgressMode = "percent" | "values";
+
+// Specific style for a Progress element: a track, filled from the left to how far along it is.
+export interface ProgressStyle extends BaseElementStyle {
+  width?: number;
+  height?: number;
+  /** "percent" by default. */
+  mode?: ProgressMode;
+  /** The filled part; white by default. */
+  fillColor?: string;
+  /** The empty part, a translucent white by default. */
+  backgroundColor?: string;
+  /** White by default; only drawn once `borderWidth` is above 0. */
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+}
+
+export const DEFAULT_PROGRESS_WIDTH = 480;
+export const DEFAULT_PROGRESS_HEIGHT = 12;
+export const DEFAULT_PROGRESS_FILL = "#ffffff";
+export const DEFAULT_PROGRESS_BACKGROUND = "#ffffff33";
+export const DEFAULT_PROGRESS_RADIUS = 6;
 
 // Specific style for a Bingo element
 export interface BingoStyle extends BaseElementStyle {
@@ -300,13 +580,20 @@ export interface BingoStyle extends BaseElementStyle {
 // A union of all possible element style types
 export type ElementStyle =
   | BaseElementStyle
+  | TitleStyle
   | CounterStyle
   | ContainerStyle
   | TimerStyle
+  | SubathonStyle
   | ImageStyle
+  | VideoStyle
   | IconStyle
   | RectangleStyle
+  | ProgressStyle
   | BingoStyle
+  | ScrollerStyle
+  | CycleStackStyle
+  | ChatStyle
   | GroupStyle;
 
 // The generic Element object from the backend
@@ -336,8 +623,46 @@ export interface PrismaElement {
     endsAt: string | null;
     targetAt: string | null;
   } | null;
+  // A countdown that Twitch subs and cheers add time to (lib/subathon.ts on the server). Times
+  // are milliseconds.
+  subathon?: {
+    id: string;
+    // What it starts from and resets to.
+    duration: number;
+    // The time left while paused; while running, it ends at `endsAt`.
+    remaining: number;
+    endsAt: string | null;
+    // The Twitch channel id whose events count; null for the owner's own channel.
+    channelId: string | null;
+    // Added per sub of each tier, and per 100 bits.
+    tier1Ms: number;
+    tier2Ms: number;
+    tier3Ms: number;
+    bitsMs: number;
+    // Multiplies what events add (a happy hour).
+    multiplier: number;
+    // Events never take the time left past this. Null for no limit.
+    maxRemaining: number | null;
+    countWhilePaused: boolean;
+    // Totals since the last reset.
+    subs: number;
+    bits: number;
+    addedMs: number;
+    // What the latest event added, and when.
+    lastAddedMs: number;
+    lastAddedAt: string | null;
+  } | null;
   image?: { id: string; src: string } | null;
+  // Plays from `position` seconds on since `startedAt`, or is held at `position` while paused
+  // (src/lib/video.ts).
+  video?: { id: string; src: string; position: number; startedAt: string | null } | null;
   icon?: { id: string; library: IconLibrary; name: string } | null;
+  // Which child a cycle stack shows (src/lib/cycleStack.ts): the one at `index`, and while it
+  // cycles (`startedAt` set), the ones after it, one per interval since then.
+  cycleStack?: { id: string; index: number; startedAt: string | null } | null;
+  // `value` out of `max` (100 in percent mode); `running` moves it on between updates: by one per
+  // second in values mode, at the pace it has been changing at in percent mode.
+  progress?: { id: string; value: number; max: number; running: boolean } | null;
   bingo?: {
     id: string;
     rows: number;

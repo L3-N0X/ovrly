@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Box, Line } from "./canvasGeometry";
+import type { Box, Edges, Line } from "./canvasGeometry";
 
 // What the canvas shows while something is dragged on it.
 export interface DragFeedback {
@@ -53,12 +53,17 @@ export type DragStore = ReturnType<typeof createDragStore>;
 
 export interface CanvasInteraction {
   store: DragStore;
-  // Snaps a group being resized to the boxes around it and shows the guides.
+  // Snaps the edges of an element being resized (`box`, in canvas pixels) to the boxes around
+  // it and shows the guides. `edges` says which edge moves per axis; the other one stays put.
   snapResize: (
-    groupId: string,
-    size: { width: number; height: number },
+    elementId: string,
+    box: Box,
+    edges: { x: Edges; y: Edges },
     modifiers: { altKey: boolean; shiftKey: boolean }
   ) => { width: number; height: number };
+  // The selected element's outline, which its resize handles are drawn into (see
+  // useElementResize), so they sit on top of everything and aren't clipped by the element.
+  handleHost: HTMLElement | null;
 }
 
 // Provided by the editor canvas while elements can be moved.
