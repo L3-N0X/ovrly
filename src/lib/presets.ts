@@ -37,6 +37,7 @@ export interface PresetElement {
   icon?: { library: IconLibrary; name: string };
   progress?: { value?: number; max?: number; running?: boolean };
   bingo?: Partial<NonNullable<PrismaElement["bingo"]>>;
+  wheel?: { fields: string[] };
   children?: PresetElement[];
 }
 
@@ -141,6 +142,19 @@ export const seedsToElements = (seeds: PresetElement[], idPrefix: string): Prism
         video:
           seed.type === ElementTypeEnum.VIDEO
             ? { id, src: seed.video?.src ?? "", position: 0, startedAt: new Date().toISOString() }
+            : null,
+        // Copies keep their entries but haven't been spun yet.
+        wheel:
+          seed.type === ElementTypeEnum.WHEEL
+            ? {
+                id,
+                fields: seed.wheel?.fields ?? [],
+                result: null,
+                fromRotation: 0,
+                rotation: 0,
+                spunAt: null,
+                duration: 0,
+              }
             : null,
         bingo: seed.bingo
           ? { id, ...normalizeBingoData(seed.bingo as PrismaElement["bingo"]) }

@@ -7,6 +7,7 @@ import { applyTimerAction, type TimerAction } from "@/lib/timer";
 import { applyCountdownAction, type CountdownAction } from "@/lib/countdown";
 import { applyCycleStackAction, type CycleStackAction } from "@/lib/cycleStack";
 import { applyVideoAction, withNewSource, type VideoAction } from "@/lib/video";
+import { applyWheelAction, type WheelAction } from "@/lib/wheel";
 import {
   applySubathonAction,
   applySubathonSettings,
@@ -133,11 +134,18 @@ const combineCounter = (queued: object, next: object): object => {
 
 type ActionsBody = {
   data: {
-    actions: (TimerAction | CountdownAction | SubathonAction | CycleStackAction | VideoAction)[];
+    actions: (
+      | TimerAction
+      | CountdownAction
+      | SubathonAction
+      | CycleStackAction
+      | VideoAction
+      | WheelAction
+    )[];
   };
 };
 
-// Timer, countdown, subathon, cycle stack and video actions waiting to be sent go out together,
+// Timer, countdown, subathon, cycle stack, video and wheel actions waiting to be sent go out together,
 // in the order they were made.
 const combineActions = (queued: object, next: object): object => ({
   data: {
@@ -689,6 +697,39 @@ export const useOverlayData = () => {
     [updateElement]
   );
 
+  // A wheel's entries, sent as a whole once typing stops (the last one sent wins).
+  const handleWheelFieldsChange = useCallback(
+    (elementId: string, fields: string[]) => {
+      updateElement(
+        elementId,
+        "wheelFields",
+        { data: { fields } },
+        (el) => {
+          if (el.wheel) el.wheel.fields = fields;
+        },
+        { delay: DEBOUNCE_MS }
+      );
+    },
+    [updateElement]
+  );
+
+  // Spinning a wheel and hiding its result. Where a spin lands is up to the server, so the wheel
+  // starts turning once its answer arrives.
+  const handleWheelAction = useCallback(
+    (elementId: string, action: WheelAction) => {
+      updateElement(
+        elementId,
+        "wheel",
+        { data: { actions: [action] } },
+        (el) => {
+          if (el.wheel) el.wheel = applyWheelAction(el.wheel, action);
+        },
+        { combine: combineActions }
+      );
+    },
+    [updateElement]
+  );
+
   // Binds a property of an element to a variable of the owner ({ source, key }), or detaches it
   // with null so the property shows its own value again.
   const handleBindingChange = useCallback(
@@ -950,6 +991,8 @@ export const useOverlayData = () => {
     handleSubathonAction,
     handleSubathonSettings,
     handleCycleStackAction,
+    handleWheelFieldsChange,
+    handleWheelAction,
     handleDeleteOverlay,
     variablesVersion,
   };

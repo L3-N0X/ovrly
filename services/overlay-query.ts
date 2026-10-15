@@ -19,6 +19,7 @@ export const overlayElementsInclude = {
       icon: true,
       progress: true,
       cycleStack: true,
+      wheel: true,
       bindings: { select: { property: true, source: true, key: true } },
     },
   },

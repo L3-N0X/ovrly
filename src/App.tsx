@@ -4,7 +4,6 @@ import HomePage from "./pages/HomePage";
 import OverlayPage from "./pages/OverlayPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import LoggedInRoute from "./components/auth/LoggedInRoute";
 import MainLayout from "./components/MainLayout";
 import PublicCounterPage from "./pages/PublicCounterPage";
 import SharedComponentPage from "./pages/SharedComponentPage";
@@ -19,9 +18,8 @@ function App() {
         <Router>
           <Routes>
             <Route element={<MainLayout />}>
-              <Route path="/" element={<LoggedInRoute />}>
-                <Route index element={<HomePage />} />
-              </Route>
+              {/* Shows the landing page or the dashboard, so it waits for the session itself. */}
+              <Route path="/" element={<HomePage />} />
               <Route path="/settings" element={<ProtectedRoute />}>
                 <Route index element={<SettingsPage />} />
               </Route>

@@ -59,8 +59,8 @@ model Image {
 enum ShareRole {
   // Sees the overlay and its live state.
   VIEWER
-  // Also runs it: counters, timers, countdowns, titles, images, videos, icons, bingo cards, and the
-  // values of the owner's variables.
+  // Also runs it: counters, timers, countdowns, titles, images, videos, icons, bingo cards,
+  // wheels, and the values of the owner's variables.
   CONTROLLER
   // Also changes its design: elements, layout and styles.
   EDITOR
@@ -173,6 +173,7 @@ model Element {
   progress  Progress?
   subathon  Subathon?
   cycleStack CycleStack?
+  wheel     Wheel?
   // Properties of the element driven by variables instead of their own value.
   bindings  VariableBinding[]
 
@@ -202,6 +203,7 @@ enum ElementType {
   CYCLE_STACK
   VIDEO
   CHAT
+  WHEEL
 }
 
 model Title {
@@ -356,6 +358,28 @@ model Bingo {
   checked    Json
   elementId  String  @unique
   element    Element @relation(fields: [elementId], references: [id], onDelete: Cascade)
+}
+
+// A wheel of fortune: its labels go around it as equal segments, and a spin turns it until a
+// random one stops under the pointer at the top. Spins are decided by the server (lib/wheel.ts)
+// and stored as the turn from `fromRotation` to `rotation` that starts at `spunAt`, so every
+// client (the editor, OBS) animates the same spin and lands on the same segment.
+model Wheel {
+  id           String    @id @default(cuid())
+  // The labels, clockwise from the top. Empty ones are kept (an entry being typed) but get no
+  // segment.
+  fields       Json
+  // The label the last spin landed on, revealed once it stops. Null before the first spin and
+  // after the result is cleared.
+  result       String?
+  // Degrees clockwise the wheel is turned at the start and at the end of the last spin.
+  fromRotation Float     @default(0)
+  rotation     Float     @default(0)
+  spunAt       DateTime?
+  // How long the last spin turns for, in milliseconds.
+  duration     Int       @default(0)
+  elementId    String    @unique
+  element      Element   @relation(fields: [elementId], references: [id], onDelete: Cascade)
 }
 
 // A Twitch channel whose owner allowed ovrly to read its subscriptions. Kept apart from the

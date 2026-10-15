@@ -1,3 +1,4 @@
+import PageLoader from "@/components/PageLoader";
 import { authClient } from "@/lib/auth-client";
 import { Navigate, Outlet } from "react-router-dom";
 
@@ -5,7 +6,7 @@ const ProtectedRoute = () => {
   const { data: user, isPending } = authClient.useSession();
 
   if (isPending) {
-    return <div>Loading...</div>;
+    return <PageLoader />;
   }
 
   if (!user) {

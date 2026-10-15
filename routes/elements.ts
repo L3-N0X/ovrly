@@ -36,6 +36,13 @@ import {
   type VideoState,
 } from "../lib/video";
 import {
+  applyWheelAction,
+  DEFAULT_WHEEL_FIELDS,
+  parseWheelActions,
+  parseWheelFields,
+  type WheelState,
+} from "../lib/wheel";
+import {
   applyCycleStackAction,
   parseCycleStackActions,
   type CycleStackState,
@@ -69,6 +76,7 @@ const ELEMENT_TYPES = [
   "CYCLE_STACK",
   "VIDEO",
   "CHAT",
+  "WHEEL",
 ];
 const PARENT_TYPES: ElementType[] = ["CONTAINER", "GROUP", "SCROLLER", "CYCLE_STACK"];
 // Copies are shifted by this much (when they are placed by x/y), so a pasted element doesn't
@@ -226,6 +234,9 @@ export const handleElementsRoutes = async (
         elementCreateData.video = { create: {} };
       } else if (type === "BINGO") {
         elementCreateData.bingo = { create: createBingoState() };
+      } else if (type === "WHEEL") {
+        // A few labels to spin right away, so it is clear what it does.
+        elementCreateData.wheel = { create: { fields: DEFAULT_WHEEL_FIELDS } };
       } else if (type === "CONTAINER") {
         // No specific data needed for container, it's just a grouping element
       } else if (type === "SCROLLER") {
@@ -626,6 +637,7 @@ export const handleElementsRoutes = async (
               subathon: true,
               cycleStack: true,
               video: true,
+              wheel: true,
             },
           });
           if (!current) {
@@ -703,6 +715,31 @@ export const handleElementsRoutes = async (
                   position: next.position,
                   startedAt: next.startedAt,
                 },
+              };
+            }
+            if (element.type === "WHEEL" && (data.fields !== undefined || data.actions !== undefined)) {
+              if (!current.wheel) return { error: json({ error: "Wheel not found" }, 404) };
+              let next: WheelState = { ...current.wheel, fields: current.wheel.fields as string[] };
+              // Changed as a whole: entries are added, removed and reordered, which patches of
+              // single entries couldn't follow.
+              if (data.fields !== undefined) {
+                const fields = parseWheelFields(data.fields);
+                if (!fields) return { error: json({ error: "Invalid wheel entries" }, 400) };
+                next = { ...next, fields };
+              }
+              if (data.actions !== undefined) {
+                const parsed = parseWheelActions(data.actions);
+                if (!parsed) return { error: json({ error: "Invalid wheel actions" }, 400) };
+                // Applied with the server's clock, so it doesn't matter whose clock is off.
+                const now = Date.now();
+                next = parsed.reduce(
+                  (wheel, action) => applyWheelAction(wheel, action, current.style, now),
+                  next
+                );
+              }
+              const { fields, result, fromRotation, rotation, spunAt, duration } = next;
+              elementUpdateData.wheel = {
+                update: { fields, result, fromRotation, rotation, spunAt, duration },
               };
             }
             if (

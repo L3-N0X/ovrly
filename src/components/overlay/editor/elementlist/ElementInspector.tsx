@@ -25,6 +25,7 @@ import { SubathonStyleEditor } from "../SubathonEditor";
 import { TimerStyleEditor } from "../TimerEditor";
 import { TitleStyleEditor } from "../TitleEditor";
 import VideoStyleEditor from "../VideoStyleEditor";
+import { WheelEditor } from "../WheelEditor";
 import { isPlacedFreely } from "./tree";
 
 // Updates the selected element's style. onOverlayChange persists it itself (debounced per
@@ -150,5 +151,7 @@ export const ElementStyleEditor = ({
       return <ProgressEditor {...editorProps} />;
     case ElementTypeEnum.CHAT:
       return <ChatEditor {...editorProps} />;
+    case ElementTypeEnum.WHEEL:
+      return <WheelEditor {...editorProps} />;
   }
 };

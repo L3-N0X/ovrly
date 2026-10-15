@@ -232,6 +232,19 @@ export const BINDABLE_PROPERTIES: Record<ElementType, Record<string, BindingKind
     ...VISIBILITY,
     ...SHADOW,
   },
+  WHEEL: {
+    "style.width": "number",
+    ...TEXT_STYLE,
+    "style.colorFrom": "color",
+    "style.colorTo": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.pointerColor": "color",
+    "style.resultFontSize": "number",
+    ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
 };
 
 export const bindingKind = (type: ElementType, property: string): BindingKind | undefined =>

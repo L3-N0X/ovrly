@@ -205,6 +205,19 @@ export const BINDABLE_PROPERTIES: Record<string, Record<string, BindingKind>> = 
     ...VISIBILITY,
     ...SHADOW,
   },
+  WHEEL: {
+    "style.width": "number",
+    ...TEXT_STYLE,
+    "style.colorFrom": "color",
+    "style.colorTo": "color",
+    "style.borderColor": "color",
+    "style.borderWidth": "number",
+    "style.pointerColor": "color",
+    "style.resultFontSize": "number",
+    ...POSITION,
+    ...VISIBILITY,
+    ...SHADOW,
+  },
 };
 
 export const isBindableProperty = (elementType: string, property: unknown): property is string =>

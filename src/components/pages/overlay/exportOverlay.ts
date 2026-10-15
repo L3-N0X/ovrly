@@ -10,6 +10,7 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     title?: { text: string } | null;
     image?: { src: string } | null;
     video?: { src: string } | null;
+    wheel?: { fields: string[] } | null;
     icon?: { library: string; name: string } | null;
     progress?: { value: number; max: number; running: boolean } | null;
     countdown?: { mode: string; duration: number; targetAt: string | null } | null;
@@ -38,6 +39,10 @@ export const exportOverlay = (overlay: PrismaOverlay) => {
     }
     if (element.image) {
       newElement.image = { src: element.image.src };
+    }
+    // Wheels are exported with their entries but not their last spin.
+    if (element.wheel) {
+      newElement.wheel = { fields: element.wheel.fields };
     }
     // Videos are exported without their playback; they start playing once imported.
     if (element.video) {
