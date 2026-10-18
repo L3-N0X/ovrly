@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Blocks,
   Layers,
-  Loader2,
   Plus,
   RefreshCw,
   Search,
@@ -29,6 +28,7 @@ import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { ComponentLibrary } from "@/components/library/ComponentLibrary";
 import { LibraryHeader, SearchField } from "@/components/library/LibraryHeader";
 import Landing from "@/components/landing/Landing";
+import PageLoader from "@/components/PageLoader";
 
 type Filter = "all" | "mine" | "shared";
 type Sort = "newest" | "oldest" | "name";
@@ -170,13 +170,7 @@ const HomePage: React.FC = () => {
 
   const openCreate = () => setIsCreateOpen(true);
 
-  if (isSessionPending) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
-        <Loader2 className="size-6 animate-spin" />
-      </div>
-    );
-  }
+  if (isSessionPending) return <PageLoader />;
 
   if (!user) {
     return <Landing />;

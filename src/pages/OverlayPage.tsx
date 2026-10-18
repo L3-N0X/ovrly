@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Loader2, ShieldOff } from "lucide-react";
+import { ShieldOff } from "lucide-react";
 import { BingoDataProvider } from "@/lib/hooks/useBingoData";
 import FontLoader from "@/components/FontLoader";
+import PageLoader from "@/components/PageLoader";
 import type { PrismaOverlay, BaseElementStyle } from "@/lib/types";
 import { fontFamilyOf, fontWeightOf, type FontWeight } from "@/lib/fonts";
 import { UNDO_DELETE_MS, useOverlayData } from "@/lib/hooks/useOverlayData";
@@ -52,6 +53,8 @@ const OverlayPage: React.FC = () => {
     handleSubathonAction,
     handleSubathonSettings,
     handleCycleStackAction,
+    handleWheelFieldsChange,
+    handleWheelAction,
     handleDeleteOverlay,
     handleBindingChange,
     variablesVersion,
@@ -105,6 +108,8 @@ const OverlayPage: React.FC = () => {
       onSubathonAction: handleSubathonAction,
       onSubathonSettings: handleSubathonSettings,
       onCycleStackAction: handleCycleStackAction,
+      onWheelFieldsChange: handleWheelFieldsChange,
+      onWheelAction: handleWheelAction,
     }),
     [
       handleCounterChange,
@@ -123,6 +128,8 @@ const OverlayPage: React.FC = () => {
       handleSubathonAction,
       handleSubathonSettings,
       handleCycleStackAction,
+      handleWheelFieldsChange,
+      handleWheelAction,
     ]
   );
 
@@ -174,12 +181,7 @@ const OverlayPage: React.FC = () => {
     return Array.from(fonts, ([key, font]) => <FontLoader key={key} {...font} />);
   };
 
-  if (isLoading)
-    return (
-      <div className="flex min-h-dvh items-center justify-center text-muted-foreground">
-        <Loader2 className="size-6 animate-spin" />
-      </div>
-    );
+  if (isLoading) return <PageLoader />;
   if (error || !overlay || !id || !role)
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">

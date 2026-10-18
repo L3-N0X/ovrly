@@ -10,7 +10,7 @@ Ovrly is a free and open-source web application that allows you to create highly
 
 * **Free & Open Source:** Self-host Ovrly and have complete control over your data and overlays.
 * **High Customizability:** Tailor every element to your needs. Change colors, fonts, sizes, and positions with an intuitive editor.
-* **Versatile Elements:** Create timers, countdowns, counters, titles, images, icons, bingo cards and more, and bind their fields to live variables like Twitch stats. Combine them to build unique overlays.
+* **Versatile Elements:** Create timers, countdowns, counters, titles, images, icons, bingo cards, wheels of fortune and more, and bind their fields to live variables like Twitch stats. Combine them to build unique overlays.
 * **Real-time Collaboration:** Share your overlays with your broadcast team or moderators. Changes are reflected in real-time.
 * **Twitch Integration:** Secure login with your Twitch account. No extra passwords to remember.
 * **OBS Ready:** Easily export your overlays and use them as browser sources in OBS Studio, Streamlabs, or any other broadcasting software. Every overlay has its own canvas size (1920x1080 by default), set in the editor.
@@ -30,6 +30,7 @@ All Elements are editable to change their content.
 * **Image:** Add player photos, logos, or more.
 * **Video:** Play an uploaded MP4 or WebM, a GIF, or a link to one, with play, pause, restart and stop in the controls. For a **transparent background use WebM with VP9 and an alpha channel** (MP4 has none); see [Video element](docs/video.md) for how to convert.
 * **Chat:** Your Twitch chat (or any channel's), live, with Twitch, 7TV, BetterTTV and FrankerFaceZ emotes and badges. Write messages in your own format (`<{name}> | {message}`), style names separately, pick where new messages come in and how they animate, and optionally remove them after a while.
+* **Wheel:** A wheel of fortune with up to 100 entries you edit live (paste a list to add one per line). Spin it and everyone, OBS included, sees the same spin land on the same entry, which then pops up big in the middle. Segments are coloured along an OKLCH gradient (blue to purple by default) with alternating brightness, and every label is drawn at the same size.
 * **Bingo:** A card of 1 to 10 rows and columns. Mark cells on the canvas or in the controls as the game is called, with an optional free middle, a shuffle button, grid lines and a background image.
 * **Container:** Group and organize elements within your overlay, lining them up in a row or column.
 * **Group:** An area whose elements are placed freely by dragging them, like the canvas itself.

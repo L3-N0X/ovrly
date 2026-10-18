@@ -17,6 +17,7 @@ export const ElementTypeEnum = {
   CYCLE_STACK: "CYCLE_STACK",
   VIDEO: "VIDEO",
   CHAT: "CHAT",
+  WHEEL: "WHEEL",
 } as const;
 
 // Element types that hold other elements.
@@ -44,6 +45,7 @@ export const hasContent = (type: ElementType) =>
   type === ElementTypeEnum.ICON ||
   type === ElementTypeEnum.PROGRESS ||
   type === ElementTypeEnum.BINGO ||
+  type === ElementTypeEnum.WHEEL ||
   type === ElementTypeEnum.CYCLE_STACK;
 
 export type ElementType =
@@ -577,6 +579,30 @@ export interface BingoStyle extends BaseElementStyle {
   crossStyle?: "brush" | "line";
 }
 
+// Specific style for a Wheel element: a wheel of fortune whose segments are coloured along a
+// gradient (see src/lib/wheel.ts).
+export interface WheelStyle extends BaseElementStyle {
+  /** The wheel's diameter in pixels; it is always round, so this is its height too. */
+  width?: number;
+  /** The segments' colours run from `colorFrom` round to `colorTo` and back, mixed in OKLCH. */
+  colorFrom?: string;
+  colorTo?: string;
+  /** How much lighter and darker every other segment is, in OKLCH lightness percent. */
+  lightnessStep?: number;
+  /** The rim around the wheel; drawn while `borderWidth` is above 0. */
+  borderColor?: string;
+  borderWidth?: number;
+  /** The pointer at the top and the hub in the middle. */
+  pointerColor?: string;
+  /** How long a spin turns for, in seconds. */
+  spinDuration?: number;
+  /** Shows what it landed on in the middle once it stops; on by default. */
+  showResult?: boolean;
+  resultFontSize?: number;
+  /** Seconds the result stays up; 0 (the default) keeps it until the next spin. */
+  resultDuration?: number;
+}
+
 // A union of all possible element style types
 export type ElementStyle =
   | BaseElementStyle
@@ -594,6 +620,7 @@ export type ElementStyle =
   | ScrollerStyle
   | CycleStackStyle
   | ChatStyle
+  | WheelStyle
   | GroupStyle;
 
 // The generic Element object from the backend
@@ -663,6 +690,17 @@ export interface PrismaElement {
   // `value` out of `max` (100 in percent mode); `running` moves it on between updates: by one per
   // second in values mode, at the pace it has been changing at in percent mode.
   progress?: { id: string; value: number; max: number; running: boolean } | null;
+  // The labels of a wheel and its last spin (src/lib/wheel.ts): it turns from `fromRotation` to
+  // `rotation` degrees over `duration` ms from `spunAt`, and stops on `result`.
+  wheel?: {
+    id: string;
+    fields: string[];
+    result: string | null;
+    fromRotation: number;
+    rotation: number;
+    spunAt: string | null;
+    duration: number;
+  } | null;
   bingo?: {
     id: string;
     rows: number;

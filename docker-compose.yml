@@ -81,7 +81,7 @@ services:
     # IMPORTANT: Update these environment variables as needed
     environment:
       # Base URL where the app will be accessible
-      - APP_BASE_URL=http://localhost:3000
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3000}
 
       # Database connection URL
       - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/ovrly

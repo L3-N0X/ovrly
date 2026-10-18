@@ -12,6 +12,7 @@ import { progressSeed } from "./progress";
 import { isStyleObject } from "./style";
 import { subathonSeed } from "./subathon";
 import { videoSeed } from "./video";
+import { wheelSeed } from "./wheel";
 
 // What a component file says it is, so a random JSON file (or an overlay export) isn't taken
 // for one.
@@ -46,6 +47,7 @@ export interface ComponentElement {
   icon?: { library: string; name: string };
   progress?: { value: number; max: number; running: boolean };
   bingo?: ReturnType<typeof normalizeBingoState>;
+  wheel?: { fields: string[] };
   children?: ComponentElement[];
 }
 
@@ -130,6 +132,7 @@ export const parseComponentElements = (value: unknown): ComponentElement[] | str
       if (type === "ICON") element.icon = iconSeed(node.icon);
       if (type === "PROGRESS") element.progress = progressSeed(node.progress);
       if (type === "BINGO") element.bingo = normalizeBingoState(node.bingo);
+      if (type === "WHEEL") element.wheel = wheelSeed(node.wheel);
 
       const bindings = bindingSeeds(type, node.bindings);
       if (bindings.length > 0) element.bindings = bindings;

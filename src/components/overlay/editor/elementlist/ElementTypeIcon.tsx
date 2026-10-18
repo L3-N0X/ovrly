@@ -3,6 +3,7 @@ import {
   ChartNoAxesGantt,
   Clapperboard,
   Columns3,
+  FerrisWheel,
   Frame,
   Grid3x3,
   Hash,
@@ -57,6 +58,8 @@ export const ElementTypeIcon = ({
       return <ChartNoAxesGantt className={className} />;
     case ElementTypeEnum.CHAT:
       return <MessagesSquare className={className} />;
+    case ElementTypeEnum.WHEEL:
+      return <FerrisWheel className={className} />;
     case ElementTypeEnum.CONTAINER: {
       // Mirrors the container's layout direction
       const direction = (element.style as ContainerStyle | null)?.flexDirection ?? "column";

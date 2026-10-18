@@ -16,11 +16,13 @@ import { Input } from "@/components/ui/input";
 import { insertComponent, type OverlayComponent } from "@/lib/components";
 import { ComponentPicker, type Notice } from "@/components/library/ComponentPicker";
 import { PanelTabs } from "@/components/pages/overlay/PanelTabs";
+import { resolveWheelStyle, wheelColors } from "@/lib/wheel";
 import {
   AlertCircle,
   Info,
   ChartNoAxesGantt,
   Clapperboard,
+  FerrisWheel,
   Frame,
   Grid3x3,
   Hash,
@@ -84,6 +86,31 @@ const BingoPreview = () => {
         </div>
       ))}
     </div>
+  );
+};
+
+// Eight segments in the colours a new wheel gets, with its pointer.
+const WheelPreview = () => {
+  const colors = wheelColors(8, resolveWheelStyle(null));
+  const point = (angle: number) =>
+    `${20 * Math.sin((angle * Math.PI) / 180)} ${-20 * Math.cos((angle * Math.PI) / 180)}`;
+  return (
+    <svg viewBox="-24 -26 48 50" className="h-16 w-16">
+      <g transform="rotate(-12)">
+        {colors.map((color, i) => (
+          <path
+            key={i}
+            d={`M 0 0 L ${point(i * 45)} A 20 20 0 0 1 ${point((i + 1) * 45)} Z`}
+            fill={color}
+            stroke="white"
+            strokeWidth={0.6}
+          />
+        ))}
+      </g>
+      <circle r={20} fill="none" stroke="white" strokeWidth={1.6} />
+      <circle r={3} fill="white" />
+      <path d="M -3.5 -24 H 3.5 L 0 -17 Z" fill="white" strokeLinejoin="round" />
+    </svg>
   );
 };
 
@@ -246,6 +273,17 @@ const CONTENT_OPTIONS: ElementOption[] = [
     preview: (
       <Stage>
         <BingoPreview />
+      </Stage>
+    ),
+  },
+  {
+    type: ElementTypeEnum.WHEEL,
+    label: "Wheel",
+    description: "A wheel of fortune with your own entries. Spin it live and it reveals where it lands.",
+    icon: FerrisWheel,
+    preview: (
+      <Stage>
+        <WheelPreview />
       </Stage>
     ),
   },

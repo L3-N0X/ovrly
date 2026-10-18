@@ -10,6 +10,7 @@ import type { CountdownAction } from "@/lib/countdown";
 import type { CycleStackAction } from "@/lib/cycleStack";
 import type { SubathonAction, SubathonSettings } from "@/lib/subathon";
 import type { VideoAction } from "@/lib/video";
+import type { WheelAction } from "@/lib/wheel";
 import TimerControl from "./TimerControl";
 import CountdownControl from "./CountdownControl";
 import SubathonControl from "./SubathonControl";
@@ -19,6 +20,7 @@ import IconControl from "./IconControl";
 import ImageControl from "./ImageControl";
 import VideoControl from "./VideoControl";
 import BingoControl from "./BingoControl";
+import WheelControl from "./WheelControl";
 import CycleStackControl from "./CycleStackControl";
 import ProgressControl, { type ProgressChange } from "./ProgressControl";
 
@@ -39,6 +41,8 @@ export interface ContentHandlers {
   onCountdownAction: (elementId: string, action: CountdownAction) => void;
   onSubathonAction: (elementId: string, action: SubathonAction) => void;
   onCycleStackAction: (elementId: string, action: CycleStackAction) => void;
+  onWheelFieldsChange: (elementId: string, fields: string[]) => void;
+  onWheelAction: (elementId: string, action: WheelAction) => void;
   // Not content but design (editors only); here so the inspector gets it with the rest.
   onSubathonSettings: (elementId: string, settings: SubathonSettings) => void;
 }
@@ -89,6 +93,14 @@ export const ElementContentControl: React.FC<{
       return <ProgressControl element={element} onProgressChange={handlers.onProgressChange} />;
     case ElementTypeEnum.BINGO:
       return <BingoControl element={element} onDataChange={handlers.onBingoDataChange} />;
+    case ElementTypeEnum.WHEEL:
+      return (
+        <WheelControl
+          element={element}
+          onFieldsChange={handlers.onWheelFieldsChange}
+          onAction={handlers.onWheelAction}
+        />
+      );
     case ElementTypeEnum.CYCLE_STACK:
       return (
         <CycleStackControl
