@@ -101,6 +101,9 @@ interface LineStyle {
   useUserColors: boolean;
   dividerColor: string | undefined;
   timeColor: string;
+  messageInNameColor: boolean;
+  dividerInNameColor: boolean;
+  timeInNameColor: boolean;
   emoteSize: number;
   bubble: React.CSSProperties | null;
 }
@@ -158,7 +161,7 @@ const MessageLine: React.FC<{
         switch (part.kind) {
           case "time":
             return (
-              <span key={index} style={{ color: line.timeColor }}>
+              <span key={index} style={{ color: line.timeInNameColor ? nameColor : line.timeColor }}>
                 {formatChatTime(message.sentAt, line.timeFormat)}
               </span>
             );
@@ -191,7 +194,13 @@ const MessageLine: React.FC<{
             );
           case "text":
             return (
-              <span key={index} style={{ color: line.dividerColor, whiteSpace: "pre-wrap" }}>
+              <span
+                key={index}
+                style={{
+                  color: line.dividerInNameColor ? nameColor : line.dividerColor,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {part.text}
               </span>
             );
@@ -202,7 +211,10 @@ const MessageLine: React.FC<{
               <span
                 key={index}
                 // Twitch writes /me messages in the chatter's color.
-                style={message.action ? { color: nameColor, fontStyle: "italic" } : undefined}
+                style={{
+                  color: message.action || line.messageInNameColor ? nameColor : undefined,
+                  fontStyle: message.action ? "italic" : undefined,
+                }}
               >
                 {fragments.map((fragment, fragmentIndex) =>
                   fragment.kind === "text" ? (
@@ -442,6 +454,9 @@ const Chat: React.FC<ChatProps> = ({ element }) => {
       useUserColors: style.useUserColors !== false,
       dividerColor: style.dividerColor,
       timeColor: style.timeColor || "#ffffff99",
+      messageInNameColor: style.messageInNameColor === true,
+      dividerInNameColor: style.dividerInNameColor === true,
+      timeInNameColor: style.timeInNameColor === true,
       emoteSize: Math.max(8, toNumber(style.emoteSize, Math.round(fontSize * 1.6))),
       bubble: messageBackground
         ? {
@@ -466,6 +481,9 @@ const Chat: React.FC<ChatProps> = ({ element }) => {
     style.useUserColors,
     style.dividerColor,
     style.timeColor,
+    style.messageInNameColor,
+    style.dividerInNameColor,
+    style.timeInNameColor,
     style.emoteSize,
     style.messageBackgroundColor,
     style.messageRadius,
