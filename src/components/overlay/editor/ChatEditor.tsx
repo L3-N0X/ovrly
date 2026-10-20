@@ -246,7 +246,7 @@ export const ChatEditor: React.FC<{
               </SelectContent>
             </Select>
           )}
-          {showsTime && (
+          {showsTime && !style.timeInNameColor && (
             <ColorProp
               id={`${id}-time-color`}
               label="Timestamp color"
@@ -256,15 +256,40 @@ export const ChatEditor: React.FC<{
               {...colorProps}
             />
           )}
-          <ColorProp
-            id={`${id}-divider-color`}
-            label="Divider color (the text between the placeholders)"
-            property="style.dividerColor"
-            value={style.dividerColor || style.color || "#ffffff"}
-            onChange={(dividerColor) => update({ dividerColor })}
-            {...colorProps}
-          />
+          {!style.dividerInNameColor && (
+            <ColorProp
+              id={`${id}-divider-color`}
+              label="Divider color (the text between the placeholders)"
+              property="style.dividerColor"
+              value={style.dividerColor || style.color || "#ffffff"}
+              onChange={(dividerColor) => update({ dividerColor })}
+              {...colorProps}
+            />
+          )}
         </FieldGrid>
+        <BindableField inline htmlFor={`${id}-message-name-color`} label="Message in name color">
+          <Switch
+            id={`${id}-message-name-color`}
+            checked={style.messageInNameColor === true}
+            onCheckedChange={(on) => update({ messageInNameColor: on })}
+          />
+        </BindableField>
+        <BindableField inline htmlFor={`${id}-divider-name-color`} label="Dividers in name color">
+          <Switch
+            id={`${id}-divider-name-color`}
+            checked={style.dividerInNameColor === true}
+            onCheckedChange={(on) => update({ dividerInNameColor: on })}
+          />
+        </BindableField>
+        {showsTime && (
+          <BindableField inline htmlFor={`${id}-time-name-color`} label="Timestamp in name color">
+            <Switch
+              id={`${id}-time-name-color`}
+              checked={style.timeInNameColor === true}
+              onCheckedChange={(on) => update({ timeInNameColor: on })}
+            />
+          </BindableField>
+        )}
         <FieldGrid>
           <Field label="New messages at" htmlFor={`${id}-newest`}>
             <SegmentedControl

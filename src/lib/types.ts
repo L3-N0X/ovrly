@@ -460,6 +460,13 @@ export interface ChatStyle extends BaseElementStyle {
   dividerColor?: string;
   /** The timestamp; a dimmed message color by default. */
   timeColor?: string;
+  /**
+   * Off by default. On, that part is written in the color the chatter's name is shown in
+   * (their own or `nameColor`, see `useUserColors`) instead of its own color.
+   */
+  messageInNameColor?: boolean;
+  dividerInNameColor?: boolean;
+  timeInNameColor?: boolean;
   /** Names fall back to the message font. */
   nameFontFamily?: string;
   nameFontSize?: number;
